@@ -31,6 +31,10 @@ export class GameEngine {
 
   // Client-side interpolation targets for remote players (set by GameCanvas on each broadcast)
   private remoteTargets: Map<string, { x: number; y: number; direction: Player['direction'] }> = new Map();
+
+  // Persistent render positions for remote players — NEVER reset by React's updateState.
+  // This is what actually gets lerped 60fps and drawn. Immune to store resets.
+  private remoteRenderPos: Map<string, { x: number; y: number }> = new Map();
   
   // Callbacks to sync state back to React/Zustand
   public onLocalPlayerMove?: (x: number, y: number, direction: Player['direction']) => void;
@@ -161,36 +165,43 @@ export class GameEngine {
     }
 
     // ── Client-side interpolation for remote players ──
-    // Instead of snapping to broadcast positions (10Hz), we lerp toward a stored
-    // target each frame (60Hz). This gives smooth movement AND correct sprite direction.
+    // remoteRenderPos is the key: it's a persistent position that only lives in the engine
+    // and is NEVER overwritten by React's updateState. This means the lerp always produces
+    // a real non-zero dx each frame → remoteIsMoving = true → correct directional sprite.
     for (const player of this.players) {
       if (player.id === this.localPlayerId) continue;
 
       const target = this.remoteTargets.get(player.id);
 
       if (!target) {
-        // No target yet (player just joined) — initialize and skip this frame
+        // First frame for this player — seed render pos from store, skip lerp
+        this.remoteRenderPos.set(player.id, { x: player.x, y: player.y });
         this.remoteTargets.set(player.id, { x: player.x, y: player.y, direction: player.direction });
         this.lastFacing.set(player.id, player.direction === 'left' ? 'left' : 'right');
         this.playerStates.set(player.id, { state: 'stand_right', isMoving: false });
         continue;
       }
 
-      // Record position BEFORE lerp to detect per-frame movement delta
-      const prevX = player.x;
-      const prevY = player.y;
+      // Get the PERSISTENT render position (never reset by React)
+      const renderPos = this.remoteRenderPos.get(player.id) ?? { x: player.x, y: player.y };
 
-      // Lerp factor: 8 = catches up to target in ~125ms, matching our 100ms broadcast interval
+      const prevX = renderPos.x;
+      const prevY = renderPos.y;
+
+      // Lerp the render position toward the authoritative target
       const lerpFactor = Math.min(1, 8 * deltaTime);
-      player.x += (target.x - player.x) * lerpFactor;
-      player.y += (target.y - player.y) * lerpFactor;
+      const newRenderX = prevX + (target.x - prevX) * lerpFactor;
+      const newRenderY = prevY + (target.y - prevY) * lerpFactor;
 
-      // Detect movement from PER-FRAME delta (runs at 60fps, always smooth)
-      const dx = player.x - prevX;
-      const dy = player.y - prevY;
+      // Persist the smoothed render position for next frame
+      this.remoteRenderPos.set(player.id, { x: newRenderX, y: newRenderY });
+
+      // Detect movement from the per-frame render delta (runs at 60fps — always smooth)
+      const dx = newRenderX - prevX;
+      const dy = newRenderY - prevY;
       const remoteIsMoving = Math.hypot(dx, dy) > 0.05;
 
-      // Update facing from direction of travel this frame
+      // Update facing direction from direction of travel this frame
       let remoteFacing = this.lastFacing.get(player.id) ?? 'right';
       if (dx > 0.05) remoteFacing = 'right';
       else if (dx < -0.05) remoteFacing = 'left';
@@ -200,10 +211,13 @@ export class GameEngine {
         ? (remoteFacing === 'right' ? 'run_right' : 'run_left')
         : (remoteFacing === 'right' ? 'stand_right' : 'stand_left');
 
-      this.playerStates.set(player.id, {
-        state: remoteState,
-        isMoving: remoteIsMoving,
-      });
+      this.playerStates.set(player.id, { state: remoteState, isMoving: remoteIsMoving });
+
+      // Write smooth render coords onto player object so drawPlayers uses them this frame.
+      // (player is a fresh deep-copy from React; overwriting here is safe — next frame
+      //  updateState brings a new copy, but remoteRenderPos survives across frames.)
+      player.x = newRenderX;
+      player.y = newRenderY;
     }
 
     this.camera.update(localPlayer.x, localPlayer.y, deltaTime);
