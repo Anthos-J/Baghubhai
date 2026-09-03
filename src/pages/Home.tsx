@@ -76,7 +76,7 @@ export default function Home() {
         <div className="flex-1 flex flex-col items-center">
           
           <div className="text-center mb-8 mt-4">
-            <h1 className="font-pixel text-5xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-[0_0_15px_rgba(0,240,255,0.5)] leading-tight">
+            <h1 className="font-pixel text-5xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-[0_0_15px_rgba(0,240,255,0.5)] leading-tight whitespace-nowrap">
               &lt;<span className="text-[#0066FF]">AMONG</span> <span className="text-mafia">DEVS</span>&gt;
             </h1>
             <div className="inline-block border-2 border-panelBorder bg-panel/80 px-6 py-2 mt-4 font-mono font-bold tracking-[0.2em] text-sm">

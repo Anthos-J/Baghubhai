@@ -16,7 +16,7 @@ export default function Lobby() {
     <div className="w-full max-w-5xl flex flex-col p-4 relative text-textMain">
       <header className="flex justify-between items-end w-full z-10 p-4 border-b-4 border-panelBorder bg-panel/80">
         <div>
-          <h1 className="font-pixel text-2xl text-white">&lt;<span className="text-[#0066FF]">AMONG</span> <span className="text-mafia">DEVS</span>&gt;</h1>
+          <h1 className="font-pixel text-2xl text-white whitespace-nowrap">&lt;<span className="text-[#0066FF]">AMONG</span> <span className="text-mafia">DEVS</span>&gt;</h1>
           <div className="font-mono text-sm text-gray-400 mt-2">
             ROOM: <span className="text-warning font-bold tracking-widest">{roomId || 'X7K2P'}</span>
           </div>
