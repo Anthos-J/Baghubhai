@@ -15,6 +15,15 @@ import {
   validateTaskModification,
 } from '../editor/privateTasks';
 
+/**
+ * Calculates total cumulative tasks across all active developers/players in the room.
+ */
+export const computeTotalGameTasks = (players: Player[], baseTaskCount: number = 5): number => {
+  const devs = players.filter((p) => p.role !== 'MAFIA');
+  const count = devs.length > 0 ? devs.length : Math.max(1, players.length);
+  return count * baseTaskCount;
+};
+
 export interface ChatMessage {
   id: string;
   playerId: string;
@@ -48,6 +57,16 @@ interface GameStateStore {
   interactableRoom: string | null;
   publicProject: PublicProjectContext;
   myPrivateTasks: PrivatePlayerTask[];
+  // ── Cumulative Multi-Player Tasks ──
+  completedTasksByPlayer: Record<string, string[]>;
+  totalTasksCompleted: number;
+  totalGameTasks: number;
+  syncCumulativeTasks: (data: {
+    completedTasksByPlayer?: Record<string, string[]>;
+    totalTasksCompleted?: number;
+    totalGameTasks?: number;
+    progress?: number;
+  }) => void;
   isLoading: boolean;
   error: string | null;
 
@@ -135,6 +154,9 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   interactableRoom: null,
   publicProject: PUBLIC_PROJECT_CONTEXT,
   myPrivateTasks: [],
+  completedTasksByPlayer: {},
+  totalTasksCompleted: 0,
+  totalGameTasks: 5,
   isLoading: false,
   error: null,
   
@@ -168,7 +190,11 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     }),
 
   // ── Player management ──
-  setRoomPlayers: (players) => set({ players }),
+  setRoomPlayers: (players) =>
+    set((state) => ({
+      players,
+      totalGameTasks: computeTotalGameTasks(players, state.tasks.length),
+    })),
 
   addPlayer: (player) =>
     set((state) => {
@@ -228,8 +254,14 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     // Sync engine state to advance from LOBBY
     get().dispatchEngineAction({ type: 'START_GAME' });
 
+    const totalGameTasks = computeTotalGameTasks(assignedPlayers, 5);
+
     set({
       players: assignedPlayers,
+      totalGameTasks,
+      totalTasksCompleted: 0,
+      completedTasksByPlayer: {},
+      progress: 0,
       gameTimeRemaining: 900,
       isGameTimerPaused: false,
       gamePhase: 'ROLE_REVEAL',
@@ -496,7 +528,33 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       ? 'task-payment'
       : 'task-app';
 
-    const { tasks: nextTasks, progress: nextProgress } = solveTask(state.tasks, legacyTaskId);
+    const { tasks: nextTasks } = solveTask(state.tasks, legacyTaskId);
+
+    // ── Cumulative Multi-Player Task Tracking ──
+    const effectivePlayerId =
+      playerId || state.session?.playerId || (state.players[0]?.id ?? 'local-player-1');
+    const existingPlayerCompleted = state.completedTasksByPlayer[effectivePlayerId] || [];
+    const updatedPlayerCompleted = existingPlayerCompleted.includes(legacyTaskId)
+      ? existingPlayerCompleted
+      : [...existingPlayerCompleted, legacyTaskId];
+
+    const updatedCompletedTasksByPlayer: Record<string, string[]> = {
+      ...state.completedTasksByPlayer,
+      [effectivePlayerId]: updatedPlayerCompleted,
+    };
+
+    const newTotalCompleted = Object.values(updatedCompletedTasksByPlayer).reduce(
+      (sum, list) => sum + list.length,
+      0
+    );
+
+    const totalGameTasks = Math.max(
+      state.tasks.length,
+      computeTotalGameTasks(state.players, state.tasks.length)
+    );
+    const cumulativeProgress = totalGameTasks > 0
+      ? Math.min(100, Math.round((newTotalCompleted / totalGameTasks) * 100))
+      : 0;
 
     // Check victory condition
     const winResult = checkVictory({
@@ -508,7 +566,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       isTimerPaused: false,
       players: state.players,
       tasks: nextTasks,
-      progress: nextProgress,
+      progress: cumulativeProgress,
       alarm: null,
       pendingSabotageAlert: null,
       notifications: [],
@@ -534,10 +592,13 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       lastUpdatedAt: Date.now(),
     });
 
-    if (winResult.winner) {
+    if (winResult.winner || cumulativeProgress >= 100 || newTotalCompleted >= totalGameTasks) {
       set({
         tasks: nextTasks,
-        progress: nextProgress,
+        progress: 100,
+        totalTasksCompleted: newTotalCompleted,
+        totalGameTasks,
+        completedTasksByPlayer: updatedCompletedTasksByPlayer,
         myPrivateTasks: updatedMyTasks,
         gamePhase: 'GAME_OVER',
       });
@@ -547,7 +608,10 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     } else {
       set({
         tasks: nextTasks,
-        progress: nextProgress,
+        progress: cumulativeProgress,
+        totalTasksCompleted: newTotalCompleted,
+        totalGameTasks,
+        completedTasksByPlayer: updatedCompletedTasksByPlayer,
         myPrivateTasks: updatedMyTasks,
       });
     }
@@ -578,7 +642,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
 
     const completedTaskTitle = nextTasks.find((t) => t.id === legacyTaskId)?.title || 'Code Task';
 
-    // Broadcast task completion event so Mafia players receive alert
+    // Broadcast task completion event with cumulative player progress
     if (state.roomId) {
       supabase.channel(`room:${state.roomId}:events`).send({
         type: 'broadcast',
@@ -587,6 +651,11 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
           taskId: legacyTaskId,
           roomName: taskRoomName,
           taskTitle: completedTaskTitle,
+          playerId: effectivePlayerId,
+          completedTasksByPlayer: updatedCompletedTasksByPlayer,
+          totalTasksCompleted: newTotalCompleted,
+          totalGameTasks,
+          progress: cumulativeProgress,
         },
       });
     }
@@ -629,11 +698,35 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       ? 'task-payment'
       : 'task-app';
 
-    const { tasks: nextTasks, progress: nextProgress } = bugTask(state.tasks, legacyTaskId);
+    const { tasks: nextTasks } = bugTask(state.tasks, legacyTaskId);
+
+    // Remove one solved occurrence of this task from cumulative completions
+    let updatedCompletedTasksByPlayer = { ...state.completedTasksByPlayer };
+    for (const [pId, taskList] of Object.entries(updatedCompletedTasksByPlayer)) {
+      if (taskList.includes(legacyTaskId)) {
+        updatedCompletedTasksByPlayer[pId] = taskList.filter((t) => t !== legacyTaskId);
+        break;
+      }
+    }
+
+    const newTotalCompleted = Object.values(updatedCompletedTasksByPlayer).reduce(
+      (sum, list) => sum + list.length,
+      0
+    );
+    const totalGameTasks = Math.max(
+      state.tasks.length,
+      computeTotalGameTasks(state.players, state.tasks.length)
+    );
+    const cumulativeProgress = totalGameTasks > 0
+      ? Math.min(100, Math.round((newTotalCompleted / totalGameTasks) * 100))
+      : 0;
 
     set({
       tasks: nextTasks,
-      progress: nextProgress,
+      progress: cumulativeProgress,
+      totalTasksCompleted: newTotalCompleted,
+      totalGameTasks,
+      completedTasksByPlayer: updatedCompletedTasksByPlayer,
       myPrivateTasks: updatedMyTasks,
     });
 
@@ -684,12 +777,36 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       : 'task-app';
 
     // 1. Mutate task code and revert status to BUGGED
-    const { tasks: updatedTasks, progress: updatedProgress } = bugTask(state.tasks, legacyTaskId);
+    const { tasks: updatedTasks } = bugTask(state.tasks, legacyTaskId);
 
-    // 2. Start the 3-second escape buffer for Mafia
+    // 2. Remove one solved occurrence of this task from cumulative completions
+    let updatedCompletedTasksByPlayer = { ...state.completedTasksByPlayer };
+    for (const [pId, taskList] of Object.entries(updatedCompletedTasksByPlayer)) {
+      if (taskList.includes(legacyTaskId)) {
+        updatedCompletedTasksByPlayer[pId] = taskList.filter((t) => t !== legacyTaskId);
+        break;
+      }
+    }
+
+    const newTotalCompleted = Object.values(updatedCompletedTasksByPlayer).reduce(
+      (sum, list) => sum + list.length,
+      0
+    );
+    const totalGameTasks = Math.max(
+      state.tasks.length,
+      computeTotalGameTasks(state.players, state.tasks.length)
+    );
+    const cumulativeProgress = totalGameTasks > 0
+      ? Math.min(100, Math.round((newTotalCompleted / totalGameTasks) * 100))
+      : 0;
+
+    // 3. Start the 3-second escape buffer for Mafia
     set({
       tasks: updatedTasks,
-      progress: updatedProgress,
+      progress: cumulativeProgress,
+      totalTasksCompleted: newTotalCompleted,
+      totalGameTasks,
+      completedTasksByPlayer: updatedCompletedTasksByPlayer,
       escapeBufferSeconds: 3,
     });
 
@@ -702,7 +819,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
         clearInterval(interval);
         set({ escapeBufferSeconds: null });
 
-        // 3. After 3 seconds, sound global red-yellow alarm!
+        // 4. After 3 seconds, sound global red-yellow alarm!
         get().triggerAlarm(
           roomName,
           `CRITICAL ALERT: Code bugged in ${roomName}! Developers must resolve the issue!`
@@ -718,11 +835,43 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
               roomName,
               taskId: legacyTaskId,
               message: `CRITICAL ALERT: Code bugged in ${roomName}! Developers must resolve the issue!`,
+              completedTasksByPlayer: updatedCompletedTasksByPlayer,
+              totalTasksCompleted: newTotalCompleted,
+              totalGameTasks,
+              progress: cumulativeProgress,
             },
           });
         }
       }
     }, 1000);
+  },
+
+  syncCumulativeTasks: (data) => {
+    const state = get();
+    const completedTasksByPlayer = data.completedTasksByPlayer ?? state.completedTasksByPlayer;
+    const totalTasksCompleted =
+      data.totalTasksCompleted ??
+      Object.values(completedTasksByPlayer).reduce((s, l) => s + l.length, 0);
+    const totalGameTasks = data.totalGameTasks ?? state.totalGameTasks;
+    const progress =
+      data.progress ??
+      (totalGameTasks > 0
+        ? Math.min(100, Math.round((totalTasksCompleted / totalGameTasks) * 100))
+        : 0);
+
+    const isGameOver = progress >= 100 || (totalGameTasks > 0 && totalTasksCompleted >= totalGameTasks);
+
+    set({
+      completedTasksByPlayer,
+      totalTasksCompleted,
+      totalGameTasks,
+      progress,
+      gamePhase: isGameOver ? 'GAME_OVER' : state.gamePhase,
+    });
+
+    if (isGameOver && state.roomId) {
+      updateRoomPhase(state.roomId, 'GAME_OVER');
+    }
   },
 
   // ── UI state ──
@@ -753,6 +902,9 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       gamePhase: 'LOBBY',
       tasks: getDefaultTasks(),
       progress: 0,
+      completedTasksByPlayer: {},
+      totalTasksCompleted: 0,
+      totalGameTasks: 5,
       interactableRoom: null,
       myPrivateTasks: [],
       isLoading: false,

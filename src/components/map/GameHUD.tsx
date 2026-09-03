@@ -54,13 +54,37 @@ export default function GameHUD() {
   const mafiaNotifications = useMockStore((s) => s.mafiaNotifications);
   const triggerBugTaskAction = useMockStore((s) => s.triggerBugTaskAction);
 
+  // ── Cumulative Multi-Player Tasks Hookup ──
+  const totalTasksCompleted = useMockStore((s) => s.totalTasksCompleted);
+  const totalGameTasks = useMockStore((s) => s.totalGameTasks);
+  const completedTasksByPlayer = useMockStore((s) => s.completedTasksByPlayer);
+
   const isAlive = localPlayer ? localPlayer.alive : true;
   const isGhost = !isAlive;
   const isMafia = localPlayer?.role === 'MAFIA';
 
+  // Active developers / crewmates who have tasks to complete
+  const developerPlayers = players.filter((p) => p.role !== 'MAFIA');
+  const activeDevelopersCount = developerPlayers.length > 0 ? developerPlayers.length : Math.max(1, players.length);
+
+  // Effective cumulative total tasks across all players
+  const effectiveTotalGameTasks = Math.max(
+    tasks.length,
+    totalGameTasks > 0 ? totalGameTasks : activeDevelopersCount * tasks.length
+  );
+  const effectiveTotalCompleted = Math.min(effectiveTotalGameTasks, totalTasksCompleted);
+  const cumulativeProgressPercent = effectiveTotalGameTasks > 0
+    ? Math.min(100, Math.round((effectiveTotalCompleted / effectiveTotalGameTasks) * 100))
+    : (progress ?? 0);
+
+  // Local player's own task list & count
   const isTaskCompleted = (t: (typeof tasks)[0]) => t.status === 'COMPLETED' || Boolean(t.completed);
-  const completedCount = tasks.filter(isTaskCompleted).length;
-  const progressPercent = tasks.length > 0 ? (completedCount / tasks.length) * 100 : (progress ?? 0);
+  const myCompletedList = localPlayer?.id && completedTasksByPlayer[localPlayer.id]
+    ? completedTasksByPlayer[localPlayer.id]
+    : [];
+  const myCompletedCount = myCompletedList.length > 0
+    ? myCompletedList.length
+    : tasks.filter(isTaskCompleted).length;
 
   // Determine room task for interactable zone
   const roomTaskId = interactableRoom ? getTaskIdForRoom(interactableRoom) : null;
@@ -210,15 +234,22 @@ export default function GameHUD() {
             <div className="font-tech text-gray-300 text-[11px] tracking-wider uppercase flex items-center gap-2">
               <span>TOTAL TASKS COMPLETED</span>
               <span className="font-mono text-success font-bold">
-                {completedCount}/{tasks.length}
+                {effectiveTotalCompleted}/{effectiveTotalGameTasks}
               </span>
             </div>
             <div className="w-56 sm:w-80 h-3 bg-black border border-[#444] mt-1 relative overflow-hidden rounded-xs">
               <div
                 className="h-full bg-success transition-all duration-500 shadow-[0_0_10px_#00FF00]"
-                style={{ width: `${progressPercent}%` }}
+                style={{ width: `${cumulativeProgressPercent}%` }}
               />
             </div>
+            {activeDevelopersCount > 1 && (
+              <div className="font-tech text-[9px] text-gray-400 mt-0.5 tracking-wider uppercase flex items-center gap-1.5">
+                <span className="text-primary font-bold">{activeDevelopersCount} PLAYERS</span>
+                <span>•</span>
+                <span>CUMULATIVE CREW PROGRESS ({cumulativeProgressPercent}%)</span>
+              </div>
+            )}
           </div>
 
           {/* Shifted Game Timer directly under Task Bar */}
@@ -271,13 +302,15 @@ export default function GameHUD() {
               </>
             ) : (
               <>
-                <CheckSquare size={14} /> CODE TASKS
+                <CheckSquare size={14} /> MY CODE TASKS
               </>
             )}
           </span>
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] text-gray-400">
-              {completedCount}/{tasks.length}
+              {isMafia
+                ? `${tasks.filter((t) => t.status === 'BUGGED').length} BUGGED`
+                : `${myCompletedCount}/${tasks.length}`}
             </span>
             <button
               onClick={() => setTasksCollapsed(!tasksCollapsed)}
@@ -292,7 +325,9 @@ export default function GameHUD() {
         {!tasksCollapsed && (
           <div className="flex flex-col gap-1.5 max-h-[200px] sm:max-h-[250px] overflow-y-auto pr-1 custom-scrollbar text-xs">
             {tasks.map((task) => {
-              const completed = isTaskCompleted(task);
+              const completed = isMafia
+                ? isTaskCompleted(task)
+                : myCompletedList.includes(task.id) || isTaskCompleted(task);
               const isBugged = task.status === 'BUGGED';
 
               return (

@@ -219,8 +219,11 @@ export class GameEngine {
     const screenY = localPlayer.y - this.camera.y + height / 2;
 
     const isGhost = !localPlayer.alive;
-    const innerRadius = isGhost ? 380 : 180;
-    const outerRadius = isGhost ? 680 : 360;
+    const isMafia = localPlayer.role === 'MAFIA';
+
+    // Generously increased vision radius around the player
+    const innerRadius = isGhost ? 600 : isMafia ? 420 : 340;
+    const outerRadius = isGhost ? 1000 : isMafia ? 800 : 680;
     const shadowOpacity = isGhost ? 0.35 : 0.94;
 
     ctx.save();
@@ -236,26 +239,26 @@ export class GameEngine {
     );
 
     gradient.addColorStop(0, 'rgba(4, 7, 14, 0)');
-    gradient.addColorStop(0.3, 'rgba(4, 7, 14, 0.2)');
-    gradient.addColorStop(0.65, 'rgba(4, 7, 14, 0.65)');
-    gradient.addColorStop(0.9, `rgba(4, 7, 14, ${shadowOpacity * 0.92})`);
+    gradient.addColorStop(0.35, 'rgba(4, 7, 14, 0.15)');
+    gradient.addColorStop(0.7, 'rgba(4, 7, 14, 0.6)');
+    gradient.addColorStop(0.92, `rgba(4, 7, 14, ${shadowOpacity * 0.92})`);
     gradient.addColorStop(1, `rgba(4, 7, 14, ${shadowOpacity})`);
 
     // Fill screen with darkness & illuminated player vision circle
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Add subtle ambient vignette at far screen edges
+    // Subtle edge vignette
     const vignette = ctx.createRadialGradient(
       width / 2,
       height / 2,
-      Math.min(width, height) * 0.45,
+      Math.min(width, height) * 0.55,
       width / 2,
       height / 2,
-      Math.max(width, height) * 0.8
+      Math.max(width, height) * 0.85
     );
     vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
 

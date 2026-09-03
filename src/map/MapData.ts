@@ -32,13 +32,13 @@ export const SPAWN_POSITION = {
 };
 
 export const MAP_ROOMS: RoomData[] = [
-  { id: 'central_hub', name: 'CENTRAL HUB / CAFETERIA', x: 1060, y: 560, w: 740, h: 680, color: '#333333' },
-  { id: 'library', name: 'LIBRARY & ARCHIVES', x: 260, y: 60, w: 860, h: 620, color: '#00F0FF' },
-  { id: 'medbay', name: 'MEDICAL BAY', x: 1440, y: 50, w: 960, h: 620, color: '#00FF66' },
-  { id: 'storage', name: 'STORAGE & CARGO', x: 2220, y: 540, w: 720, h: 640, color: '#FFA500' },
-  { id: 'command', name: 'COMMAND & TECH', x: 1840, y: 1140, w: 920, h: 740, color: '#8A2BE2' },
-  { id: 'dev_lab', name: 'DEV WORKSTATIONS', x: 820, y: 1300, w: 760, h: 680, color: '#00F0FF' },
-  { id: 'mafia_lair', name: 'DARK LAIR', x: 120, y: 920, w: 720, h: 700, color: '#FF003C' },
+  { id: 'central_hub', name: 'CENTRAL HUB / CAFETERIA', x: 1160, y: 680, w: 600, h: 440, color: '#00F0FF' },
+  { id: 'library', name: 'LIBRARY & ARCHIVES', x: 260, y: 120, w: 720, h: 440, color: '#38bdf8' },
+  { id: 'medbay', name: 'MEDICAL BAY', x: 1680, y: 120, w: 740, h: 440, color: '#10b981' },
+  { id: 'storage', name: 'STORAGE & CARGO', x: 2360, y: 660, w: 560, h: 440, color: '#f59e0b' },
+  { id: 'command', name: 'COMMAND & TECH', x: 1940, y: 1280, w: 740, h: 460, color: '#a855f7' },
+  { id: 'dev_lab', name: 'DEV WORKSTATIONS', x: 920, y: 1360, w: 640, h: 440, color: '#06b6d4' },
+  { id: 'mafia_lair', name: 'DARK LAIR', x: 180, y: 1040, w: 560, h: 460, color: '#ef4444' },
 ];
 
 export const EMERGENCY_TERMINAL: RoomData = {

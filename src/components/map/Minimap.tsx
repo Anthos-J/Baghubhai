@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Maximize2 } from 'lucide-react';
-import { MAP_ROOMS, CORRIDOR_FLOORS, WORLD_WIDTH, WORLD_HEIGHT } from '../../map/MapData';
+import { MAP_ROOMS, WORLD_WIDTH, WORLD_HEIGHT } from '../../map/MapData';
 import { usePlayers } from '../../hooks/usePlayers';
 
 // ── Authentic Game Developer Avatar Icon (Matching game graphics) ──
@@ -25,6 +25,19 @@ export function DeveloperAvatar({ className = "w-5 h-5", count }: { className?: 
     </div>
   );
 }
+
+const MINIMAP_CORRIDORS = [
+  'M 980,440 L 1070,440 L 1070,780 L 1160,780',
+  'M 460,560 L 460,1040',
+  'M 1560,680 L 1560,620 L 1720,620 L 1720,560',
+  'M 2420,440 L 2540,440 L 2540,660',
+  'M 1760,880 L 2360,880',
+  'M 1320,1120 L 1320,1360',
+  'M 1640,1120 L 1640,1220 L 1840,1220 L 1840,1400 L 1940,1400',
+  'M 1560,1540 L 1940,1540',
+  'M 740,1200 L 830,1200 L 830,1440 L 920,1440',
+  'M 830,1200 L 1020,1200 L 1020,1020 L 1160,1020',
+];
 
 interface MinimapProps {
   onExpand: () => void;
@@ -77,23 +90,32 @@ export default function Minimap({ onExpand }: MinimapProps) {
         {/* Subtle Green Radar Sweep Effect */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-success/5 via-transparent to-black/60 pointer-events-none" />
 
-        {/* ── SVG Corridor Pathways ── */}
+        {/* ── SVG Corridor Conduits ── */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
           viewBox={`0 0 ${WORLD_WIDTH} ${WORLD_HEIGHT}`}
           preserveAspectRatio="none"
         >
-          {CORRIDOR_FLOORS.map((corridor, idx) => (
-            <rect
-              key={idx}
-              x={corridor.x}
-              y={corridor.y}
-              width={corridor.w}
-              height={corridor.h}
-              fill="#00ff66"
-              opacity="0.25"
-              rx="12"
-            />
+          {MINIMAP_CORRIDORS.map((dPath, idx) => (
+            <g key={idx}>
+              <path
+                d={dPath}
+                fill="none"
+                stroke="#172554"
+                strokeWidth="48"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.8"
+              />
+              <path
+                d={dPath}
+                fill="none"
+                stroke="#00F0FF"
+                strokeWidth="4"
+                strokeDasharray="14 10"
+                opacity="0.5"
+              />
+            </g>
           ))}
         </svg>
 
