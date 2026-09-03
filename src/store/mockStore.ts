@@ -282,26 +282,21 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     const totalGameTasks = computeTotalGameTasks(assignedPlayers, 5);
 
     set({
-<<<<<<< HEAD
-      players: assignedPlayers,
+      players: assignedPlayers.map((p) => ({ ...p, meetingsCalledCount: 0 })),
       engineState: {
         ...get().engineState,
         phase: 'ROLE_REVEAL',
         phaseTimer: 4,
         players: assignedPlayers,
-        gameTimeRemaining: 900,
-        totalGameTime: 900,
+        gameTimeRemaining: duration,
+        totalGameTime: duration,
         winner: null,
       },
       totalGameTasks,
       totalTasksCompleted: 0,
       completedTasksByPlayer: {},
       progress: 0,
-      gameTimeRemaining: 900,
-=======
-      players: assignedPlayers.map((p) => ({ ...p, meetingsCalledCount: 0 })),
       gameTimeRemaining: duration,
->>>>>>> origin/nishit
       isGameTimerPaused: false,
       gamePhase: 'ROLE_REVEAL',
     });
