@@ -1,24 +1,36 @@
-import React, { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '../../hooks/useGame';
 import { GameButton } from '../ui/GameButton';
 import { AlertTriangle } from 'lucide-react';
+import { RoomEditorModal, isCodingRoom } from '../../editor';
 
 export default function GameHUD() {
   const { interactableRoom, callMeeting } = useGame();
+  const [editorOpen, setEditorOpen] = useState(false);
 
-  // Listen to 'E' key when there is an interactable room
+  // Close editor if player walks away from the room zone
+  useEffect(() => {
+    if (!interactableRoom) {
+      setEditorOpen(false);
+    }
+  }, [interactableRoom]);
+
+  // Listen to 'E' key when there is an interactable coding room
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'e' && interactableRoom) {
-        console.log(`Opening Editor for room: ${interactableRoom}`);
-        // Hand off to Person 2
-        // e.g., openEditor(interactableRoom);
+      if (
+        e.key.toLowerCase() === 'e' &&
+        interactableRoom &&
+        isCodingRoom(interactableRoom) &&
+        !editorOpen
+      ) {
+        setEditorOpen(true);
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [interactableRoom]);
+  }, [interactableRoom, editorOpen]);
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4">
@@ -39,8 +51,11 @@ export default function GameHUD() {
 
       {/* Center Interaction Overlay */}
       <div className="flex flex-col items-center justify-center flex-1">
-        {interactableRoom && (
-          <div className="bg-panel/95 border-4 border-primary p-6 animate-pulse text-center shadow-[0_0_30px_rgba(0,240,255,0.3)]">
+        {interactableRoom && !editorOpen && isCodingRoom(interactableRoom) && (
+          <div
+            onClick={() => setEditorOpen(true)}
+            className="bg-panel/95 border-4 border-primary p-6 animate-pulse text-center shadow-[0_0_30px_rgba(0,240,255,0.3)] pointer-events-auto cursor-pointer hover:border-warning transition-colors"
+          >
             <div className="font-pixel text-xl text-primary mb-2">[{interactableRoom}]</div>
             <div className="font-tech text-white">Press <span className="text-warning font-bold">[E]</span> to Access Terminal</div>
           </div>
@@ -51,11 +66,25 @@ export default function GameHUD() {
       <div className="flex justify-end pointer-events-auto">
         {/* Placeholder for Emergency Terminal Zone interaction */}
         {interactableRoom === 'EMERGENCY_TERMINAL' && (
-          <GameButton variant="warning" icon={<AlertTriangle />} onClick={callMeeting} className="text-xl px-8 py-4 animate-bounce">
+          <GameButton variant="danger" icon={<AlertTriangle />} onClick={callMeeting} className="text-xl px-8 py-4 animate-bounce">
             CALL EMERGENCY MEETING
           </GameButton>
         )}
       </div>
+
+      {/* Room Editor Modal Overlay */}
+      {editorOpen && interactableRoom && isCodingRoom(interactableRoom) && (
+        <div className="pointer-events-auto">
+          <RoomEditorModal
+            roomId={interactableRoom}
+            onClose={() => setEditorOpen(false)}
+            onTaskPassed={(taskId) => {
+              console.log(`Task passed in ${interactableRoom}: ${taskId}`);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
+
