@@ -63,6 +63,11 @@ src/
 - Initially build your components accepting standard props (e.g., `gameState`, `players`, `onVote`).
 - Once Person 3 and 4 have the Supabase hooks ready, wrap your components in container components that map the backend state to your props.
 
+## CODE MAFIA VISUAL DESIGN SYSTEM
+The game uses a **Pixel-Art Sci-Fi Control Room** aesthetic. 
+You are responsible for applying this design system throughout all pages.
+Do NOT introduce a separate visual style for your feature. Use the shared design tokens, PixelCard, GameButton, and retro typography established in `src/index.css` and `tailwind.config.js`.
+
 ## Section 9 — Important DON'Ts
 - **DON'T** implement the Monaco Editor logic or file parsing (Person 2's job).
 - **DON'T** write complex backend synchronization logic inside your UI components.

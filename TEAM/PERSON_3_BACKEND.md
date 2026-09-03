@@ -57,6 +57,11 @@ src/
 - Provide a clean API surface in `src/hooks/` and `src/lib/api.ts` so the frontend doesn't need to write raw Supabase queries.
 - Clearly document the payload structure of Realtime events.
 
+## CODE MAFIA VISUAL DESIGN SYSTEM
+The game uses a **Pixel-Art Sci-Fi Control Room** aesthetic. 
+You should preserve backend functionality and should not change backend design except where UI state/data requirements require it.
+Do NOT introduce a separate visual style for your feature.
+
 ## Section 9 — Important DON'Ts
 - **DON'T** overcomplicate the database. Normalize only where necessary.
 - **DON'T** send every player's secret role to every browser. Server may store roles, but clients only receive their own role unless the game is over.

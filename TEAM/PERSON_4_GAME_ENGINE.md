@@ -58,6 +58,11 @@ src/
 - Expose pure functions for state transitions where possible.
 - Work with Person 3 to ensure your engine logic runs securely.
 
+## CODE MAFIA VISUAL DESIGN SYSTEM
+The game uses a **Pixel-Art Sci-Fi Control Room** aesthetic. 
+You must style Mafia controls, meetings, voting, elimination, game state and game events using the same design language.
+Do NOT introduce a separate visual style for your feature. Use the shared design tokens from the design system.
+
 ## Section 9 — Important DON'Ts
 - **DON'T** let the game state get stuck in an unresolvable phase. Implement fallback timers.
 - **DON'T** overcomplicate Mafia actions. Use simple, predefined, controlled mutations (e.g., `AND` -> `OR`).

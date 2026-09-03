@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-textMain font-tech overflow-x-hidden min-h-screen;
+    background-image: 
+      linear-gradient(rgba(0, 240, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: center center;
+  }
+}
+
+@layer components {
+  /* Common Pixel Card/Panel Style */
+  .pixel-panel {
+    @apply bg-panel border-4 border-[#1A233A] relative;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 10px 30px rgba(0,0,0,0.5);
+  }
+  
+  .pixel-panel-header {
+    @apply border-b-4 border-[#1A233A] bg-[#0d1426] px-4 py-2 font-pixel text-xs text-primary;
+  }
+
+  /* Buttons */
+  .game-button {
+    @apply relative px-6 py-3 font-pixel text-xs sm:text-sm uppercase tracking-wider transition-all duration-100 flex items-center justify-center gap-3;
+    border: 4px solid;
+    text-shadow: 2px 2px 0px rgba(0,0,0,0.7);
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3);
+  }
+  
+  .game-button:active {
+    transform: translateY(4px);
+    box-shadow: inset 0 0px 0 rgba(0,0,0,0.3);
+  }
+
+  .btn-primary {
+    @apply bg-[#0055ff] border-[#00F0FF] text-white hover:bg-[#0077ff] hover:shadow-glow-primary;
+  }
+  
+  .btn-success {
+    @apply bg-[#008800] border-[#00FF66] text-white hover:bg-[#00aa00] hover:shadow-glow-success;
+  }
+  
+  .btn-mafia {
+    @apply bg-[#aa0000] border-[#FF003C] text-white hover:bg-[#cc0000] hover:shadow-glow-mafia;
+  }
+  
+  .btn-purple {
+    @apply bg-[#5500aa] border-[#9D00FF] text-white hover:bg-[#7700cc];
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent border-[#1A233A] text-textMuted hover:border-primary hover:text-primary;
+  }
+}
+
+/* Global Scanline Overlay */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+  background-size: 100% 4px;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0.6;
+}

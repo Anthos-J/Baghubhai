@@ -66,6 +66,11 @@ src/
 - Expose a `<CodeEditor />` component that takes `currentFile`, `codeContent`, and `onChange` callbacks.
 - Expose a `runTests(filesState)` function that returns a boolean or list of passed tasks.
 
+## CODE MAFIA VISUAL DESIGN SYSTEM
+The game uses a **Pixel-Art Sci-Fi Control Room** aesthetic. 
+You must style Monaco/editor/file-tree integration to match the design system without breaking editor functionality.
+Do NOT introduce a separate visual style for your feature.
+
 ## Section 9 — Important DON'Ts
 - **DON'T** implement arbitrary remote code execution (RCE).
 - **DON'T** let Mafia type arbitrary malicious code; use predefined bug mutations only.
