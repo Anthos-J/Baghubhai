@@ -69,6 +69,8 @@ export function usePlayerMovement(roomId: string, playerId: string) {
     };
   }, [roomId, playerId]);
 
+  const lastBroadcastRef = useRef<number>(0);
+
   // Stable broadcast function that reuses the subscribed channel
   const broadcastMovement = useCallback(
     async (x: number, y: number, direction: string) => {
@@ -76,6 +78,12 @@ export function usePlayerMovement(roomId: string, playerId: string) {
 
       // Update local state instantly
       useMockStore.getState().updatePlayerPosition(playerId, x, y, direction as any);
+
+      const now = Date.now();
+      if (now - lastBroadcastRef.current < 100) {
+        return; // Throttle to 10Hz to prevent Supabase Realtime collapse
+      }
+      lastBroadcastRef.current = now;
 
       // Broadcast to other clients via the existing channel
       if (channelRef.current) {
