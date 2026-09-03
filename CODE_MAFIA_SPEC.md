@@ -20,21 +20,32 @@ Code Mafia is a multiplayer collaborative debugging game inspired by social-dedu
 ## Roles
 
 **Developer:**
-- Must collaborate to fix bugs in the predefined files.
-- Can run deterministic tests to verify fixes.
-- Monitors file presence and code changes to spot suspicious behavior.
-- Votes during emergency meetings to eliminate Mafia.
+- Fix predefined bugs/tasks.
+- Run deterministic tests.
+- Increase global progress.
+- Identify and vote out Mafia.
 
 **Mafia:**
-- Appears as a regular Developer.
-- Can secretly trigger predefined bug injections (e.g., changing `AND` to `OR`).
-- Can trigger global sabotages (e.g., Server Overload, Syntax Blackout).
-- Must avoid detection by lying or misdirecting during meetings.
+- Secretly sabotage the codebase.
+- Inject predefined bugs.
+- Trigger simple sabotage events (Syntax Blackout, Server Overload).
+- Avoid being voted out.
 
 **Ghost:**
 - Eliminated players become Ghosts.
-- Cannot edit code or participate in voting/meetings.
-- Can spectate the game and chat with other Ghosts.
+- Can view but cannot edit, vote, or sabotage.
+
+## What We Will Not Build (Out of Scope)
+- Arbitrary remote code execution (RCE).
+- A full Git client.
+- Full VS Code functionality.
+- Voice/Video chat.
+- Matchmaking, social profiles, friend systems.
+- Mobile applications.
+- Complicated authentication.
+- Huge codebases.
+- Complex CRDT collaboration systems (we use a simplified lock/sync or basic presence).
+- AI-generated bugs.
 
 ## Core Mechanics
 - **Tasks:** Predefined fixes the Developers must make.
@@ -46,35 +57,28 @@ Code Mafia is a multiplayer collaborative debugging game inspired by social-dedu
 - **Voting & Elimination:** Democratic removal of suspected Mafia.
 - **Win Conditions:** Developers win by completing all tasks/tests. Mafia wins by eliminating Developers or time running out.
 
-## Technology
-- Frontend: React, Vite, TypeScript, Tailwind CSS, shadcn/ui, Monaco Editor
-- Backend: Supabase (PostgreSQL, Auth, Realtime)
-- Hosting: Vercel
+## 18-Hour Timeline
+- **HOUR 0-1:** GitHub, Supabase, React/Vite, Env vars, Folder structure.
+- **HOUR 1-3:** Initial UI and Backend scaffolding.
+- **HOUR 3:** FIRST INTEGRATION (Player A creates room, Player B joins).
+- **HOUR 3-5:** Connect UI to Supabase (Create -> Join -> Lobby -> Start -> Role Reveal).
+- **HOUR 5-7:** Connect File Tree -> Monaco -> Supabase -> Realtime.
+- **HOUR 7-9:** Tasks + deterministic tests.
+- **HOUR 9:** STOP. Test the full Developer loop.
+- **HOUR 9-11:** Mafia controls (Bug injection, Syntax Blackout, Server Overload).
+- **HOUR 11:** Verify Dev fixes -> tests pass -> Mafia injects -> tests fail.
+- **HOUR 11-13:** Emergency meeting, chat, activity log, voting.
+- **HOUR 13-14:** Elimination, Ghost mode, Victory, Restart.
+- **HOUR 14-15:** UI polish, Animations, Notifications.
+- **HOUR 15-16:** Deploy, Multiplayer testing.
+- **HOUR 16-17:** Demo preparation (PPT, flow).
+- **HOUR 17-18:** Only critical bug fixes. No new features.
 
-## MVP Requirements
-- Multiplayer lobby and room joining.
-- Secret role assignment and role reveal.
-- Shared code editor (Monaco) with a small, predefined project.
-- Ability for Developers to edit code and run tests.
-- Ability for Mafia to inject predefined bugs.
-- Emergency meetings, voting, and player elimination.
-- Win/loss condition evaluation.
-- Real-time synchronization of game state via Supabase.
-
-## Explicitly Out of Scope
-- Arbitrary remote code execution (RCE).
-- A full Git client.
-- Full VS Code functionality.
-- Voice/Video chat.
-- Matchmaking, social profiles, friend systems.
-- Mobile applications.
-- Complex CRDT collaboration systems (we use a simplified lock/sync or basic presence).
-- AI-generated bugs.
-
-## Important Architectural Rules
-- **Keep implementation simple:** This is an 18-hour hackathon. MVP is the priority.
-- **Do not duplicate business logic unnecessarily:** Keep game engine logic centralized where possible.
-- **Do not allow frontend users to expose hidden roles:** Use RLS and secure backend checks. A client should NEVER receive other players' roles unless they are eliminated.
-- **Do not implement arbitrary code execution:** Tests and bugs are predefined and deterministic.
-- **Prefer deterministic game behavior:** Predictable state transitions.
-- **Make components modular:** Easy for 4 people to work in parallel.
+## Milestones
+1. Two players can join the same room.
+2. They enter a game with different secret roles.
+3. They can access/synchronize the codebase.
+4. A Developer can complete a task.
+5. Mafia can break a task.
+6. Players can meet and vote.
+7. Someone wins.

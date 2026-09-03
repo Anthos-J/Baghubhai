@@ -43,12 +43,15 @@ src/
     VotingScreen.tsx
 ```
 
-## Section 6 — Implementation order
-- **Phase 1:** Set up routing, Landing page, Create/join room screens (using mock state).
-- **Phase 2:** Lobby, Player list, Host controls, Role reveal.
-- **Phase 3:** Main dashboard layout, File tree (UI only), Editor container, Player panel, Task panel, Progress bar.
-- **Phase 4:** Mafia panel, Emergency meeting, Chat, Voting, Elimination, Result screen.
-- **Phase 5:** Animations, Notifications, Responsive design, Final visual polish.
+## Section 6 — Implementation order (18-Hour Hackathon Timeline)
+- **HOUR 1-3:** Landing, Lobby, Role screen, Game layout.
+- **HOUR 3-5:** Connect UI to Supabase with Person 3 (Goal: Create Room -> Join -> Lobby -> Start -> Role Reveal).
+- **HOUR 5-7:** Integrate Monaco and File Tree with Person 2 and 3.
+- **HOUR 7-9:** Build Task and Test UI.
+- **HOUR 11-13:** Build Emergency meeting, Chat, Activity log, Diff evidence, Voting UI.
+- **HOUR 13-14:** Build Elimination, Ghost mode, Victory screens.
+- **HOUR 14-15:** UI polish, Animations, Notifications, Better visual hierarchy.
+- **HOUR 15-18:** Deploy, Multiplayer test, Critical bug fixes.
 
 ## Section 7 — Definition of Done
 - All views are implemented and visually polished.

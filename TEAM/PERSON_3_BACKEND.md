@@ -1,30 +1,25 @@
 # PERSON 3 — BACKEND / SUPABASE / REALTIME
 
 ## Section 1 — Role
-You are the Backend Lead. You manage the Supabase instance, database schema, Row Level Security (RLS), and Realtime synchronization. Your primary goal is to ensure the game state is synchronized across all clients securely and efficiently.
+You are the Backend Lead. You manage the Supabase instance, database schema, RLS, and Realtime synchronization. You also own integration and deployment to Vercel.
 
 ## Section 2 — Responsibilities
-- Supabase project setup and configuration
-- Database schema and SQL migrations
-- Row Level Security (RLS) policies
-- Room creation and joining logic
-- Player management and Host permissions
-- Game creation and synchronized Game state
-- Realtime subscriptions (Presence, Database changes)
+- Supabase project setup, Database schema, RLS
+- Rooms, Players, Files, Tasks, Events, Votes
+- Game state synchronization and Realtime subscriptions
 - Secure role handling (ensuring Mafia identity is secret)
-- Event logging (Audit trail)
-- Voting persistence and Elimination state
-- Win condition state storage
+- Host permissions
+- Deployment/integration owner
 
 ## Section 3 — Deliverables
-- A functional Supabase backend with `rooms`, `players`, `files`, `tasks`, `events`, and `votes` tables.
+- A functional Supabase backend with all required tables.
 - RLS policies that prevent a client from querying other players' secret roles.
 - React hooks/utility functions for the frontend to subscribe to game state changes and presence.
 
 ## Section 4 — Dependencies
-- **Person 1 (Frontend):** Needs your React hooks to display data and trigger actions (e.g., `useGameState()`, `joinRoom()`).
-- **Person 2 (Editor):** Needs endpoints/channels to sync code changes (e.g., `updateFile()`) and file presence.
-- **Person 4 (Game Engine):** Needs database functions or Edge Functions to handle complex state transitions (like role assignment) securely.
+- **Person 1 (Frontend):** Needs your React hooks to display data and trigger actions.
+- **Person 2 (Editor):** Needs endpoints/channels to sync code changes and file presence.
+- **Person 4 (Game Engine):** Needs database functions or Edge Functions to handle complex state transitions securely.
 
 ## Section 5 — Files/components they are expected to work on
 ```
@@ -32,7 +27,6 @@ supabase/
   migrations/
     001_initial_schema.sql
     002_rls_policies.sql
-  functions/ (if using Edge Functions)
 src/
   lib/
     supabase.ts
@@ -42,12 +36,16 @@ src/
     useRealtime.ts
 ```
 
-## Section 6 — Implementation order
-- **Phase 1:** Supabase project setup, Database schema, SQL migrations.
-- **Phase 2:** Rooms and Players logic, RLS setup.
-- **Phase 3:** Game state synchronization, Realtime subscriptions, Secure role access.
-- **Phase 4:** Player presence, Host permissions.
-- **Phase 5:** Votes, Elimination state, Event logging.
+## Section 6 — Implementation order (18-Hour Hackathon Timeline)
+- **HOUR 0-1:** Supabase project setup, environment variables.
+- **HOUR 1-3:** Tables, RLS, Create room, Join room, Player sync.
+- **HOUR 3:** FIRST INTEGRATION. Player A creates room, Player B joins. Both appear in lobby.
+- **HOUR 3-5:** Connect UI to Supabase (getPlayers(), startGame(), getGameState()).
+- **HOUR 5-7:** Connect File Tree -> Monaco -> Supabase -> Realtime.
+- **HOUR 7-9:** Tasks + deterministic tests state synchronization.
+- **HOUR 11-13:** Emergency meeting state, Chat, Activity log, Voting persistence.
+- **HOUR 13-14:** Elimination, Ghost mode state, Victory state.
+- **HOUR 15-16:** Deploy to Vercel. Multiplayer test across multiple browsers/devices.
 
 ## Section 7 — Definition of Done
 - Database schema is fully deployed.
@@ -60,5 +58,5 @@ src/
 - Clearly document the payload structure of Realtime events.
 
 ## Section 9 — Important DON'Ts
-- **DON'T** overcomplicate the database. Normalize only where necessary; this is an MVP.
-- **DON'T** rely on the frontend to assign roles securely. Role assignment MUST happen on the backend (via an Edge Function or Postgres Function) so clients cannot inspect the network traffic to see who is Mafia.
+- **DON'T** overcomplicate the database. Normalize only where necessary.
+- **DON'T** send every player's secret role to every browser. Server may store roles, but clients only receive their own role unless the game is over.
