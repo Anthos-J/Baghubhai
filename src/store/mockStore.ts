@@ -567,14 +567,14 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     // Determine room label for the solved task
     const taskRoomName =
       legacyTaskId === 'task-auth'
-        ? 'AUTH LAB'
+        ? 'LIBRARY & ARCHIVES'
         : legacyTaskId === 'task-utils'
-        ? 'UTILITIES LAB'
+        ? 'STORAGE & CARGO'
         : legacyTaskId === 'task-database'
-        ? 'DATABASE ROOM'
+        ? 'MEDICAL BAY'
         : legacyTaskId === 'task-payment'
-        ? 'PAYMENT LAB'
-        : 'MAINFRAME';
+        ? 'DEV WORKSTATIONS'
+        : 'COMMAND & TECH';
 
     const completedTaskTitle = nextTasks.find((t) => t.id === legacyTaskId)?.title || 'Code Task';
 
