@@ -28,6 +28,18 @@ export default function EmergencyAlertOverlay() {
     return () => clearInterval(timer);
   }, [meetingAlertActive, dismissMeetingAlert]);
 
+  useEffect(() => {
+    if (!meetingAlertActive) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        dismissMeetingAlert();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [meetingAlertActive, dismissMeetingAlert]);
+
   if (!meetingAlertActive) return null;
 
   return (

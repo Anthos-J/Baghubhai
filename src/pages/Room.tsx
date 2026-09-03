@@ -10,6 +10,7 @@ import Lobby from './Lobby';
 import RoleReveal from './RoleReveal';
 import MeetingModal from '../components/meeting/MeetingModal';
 import EmergencyAlertOverlay from '../components/meeting/EmergencyAlertOverlay';
+import AlarmOverlay from '../components/map/AlarmOverlay';
 import GameCanvas from '../map/GameCanvas';
 
 export default function Room() {
@@ -72,6 +73,9 @@ export default function Room() {
     <div className="w-full flex-1 flex flex-col items-center justify-center relative">
       {/* ── Emergency Alert Klaxon Broadcast Overlay ── */}
       <EmergencyAlertOverlay />
+
+      {/* ── Red-Yellow Bugged Codebase Hazard Alarm ── */}
+      <AlarmOverlay />
 
       {(gamePhase === 'LOBBY' || gamePhase === 'ROLE_REVEAL') && (
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">

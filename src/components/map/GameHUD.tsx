@@ -5,7 +5,17 @@ import { usePlayers } from '../../hooks/usePlayers';
 import { useMockStore } from '../../store/mockStore';
 import { leaveRoom } from '../../lib/roomService';
 import { GameButton } from '../ui/GameButton';
-import { AlertTriangle, Clock, Map as MapIcon, CheckSquare, Check, LogOut } from 'lucide-react';
+import {
+  AlertTriangle,
+  Clock,
+  Map as MapIcon,
+  CheckSquare,
+  Check,
+  LogOut,
+  Bug,
+  Flame,
+  Radio,
+} from 'lucide-react';
 import { RoomEditorModal, isCodingRoom, getTaskIdForRoom, getPlayerTaskInRoom } from '../../editor';
 import AdminMapModal from './AdminMapModal';
 
@@ -16,7 +26,6 @@ export default function GameHUD() {
     callMeeting,
     gamePhase,
     progress,
-    completeTask: engineCompleteTask,
     myPrivateTasks,
     publicProject,
   } = useGame();
@@ -38,12 +47,25 @@ export default function GameHUD() {
   const tasks = useMockStore((s) => s.tasks);
   const completeTask = useMockStore((s) => s.completeTask);
 
+  // ── Sabotage & Mafia Hookup ──
+  const escapeBufferSeconds = useMockStore((s) => s.escapeBufferSeconds);
+  const mafiaNotifications = useMockStore((s) => s.mafiaNotifications);
+  const triggerBugTaskAction = useMockStore((s) => s.triggerBugTaskAction);
+
   const isAlive = localPlayer ? localPlayer.alive : true;
   const isGhost = !isAlive;
+  const isMafia = localPlayer?.role === 'MAFIA';
 
   const isTaskCompleted = (t: (typeof tasks)[0]) => t.status === 'COMPLETED' || Boolean(t.completed);
   const completedCount = tasks.filter(isTaskCompleted).length;
   const progressPercent = tasks.length > 0 ? (completedCount / tasks.length) * 100 : (progress ?? 0);
+
+  // Determine room task for interactable zone
+  const roomTaskId = interactableRoom ? getTaskIdForRoom(interactableRoom) : null;
+  const roomTask = tasks.find(
+    (t) => t.id === roomTaskId || (roomTaskId && t.id.includes(roomTaskId.replace('task-', '')))
+  );
+  const canBugThisRoom = isMafia && roomTask && roomTask.status === 'COMPLETED' && escapeBufferSeconds === null;
 
   useEffect(() => {
     if (isGameTimerPaused) return;
@@ -81,6 +103,7 @@ export default function GameHUD() {
   // Listen to keyboard shortcuts:
   // - 'E' to open coding room terminal
   // - 'SPACE' or 'E' to trigger emergency meeting when at Emergency Terminal
+  // - 'B' to bug code terminal (Mafia only)
   // - 'M' to toggle map layout
   // - 'Escape' to dismiss modals
   useEffect(() => {
@@ -128,6 +151,13 @@ export default function GameHUD() {
         return;
       }
 
+      // 'B' bugs the task if Mafia is in a room with a solved task
+      if (e.key.toLowerCase() === 'b' && canBugThisRoom && roomTask && interactableRoom) {
+        e.preventDefault();
+        triggerBugTaskAction(roomTask.id, interactableRoom);
+        return;
+      }
+
       if (
         e.key.toLowerCase() === 'e' &&
         isAlive &&
@@ -141,15 +171,13 @@ export default function GameHUD() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [interactableRoom, editorOpen, mapOpen, showExitModal, isAlive, callMeeting, gamePhase]);
+  }, [interactableRoom, editorOpen, mapOpen, showExitModal, isAlive, canBugThisRoom, roomTask, triggerBugTaskAction, callMeeting, gamePhase]);
 
   // Handler for task completion from RoomEditorModal
   const handleTaskPassed = (passedTaskId: string, updatedCode?: string) => {
     completeTask(passedTaskId, localPlayer?.id, updatedCode);
   };
 
-  // Inspect room tasks
-  const roomTaskId = interactableRoom ? getTaskIdForRoom(interactableRoom) : null;
   const currentPrivateTask =
     interactableRoom && localPlayer
       ? getPlayerTaskInRoom(myPrivateTasks, localPlayer.id, interactableRoom)
@@ -202,8 +230,20 @@ export default function GameHUD() {
         </div>
       </div>
 
-      {/* ── 2. TOP RIGHT: Map Button ── */}
+      {/* ── 2. TOP RIGHT: Map Button & Role Badge ── */}
       <div className="absolute top-2 sm:top-3 right-3 sm:right-4 z-40 pointer-events-auto flex items-center gap-2">
+        {/* Role Badge */}
+        {isMafia ? (
+          <div className="px-3 py-1.5 bg-[#FF003C]/20 border-2 border-[#FF003C] text-[#FF003C] text-xs font-pixel flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,0,60,0.5)]">
+            <Flame size={14} className="animate-pulse" />
+            <span>ROLE: MAFIA</span>
+          </div>
+        ) : (
+          <div className="px-3 py-1.5 bg-[#00F0FF]/15 border-2 border-[#00F0FF] text-[#00F0FF] text-xs font-pixel flex items-center gap-1.5">
+            <span>DEVELOPER</span>
+          </div>
+        )}
+
         <button
           onClick={() => setMapOpen((prev) => !prev)}
           className="px-3 py-1.5 bg-panel/90 hover:bg-panel border-2 border-panelBorder hover:border-success text-white text-xs font-tech flex items-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer rounded-xs"
@@ -214,11 +254,19 @@ export default function GameHUD() {
         </button>
       </div>
 
-      {/* ── 3. RIGHT HAND SIDE: Code Tasks Frame ── */}
-      <div className="absolute top-16 right-3 sm:right-4 z-30 pointer-events-auto w-64 sm:w-72 bg-black/85 border-2 border-panelBorder p-3 shadow-2xl backdrop-blur-xs flex flex-col gap-2 animate-in fade-in slide-in-from-right-4 duration-300 rounded-xs">
+      {/* ── 3. RIGHT HAND SIDE: Code Tasks Frame (Customized for Mafia vs Dev) ── */}
+      <div className="absolute top-16 right-3 sm:right-4 z-30 pointer-events-auto w-68 sm:w-76 bg-black/85 border-2 border-panelBorder p-3 shadow-2xl backdrop-blur-xs flex flex-col gap-2 animate-in fade-in slide-in-from-right-4 duration-300 rounded-xs">
         <div className="flex justify-between items-center pb-1.5 border-b border-panelBorder/70">
-          <span className="font-tech text-xs text-warning tracking-wider flex items-center gap-1.5 font-bold">
-            <CheckSquare size={14} /> CODE TASKS
+          <span className={`font-tech text-xs tracking-wider flex items-center gap-1.5 font-bold ${isMafia ? 'text-[#FF003C]' : 'text-warning'}`}>
+            {isMafia ? (
+              <>
+                <Bug size={14} className="text-[#FF003C]" /> SABOTAGE OBJECTIVES
+              </>
+            ) : (
+              <>
+                <CheckSquare size={14} /> CODE TASKS
+              </>
+            )}
           </span>
           <span className="font-mono text-[10px] text-gray-400">
             {completedCount}/{tasks.length}
@@ -228,18 +276,38 @@ export default function GameHUD() {
         <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar text-xs">
           {tasks.map((task) => {
             const completed = isTaskCompleted(task);
+            const isBugged = task.status === 'BUGGED';
+
             return (
               <div
                 key={task.id}
                 className={`p-2 border rounded-xs transition-all flex items-start gap-2 ${
-                  completed
+                  isMafia
+                    ? completed
+                      ? 'bg-yellow-950/40 border-yellow-500 text-yellow-300 shadow-[0_0_10px_rgba(255,184,0,0.2)]'
+                      : isBugged
+                      ? 'bg-red-950/40 border-red-500 text-red-300'
+                      : 'bg-panel/70 border-panelBorder/70 text-gray-400'
+                    : completed
                     ? 'bg-success/15 border-success text-success shadow-[0_0_10px_rgba(0,255,0,0.15)]'
+                    : isBugged
+                    ? 'bg-red-950/40 border-red-500 text-red-300'
                     : 'bg-panel/70 border-panelBorder/70 text-gray-300 hover:border-gray-500'
                 }`}
               >
                 <div className="mt-0.5 flex-shrink-0">
-                  {completed ? (
+                  {isMafia ? (
+                    completed ? (
+                      <Bug size={14} className="text-yellow-400 animate-pulse" />
+                    ) : isBugged ? (
+                      <AlertTriangle size={14} className="text-red-500" />
+                    ) : (
+                      <div className="w-3 h-3 rounded-full border border-gray-600 mt-0.5" />
+                    )
+                  ) : completed ? (
                     <Check size={14} className="text-success stroke-[3]" />
+                  ) : isBugged ? (
+                    <AlertTriangle size={14} className="text-red-500 animate-pulse" />
                   ) : (
                     <div className="w-3 h-3 rounded-full border border-warning/60 bg-warning/20 mt-0.5" />
                   )}
@@ -247,13 +315,35 @@ export default function GameHUD() {
                 <div className="flex-1 min-w-0">
                   <div
                     className={`font-tech font-bold text-[11px] leading-tight ${
-                      completed ? 'text-success' : 'text-white'
+                      isMafia
+                        ? completed
+                          ? 'text-yellow-300'
+                          : isBugged
+                          ? 'text-red-400'
+                          : 'text-gray-400'
+                        : completed
+                        ? 'text-success'
+                        : isBugged
+                        ? 'text-red-400'
+                        : 'text-white'
                     }`}
                   >
                     {task.title}
                   </div>
-                  <div className="font-mono text-[9px] text-gray-400 truncate mt-0.5">
-                    {task.fileName}
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="font-mono text-[9px] text-gray-400 truncate">
+                      {task.fileName}
+                    </span>
+                    {isMafia && completed && (
+                      <span className="font-pixel text-[9px] text-yellow-400 bg-yellow-950/80 px-1 py-0.5 border border-yellow-500">
+                        READY TO BUG ⚠️
+                      </span>
+                    )}
+                    {isBugged && (
+                      <span className="font-pixel text-[9px] text-red-400 bg-red-950/80 px-1 py-0.5 border border-red-500">
+                        BUGGED 🚨
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -262,28 +352,86 @@ export default function GameHUD() {
         </div>
       </div>
 
-      {/* ── 4. Center Terminal Interaction Prompt ── */}
+      {/* ── 4. Center Terminal Interaction / Bug Prompt ── */}
       <div className="flex flex-col items-center justify-center flex-1">
         {isAlive && interactableRoom && !editorOpen && isCodingRoom(interactableRoom) && (
-          <div
-            onClick={() => setEditorOpen(true)}
-            className="bg-panel/95 border-4 border-primary p-6 animate-pulse text-center shadow-[0_0_30px_rgba(0,240,255,0.3)] pointer-events-auto cursor-pointer hover:border-warning transition-colors"
-          >
+          <div className="bg-panel/95 border-4 border-primary p-6 text-center shadow-[0_0_30px_rgba(0,240,255,0.3)] pointer-events-auto cursor-pointer hover:border-warning transition-colors">
             <div className="font-pixel text-xl text-primary mb-2">[{interactableRoom}]</div>
-            <div className="font-tech text-white">
-              Press <span className="text-warning font-bold">[E]</span> to Access Terminal
-              {isGhost && <span className="ml-2 text-mafia text-xs font-bold">[GHOST / READ-ONLY]</span>}
-              {currentPrivateTask && (
-                <div className="mt-1 font-mono text-xs text-primary">
-                  Assigned: {currentPrivateTask.title}
+            
+            {/* If Mafia is in a room with a solved task, show prominent BUG button */}
+            {canBugThisRoom && roomTask ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="bg-yellow-950/60 border border-yellow-500 p-2 text-xs font-tech text-yellow-300">
+                  Target module is currently solved by crew. You can bug it now!
                 </div>
-              )}
-            </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => triggerBugTaskAction(roomTask.id, interactableRoom)}
+                    className="px-5 py-2.5 bg-[#FF003C] hover:bg-[#FF003C]/80 border-2 border-white text-white font-pixel text-xs tracking-wider shadow-[0_0_25px_#FF003C] flex items-center gap-2 cursor-pointer animate-bounce hover:scale-105 transition-transform"
+                  >
+                    <Bug size={18} /> BUG TASK [B]
+                  </button>
+                  <button
+                    onClick={() => setEditorOpen(true)}
+                    className="px-4 py-2 bg-panel hover:bg-panel/80 border border-gray-400 text-gray-200 font-tech text-xs cursor-pointer"
+                  >
+                    Open Editor [E]
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div onClick={() => setEditorOpen(true)} className="font-tech text-white">
+                Press <span className="text-warning font-bold">[E]</span> to Access Terminal
+                {isGhost && <span className="ml-2 text-mafia text-xs font-bold">[GHOST / READ-ONLY]</span>}
+                {currentPrivateTask && (
+                  <div className="mt-1 font-mono text-xs text-primary">
+                    Assigned: {currentPrivateTask.title}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* ── 5. Bottom Left HUD: Emergency Call button ── */}
+      {/* ── 5. Mafia Escape Buffer Countdown (Top Center Banner) ── */}
+      {isMafia && escapeBufferSeconds !== null && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto bg-[#FF003C] border-4 border-white px-6 py-3 shadow-[0_0_50px_#FF003C] animate-pulse flex items-center gap-4">
+          <AlertTriangle size={32} className="text-yellow-300 animate-bounce" />
+          <div className="text-center">
+            <h4 className="font-pixel text-sm sm:text-base text-white tracking-wider">
+              ESCAPE WINDOW ACTIVE!
+            </h4>
+            <p className="font-tech text-xs text-yellow-200 mt-0.5">
+              You have <span className="font-bold text-white text-sm underline">{escapeBufferSeconds}s</span> to evacuate the room before the alarm triggers!
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── 6. Mafia Live Notifications Tray (Bottom Left) ── */}
+      {isMafia && mafiaNotifications.length > 0 && (
+        <div className="fixed bottom-24 left-4 z-40 max-w-xs flex flex-col gap-2 pointer-events-auto">
+          {mafiaNotifications.slice(0, 2).map((n) => (
+            <div
+              key={n.id}
+              className="bg-black/95 border-2 border-yellow-500 p-3 shadow-[0_0_20px_rgba(255,184,0,0.4)] flex items-start gap-2.5 animate-in slide-in-from-left-4 duration-300 rounded-xs"
+            >
+              <Radio size={18} className="text-yellow-400 flex-shrink-0 mt-0.5 animate-pulse" />
+              <div>
+                <div className="font-pixel text-[10px] text-yellow-400 uppercase tracking-wider">
+                  CREW ACTIVITY DETECTED
+                </div>
+                <div className="font-tech text-xs text-white mt-0.5 leading-tight">
+                  {n.message}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── 7. Bottom Left HUD: Emergency Call button ── */}
       <div className="flex justify-between items-end">
         <div className="pointer-events-auto">
           {isAlive && interactableRoom === 'EMERGENCY_TERMINAL' && (
@@ -307,7 +455,7 @@ export default function GameHUD() {
         <div className="pointer-events-auto" />
       </div>
 
-      {/* ── 6. Room Editor Modal Overlay ── */}
+      {/* ── 8. Room Editor Modal Overlay ── */}
       {editorOpen && interactableRoom && isCodingRoom(interactableRoom) && (
         <div className="pointer-events-auto">
           <RoomEditorModal
@@ -324,10 +472,10 @@ export default function GameHUD() {
         </div>
       )}
 
-      {/* ── 7. Admin Facility Map Modal Overlay ── */}
+      {/* ── 9. Admin Facility Map Modal Overlay ── */}
       {mapOpen && <AdminMapModal onClose={() => setMapOpen(false)} />}
 
-      {/* ── 8. Exit Game Confirmation Modal (Yes / No) ── */}
+      {/* ── 10. Exit Game Confirmation Modal (Yes / No) ── */}
       {showExitModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 pointer-events-auto">
           <div className="max-w-md w-full bg-[#111827] border-4 border-mafia p-6 shadow-[0_0_50px_rgba(255,0,60,0.5)] text-center flex flex-col items-center animate-in zoom-in-95 duration-150 rounded-xs">

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Player, GamePhase, LocalSession, TaskItem, GameState as EngineGameState } from '../types/game';
 import { updateRoomPhase, clearSession } from '../lib/roomService';
+import { supabase } from '../lib/supabase';
 import { GameAction, gameReducer, createInitialGameState } from '../game/gameState';
 import { assignRoles } from '../game/roles';
 import { DEFAULT_TASKS, getDefaultTasks, solveTask, bugTask } from '../game/tasks';
@@ -83,7 +84,7 @@ interface GameStateStore {
   setGameTimerPaused: (paused: boolean) => void;
 
   // ── Emergency & Meeting flow ──
-  triggerEmergencyMeeting: (callerName?: string) => void;
+  triggerEmergencyMeeting: (callerName?: string, isRemote?: boolean) => void;
   dismissMeetingAlert: () => void;
   setMeetingSubPhase: (subPhase: MeetingSubPhase) => void;
   tickMeetingTimer: () => void;
@@ -97,6 +98,17 @@ interface GameStateStore {
   completeTask: (taskId: string, playerId?: string, updatedCode?: string) => boolean;
   sabotageTask: (taskId: string) => boolean;
   assignTasks: () => void;
+
+  // ── Sabotage, Escape Buffer & Red-Yellow Alarm ──
+  alarmActive: boolean;
+  alarmMessage: string;
+  alarmRoomName: string;
+  escapeBufferSeconds: number | null;
+  mafiaNotifications: { id: string; message: string; roomName: string; timestamp: number }[];
+  triggerAlarm: (roomName: string, message?: string) => void;
+  clearAlarm: () => void;
+  notifyMafiaTaskCompleted: (taskId: string, roomName: string, taskTitle: string) => void;
+  triggerBugTaskAction: (taskId: string, roomName: string) => void;
 
   // ── UI state ──
   setLoading: (loading: boolean) => void;
@@ -138,6 +150,13 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   meetingChatMessages: [],
   votes: {},
   votingResult: null,
+
+  // ── Sabotage, Escape Buffer & Alarm ──
+  alarmActive: false,
+  alarmMessage: '',
+  alarmRoomName: '',
+  escapeBufferSeconds: null,
+  mafiaNotifications: [],
 
   // ── Session ──
   setSession: (session) =>
@@ -257,12 +276,8 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   },
 
   // ── Emergency & Meeting flow ──
-  triggerEmergencyMeeting: (callerName) => {
-    const { roomId, session, meetingAlertActive, gamePhase } = get();
-    // Do not trigger if already in a meeting or alert is currently displaying
-    if (meetingAlertActive || gamePhase === 'MEETING' || gamePhase === 'VOTING') {
-      return;
-    }
+  triggerEmergencyMeeting: (callerName?: string, isRemote: boolean = false) => {
+    const { roomId, session } = get();
 
     const name = callerName || session?.username || 'Crewmate';
 
@@ -279,8 +294,14 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       interactableRoom: null, // Clear interactable room so terminal isn't active
     });
 
-    if (roomId) {
+    if (roomId && !isRemote) {
       updateRoomPhase(roomId, 'MEETING');
+      // Broadcast immediately so every player's screen pops up with the alert!
+      supabase.channel(`room:${roomId}:events`).send({
+        type: 'broadcast',
+        event: 'emergency_meeting',
+        payload: { callerName: name },
+      });
     }
   },
 
@@ -523,6 +544,51 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       });
     }
 
+    // Clear alarm if active
+    if (state.alarmActive) {
+      get().clearAlarm();
+      if (state.roomId) {
+        supabase.channel(`room:${state.roomId}:events`).send({
+          type: 'broadcast',
+          event: 'alarm_cleared',
+          payload: {},
+        });
+      }
+    }
+
+    // Determine room label for the solved task
+    const taskRoomName =
+      legacyTaskId === 'task-auth'
+        ? 'AUTH LAB'
+        : legacyTaskId === 'task-utils'
+        ? 'UTILITIES LAB'
+        : legacyTaskId === 'task-database'
+        ? 'DATABASE ROOM'
+        : legacyTaskId === 'task-payment'
+        ? 'PAYMENT LAB'
+        : 'MAINFRAME';
+
+    const completedTaskTitle = nextTasks.find((t) => t.id === legacyTaskId)?.title || 'Code Task';
+
+    // Broadcast task completion event so Mafia players receive alert
+    if (state.roomId) {
+      supabase.channel(`room:${state.roomId}:events`).send({
+        type: 'broadcast',
+        event: 'task_completed_event',
+        payload: {
+          taskId: legacyTaskId,
+          roomName: taskRoomName,
+          taskTitle: completedTaskTitle,
+        },
+      });
+    }
+
+    // Also notify local player if they are Mafia
+    const localSessionPlayer = state.players.find((p) => p.id === state.session?.playerId);
+    if (localSessionPlayer?.role === 'MAFIA') {
+      get().notifyMafiaTaskCompleted(legacyTaskId, taskRoomName, completedTaskTitle);
+    }
+
     return true;
   },
 
@@ -564,6 +630,91 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     });
 
     return found;
+  },
+
+  // ── Sabotage & Red-Yellow Alarm Handlers ──
+  triggerAlarm: (roomName: string, message?: string) => {
+    set({
+      alarmActive: true,
+      alarmRoomName: roomName,
+      alarmMessage:
+        message ||
+        `CRITICAL ALERT: Code bugged in ${roomName}! Developers must resolve the issue!`,
+    });
+  },
+
+  clearAlarm: () => {
+    set({
+      alarmActive: false,
+      alarmMessage: '',
+      alarmRoomName: '',
+    });
+  },
+
+  notifyMafiaTaskCompleted: (taskId: string, roomName: string, taskTitle: string) => {
+    const notif = {
+      id: `mafia-notif-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      message: `Task solved in ${roomName}: "${taskTitle}"! Infiltrate and bug it!`,
+      roomName,
+      timestamp: Date.now(),
+    };
+    set((state) => ({
+      mafiaNotifications: [notif, ...state.mafiaNotifications].slice(0, 5),
+    }));
+  },
+
+  triggerBugTaskAction: (taskId: string, roomName: string) => {
+    const state = get();
+    const legacyTaskId = taskId.includes('auth')
+      ? 'task-auth'
+      : taskId.includes('util')
+      ? 'task-utils'
+      : taskId.includes('db') || taskId.includes('database')
+      ? 'task-database'
+      : taskId.includes('payment')
+      ? 'task-payment'
+      : 'task-app';
+
+    // 1. Mutate task code and revert status to BUGGED
+    const { tasks: updatedTasks, progress: updatedProgress } = bugTask(state.tasks, legacyTaskId);
+
+    // 2. Start the 3-second escape buffer for Mafia
+    set({
+      tasks: updatedTasks,
+      progress: updatedProgress,
+      escapeBufferSeconds: 3,
+    });
+
+    let remaining = 3;
+    const interval = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        set({ escapeBufferSeconds: remaining });
+      } else {
+        clearInterval(interval);
+        set({ escapeBufferSeconds: null });
+
+        // 3. After 3 seconds, sound global red-yellow alarm!
+        get().triggerAlarm(
+          roomName,
+          `CRITICAL ALERT: Code bugged in ${roomName}! Developers must resolve the issue!`
+        );
+
+        // Broadcast to other players via Supabase realtime
+        const { roomId } = get();
+        if (roomId) {
+          supabase.channel(`room:${roomId}:events`).send({
+            type: 'broadcast',
+            event: 'task_bugged_alarm',
+            payload: {
+              roomName,
+              taskId: legacyTaskId,
+              message: `CRITICAL ALERT: Code bugged in ${roomName}! Developers must resolve the issue!`,
+            },
+          });
+        }
+      }
+    }, 1000);
   },
 
   // ── UI state ──
@@ -609,6 +760,11 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       meetingChatMessages: [],
       votes: {},
       votingResult: null,
+      alarmActive: false,
+      alarmMessage: '',
+      alarmRoomName: '',
+      escapeBufferSeconds: null,
+      mafiaNotifications: [],
     });
   },
 }));
