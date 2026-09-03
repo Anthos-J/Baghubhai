@@ -32,7 +32,7 @@ export function startEmergencyMeeting(
     phaseTimer: duration,
     meeting: {
       callerId,
-      callerName: caller.name,
+      callerName: caller.username || caller.name || 'Unknown',
       reason,
       startedAt: now,
       durationSeconds: duration,

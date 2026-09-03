@@ -1,4 +1,4 @@
-import { MAP_ROOMS, EMERGENCY_TERMINAL, Rect } from './MapData';
+import { MAP_ROOMS, EMERGENCY_TERMINAL } from './MapData';
 
 export function getInteractableRoom(playerX: number, playerY: number): string | null {
   // A simple point-in-rect check for interaction zones

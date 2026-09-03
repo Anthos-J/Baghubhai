@@ -151,7 +151,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const updatedPlayers = state.players.map((p) =>
         p.id === action.playerId
-          ? { ...p, tasksCompletedCount: p.tasksCompletedCount + 1 }
+          ? { ...p, tasksCompletedCount: (p.tasksCompletedCount ?? 0) + 1 }
           : p
       );
 

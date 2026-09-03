@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useGame } from '../../hooks/useGame';
 import { GameButton } from '../ui/GameButton';
 import { AlertTriangle } from 'lucide-react';

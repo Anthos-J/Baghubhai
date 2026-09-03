@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { GameEngine } from './Engine';
 import { usePlayers } from '../hooks/usePlayers';
 import { useMockStore } from '../store/mockStore';

@@ -21,10 +21,10 @@ export function runPerson4IntegrationTests() {
   // Test 1: Player Setup and Role Assignment
   console.log('--- TEST SUITE 1: Roles & Permissions ---');
   const mockPlayers: Player[] = [
-    { id: 'p1', name: 'Alice_Dev', role: 'DEVELOPER', status: 'ALIVE', isHost: true, connected: true, tasksCompletedCount: 0 },
-    { id: 'p2', name: 'Bob_Dev', role: 'DEVELOPER', status: 'ALIVE', isHost: false, connected: true, tasksCompletedCount: 0 },
-    { id: 'p3', name: 'Charlie_Imposter', role: 'DEVELOPER', status: 'ALIVE', isHost: false, connected: true, tasksCompletedCount: 0 },
-    { id: 'p4', name: 'Diana_Dev', role: 'DEVELOPER', status: 'ALIVE', isHost: false, connected: true, tasksCompletedCount: 0 },
+    { id: 'p1', username: 'Alice_Dev', name: 'Alice_Dev', color: '#00F0FF', x: 1000, y: 750, direction: 'down', alive: true, connected: true, role: 'DEVELOPER', status: 'ALIVE', isHost: true, tasksCompletedCount: 0 },
+    { id: 'p2', username: 'Bob_Dev', name: 'Bob_Dev', color: '#FF003C', x: 1050, y: 750, direction: 'left', alive: true, connected: true, role: 'DEVELOPER', status: 'ALIVE', isHost: false, tasksCompletedCount: 0 },
+    { id: 'p3', username: 'Charlie_Imposter', name: 'Charlie_Imposter', color: '#00FF00', x: 950, y: 770, direction: 'up', alive: true, connected: true, role: 'DEVELOPER', status: 'ALIVE', isHost: false, tasksCompletedCount: 0 },
+    { id: 'p4', username: 'Diana_Dev', name: 'Diana_Dev', color: '#8A2BE2', x: 1000, y: 800, direction: 'right', alive: true, connected: true, role: 'DEVELOPER', status: 'ALIVE', isHost: false, tasksCompletedCount: 0 },
   ];
 
   const assigned = assignRoles(mockPlayers, 1);

@@ -1,5 +1,3 @@
-import React from 'react';
-import { useRoom } from '../hooks/useRoom';
 import { useGame } from '../hooks/useGame';
 import Lobby from './Lobby';
 import RoleReveal from './RoleReveal';
@@ -8,7 +6,6 @@ import GameCanvas from '../map/GameCanvas';
 // import Result from './Result';
 
 export default function Room() {
-  const { roomId } = useRoom();
   const { gamePhase } = useGame();
 
   return (
