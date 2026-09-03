@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Player, GamePhase, LocalSession, Task } from '../types/game';
 import { updateRoomPhase, clearSession } from '../lib/roomService';
 import { assignRoles } from '../game/roles';
+import { DEFAULT_TASKS } from '../game/tasks';
 
 export interface ChatMessage {
   id: string;
@@ -65,6 +66,7 @@ interface GameState {
   callMeeting: () => void;
   tickGameTimer: () => void;
   setGameTimerPaused: (paused: boolean) => void;
+  completeTask: (taskId: string) => void;
 
   // ── Emergency & Meeting flow ──
   triggerEmergencyMeeting: (callerName?: string) => void;
@@ -92,7 +94,13 @@ export const useMockStore = create<GameState>((set, get) => ({
   roomId: null,
   roomCode: null,
   gamePhase: 'LOBBY',
-  tasks: [],
+  tasks: DEFAULT_TASKS.map((t) => ({
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    fileName: t.fileName,
+    completed: false,
+  })),
   interactableRoom: null,
   isLoading: false,
   error: null,
@@ -166,6 +174,14 @@ export const useMockStore = create<GameState>((set, get) => ({
   },
 
   setGameTimerPaused: (paused) => set({ isGameTimerPaused: paused }),
+
+  completeTask: (taskId: string) => {
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === taskId ? { ...t, completed: true } : t
+      ),
+    }));
+  },
 
   startGame: () => {
     const { roomId, players } = get();
