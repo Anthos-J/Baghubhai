@@ -1,20 +1,24 @@
 import { Player, PlayerRole, GameState } from '../types/game';
 
 /**
- * Assigns roles randomly to players.
- * Ensures at least 1 Mafia / Imposter and the rest as Developers.
+ * Assigns roles randomly to players using uniform distribution.
+ * Default is 1 Mafia, or whatever mafiaCount is passed.
  */
 export function assignRoles(players: Player[], mafiaCount: number = 1): Player[] {
   if (!players || players.length === 0) return [];
 
-  // Clone array to avoid in-place mutation
-  const shuffled = [...players].sort(() => Math.random() - 0.5);
-  
-  // Mafia count is at least 1, but cannot exceed players.length - 1
-  const targetMafiaCount = Math.max(1, Math.min(mafiaCount, Math.floor(players.length / 2) || 1));
+  const maxAllowed = Math.max(1, Math.floor((players.length - 1) / 2) || 1);
+  const finalMafiaCount = Math.max(1, Math.min(mafiaCount, maxAllowed));
+
+  // Fisher-Yates shuffle for uniform probability distribution
+  const shuffled = [...players];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
 
   return shuffled.map((player, index) => {
-    const role: PlayerRole = index < targetMafiaCount ? 'MAFIA' : 'DEVELOPER';
+    const role: PlayerRole = index < finalMafiaCount ? 'MAFIA' : 'DEVELOPER';
     return {
       ...player,
       role,

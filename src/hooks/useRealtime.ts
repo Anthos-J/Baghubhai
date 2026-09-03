@@ -180,7 +180,12 @@ export function useGameState(roomId: string) {
           filter: `id=eq.${roomId}`,
         },
         (payload) => {
-          if (payload.new?.phase) {
+          if (payload.new?.phase === 'MEETING') {
+            const store = useMockStore.getState();
+            if (!store.meetingAlertActive) {
+              store.triggerEmergencyMeeting(store.meetingCallerName || 'A Player', true);
+            }
+          } else if (payload.new?.phase) {
             useMockStore.getState().setGamePhase(payload.new.phase);
           }
         }
@@ -253,7 +258,7 @@ export function useMeetingEvents(roomId: string, playerId: string) {
     channel
       .on('broadcast', { event: 'emergency_meeting' }, ({ payload }) => {
         const store = useMockStore.getState();
-        store.triggerEmergencyMeeting(payload.callerName);
+        store.triggerEmergencyMeeting(payload?.callerName || 'A Crewmate', true);
       })
       .on('broadcast', { event: 'meeting_chat' }, ({ payload }) => {
         if (payload?.message && payload.message.playerId !== playerId) {
@@ -274,6 +279,20 @@ export function useMeetingEvents(roomId: string, playerId: string) {
         if (payload?.subPhase) {
           useMockStore.getState().setMeetingSubPhase(payload.subPhase);
         }
+      })
+      .on('broadcast', { event: 'task_completed_event' }, ({ payload }) => {
+        const store = useMockStore.getState();
+        const me = store.players.find((p) => p.id === playerId);
+        if (me?.role === 'MAFIA') {
+          store.notifyMafiaTaskCompleted(payload.taskId, payload.roomName, payload.taskTitle);
+        }
+      })
+      .on('broadcast', { event: 'task_bugged_alarm' }, ({ payload }) => {
+        const store = useMockStore.getState();
+        store.triggerAlarm(payload.roomName, payload.message);
+      })
+      .on('broadcast', { event: 'alarm_cleared' }, () => {
+        useMockStore.getState().clearAlarm();
       })
       .subscribe();
 
@@ -348,11 +367,50 @@ export function useMeetingEvents(roomId: string, playerId: string) {
     []
   );
 
+  const broadcastTaskCompleted = useCallback(
+    (taskId: string, roomName: string, taskTitle: string) => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'task_completed_event',
+          payload: { taskId, roomName, taskTitle },
+        });
+      }
+    },
+    []
+  );
+
+  const broadcastBuggedAlarm = useCallback(
+    (roomName: string, taskId: string, message?: string) => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'task_bugged_alarm',
+          payload: { roomName, taskId, message },
+        });
+      }
+    },
+    []
+  );
+
+  const broadcastClearAlarm = useCallback(() => {
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'alarm_cleared',
+        payload: {},
+      });
+    }
+  }, []);
+
   return {
     broadcastEmergencyMeeting,
     broadcastChatMessage,
     broadcastVote,
     broadcastRetractVote,
     broadcastSubPhase,
+    broadcastTaskCompleted,
+    broadcastBuggedAlarm,
+    broadcastClearAlarm,
   };
 }

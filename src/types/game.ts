@@ -109,6 +109,7 @@ export interface TaskItem {
   testKey: string;
   hint: string;
   lastBuggedAt?: number;
+  completed?: boolean;
 }
 
 export type AlarmType = 'RED_YELLOW_ALERT' | 'SYNTAX_BLACKOUT' | 'SERVER_OVERLOAD';
@@ -177,15 +178,17 @@ export interface WinResult {
 export type CodeDifficulty = 'SMALL' | 'MEDIUM' | 'DIFFICULT';
 
 export interface GameSettings {
-  maxPlayers: number;
-  mafiaCount: number;
-  difficulty: CodeDifficulty;
-  gameDurationSeconds: number;
-  discussionDurationSeconds: number;
-  votingDurationSeconds: number;
-  sabotageCooldownSeconds: number; // 60s (1 minute) cooldown
-  imposterEscapeDelaySeconds: number; // 3s escape window
-  syntaxBlackoutDurationSeconds: number;
+  maxPlayers?: number;
+  mafiaCount?: number;
+  difficulty?: CodeDifficulty;
+  gameDurationSeconds?: number;
+  discussionDurationSeconds?: number;
+  votingDurationSeconds?: number;
+  sabotageCooldownSeconds?: number; // 60s (1 minute) cooldown
+  imposterEscapeDelaySeconds?: number; // 3s escape window
+  syntaxBlackoutDurationSeconds?: number;
+  meetingDurationSeconds?: number;
+  serverOverloadResolutionTimeSeconds?: number;
 }
 
 export interface GameState {

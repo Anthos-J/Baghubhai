@@ -79,20 +79,6 @@ export default function GameCanvas() {
 
       {/* HTML Overlay HUD */}
       <GameHUD />
-
-      {/* DEBUG HUD */}
-      <div className="absolute top-0 left-0 z-50 bg-black/50 p-4 font-mono text-xs">
-        <p>Players: {players.length}</p>
-        <p>LocalPlayer: {localPlayerState?.playerId?.slice(0, 8)}...</p>
-        <p>Room: {session?.roomCode}</p>
-        {players.find((p) => p.id === localPlayerState?.playerId) && (
-          <p>
-            Pos:{' '}
-            {players.find((p) => p.id === localPlayerState?.playerId)?.x},{' '}
-            {players.find((p) => p.id === localPlayerState?.playerId)?.y}
-          </p>
-        )}
-      </div>
     </div>
   );
 }
