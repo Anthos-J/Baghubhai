@@ -276,13 +276,12 @@ export default function MeetingModal() {
                   key={p.id}
                   onMouseEnter={() => setHoveredPlayerId(p.id)}
                   onMouseLeave={() => setHoveredPlayerId(null)}
-                  className={`relative flex items-center justify-between px-3.5 py-2.5 rounded-xl border-2 transition-all select-none ${
-                    !p.alive
+                  className={`relative flex items-center justify-between px-3.5 py-2.5 rounded-xl border-2 transition-all select-none ${!p.alive
                       ? 'bg-[#94a3b8]/70 border-[#64748b] opacity-60'
                       : isTargetOfMyVote
-                      ? 'bg-white border-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.5)] ring-2 ring-[#00F0FF]'
-                      : 'bg-white/95 hover:bg-white border-[#94a3b8] hover:border-[#475569] shadow-sm'
-                  }`}
+                        ? 'bg-white border-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.5)] ring-2 ring-[#00F0FF]'
+                        : 'bg-white/95 hover:bg-white border-[#94a3b8] hover:border-[#475569] shadow-sm'
+                    }`}
                 >
                   {/* "I VOTED" Red Diagonal Stamp Badge */}
                   {hasThisPlayerVoted && (
@@ -297,9 +296,8 @@ export default function MeetingModal() {
 
                     <div className="flex items-center gap-2 truncate">
                       <span
-                        className={`font-tech font-bold text-base sm:text-lg truncate ${
-                          !p.alive ? 'line-through text-gray-700' : 'text-gray-900'
-                        }`}
+                        className={`font-tech font-bold text-base sm:text-lg truncate ${!p.alive ? 'line-through text-gray-700' : 'text-gray-900'
+                          }`}
                       >
                         {p.username}
                       </span>
@@ -322,11 +320,10 @@ export default function MeetingModal() {
                           <button
                             onClick={() => handleVote(p.id)}
                             title={`Vote for ${p.username}`}
-                            className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all hover:scale-110 active:scale-95 shadow-sm ${
-                              isTargetOfMyVote
+                            className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all hover:scale-110 active:scale-95 shadow-sm ${isTargetOfMyVote
                                 ? 'bg-[#48bb78] text-white border-[#276749]'
                                 : 'bg-[#e6fffa] hover:bg-[#48bb78] text-[#2f855a] hover:text-white border-[#48bb78]'
-                            }`}
+                              }`}
                           >
                             <Check size={18} strokeWidth={3} />
                           </button>
@@ -360,11 +357,10 @@ export default function MeetingModal() {
                 <>
                   <button
                     onClick={() => handleVote('SKIP')}
-                    className={`font-pixel text-xs px-4 py-2 rounded-xl border-2 transition-all cursor-pointer shadow-sm active:scale-95 ${
-                      myCurrentVote === 'SKIP'
+                    className={`font-pixel text-xs px-4 py-2 rounded-xl border-2 transition-all cursor-pointer shadow-sm active:scale-95 ${myCurrentVote === 'SKIP'
                         ? 'bg-[#48bb78] text-white border-[#22543d]'
                         : 'bg-white hover:bg-gray-100 text-gray-800 border-gray-400 hover:border-gray-600'
-                    }`}
+                      }`}
                   >
                     {myCurrentVote === 'SKIP' ? '✓ SKIPPED VOTE' : 'SKIP VOTE'}
                   </button>
@@ -392,11 +388,10 @@ export default function MeetingModal() {
                 {meetingSubPhase === 'DISCUSSION' ? 'Discussion Ends in:' : 'Voting Ends in:'}
               </span>
               <span
-                className={`font-mono text-base sm:text-lg ${
-                  meetingSubPhase === 'VOTING' && meetingVotingTimer <= 10
+                className={`font-mono text-base sm:text-lg ${meetingSubPhase === 'VOTING' && meetingVotingTimer <= 10
                     ? 'text-red-600 animate-pulse'
                     : 'text-gray-900'
-                }`}
+                  }`}
               >
                 {meetingSubPhase === 'DISCUSSION'
                   ? formatTime(meetingDiscussionTimer)
@@ -441,11 +436,10 @@ export default function MeetingModal() {
                           </span>
                         </div>
                         <div
-                          className={`px-2.5 py-1.5 rounded-lg max-w-[90%] font-tech text-xs mt-0.5 break-words ${
-                            isMe
+                          className={`px-2.5 py-1.5 rounded-lg max-w-[90%] font-tech text-xs mt-0.5 break-words ${isMe
                               ? 'bg-[#00F0FF]/20 text-white border border-[#00F0FF]/50'
                               : 'bg-black/60 text-gray-200 border border-gray-700'
-                          }`}
+                            }`}
                         >
                           {msg.text}
                         </div>
@@ -516,9 +510,8 @@ export default function MeetingModal() {
                 <p className="font-tech text-lg sm:text-xl text-gray-300 tracking-widest mt-4">
                   {votingResult.remainingImpostors === 0
                     ? 'No Impostors remain.'
-                    : `${votingResult.remainingImpostors} Impostor${
-                        votingResult.remainingImpostors === 1 ? '' : 's'
-                      } remain${votingResult.remainingImpostors === 1 ? 's' : ''}.`}
+                    : `${votingResult.remainingImpostors} Impostor${votingResult.remainingImpostors === 1 ? '' : 's'
+                    } remain${votingResult.remainingImpostors === 1 ? 's' : ''}.`}
                 </p>
               </>
             ) : votingResult.isTie ? (

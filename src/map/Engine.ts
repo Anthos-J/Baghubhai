@@ -16,9 +16,9 @@ export class GameEngine {
   private animationFrameId: number = 0;
   private lastTime: number = 0;
   private totalTime: number = 0;
-  
+
   public isFrozen: boolean = false;
-  
+
   // Game state passed from React
   private players: Player[] = [];
   private localPlayerId: string = '';
@@ -28,7 +28,7 @@ export class GameEngine {
   private playerStates: Map<string, PlayerRenderInfo> = new Map();
   private lastFacing: Map<string, 'left' | 'right'> = new Map();
   private prevPositions: Map<string, { x: number; y: number }> = new Map();
-  
+
   // Callbacks to sync state back to React/Zustand
   public onLocalPlayerMove?: (x: number, y: number, direction: Player['direction']) => void;
   public onInteractableRoomChange?: (room: string | null) => void;
@@ -38,7 +38,7 @@ export class GameEngine {
     const context = canvas.getContext('2d');
     if (!context) throw new Error("Could not get 2D context");
     this.ctx = context;
-    
+
     this.movement = new MovementController();
     this.camera = new Camera();
   }
@@ -106,7 +106,7 @@ export class GameEngine {
     if (isMoving) {
       let newX = localPlayer.x + vx * deltaTime;
       let newY = localPlayer.y + vy * deltaTime;
-      
+
       // Handle collision logic against walls and obstacles using the feet-only hitbox
       if (localPlayer.alive) {
         if (!checkCollision(newX, localPlayer.y, ALL_COLLIDERS)) {
@@ -120,7 +120,7 @@ export class GameEngine {
         localPlayer.x = newX;
         localPlayer.y = newY;
       }
-      
+
       if (direction) {
         localPlayer.direction = direction;
       }

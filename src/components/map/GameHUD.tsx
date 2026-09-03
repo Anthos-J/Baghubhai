@@ -10,7 +10,7 @@ export default function GameHUD() {
   const { interactableRoom, callMeeting, gamePhase, progress, completeTask, myPrivateTasks, publicProject, assignTasks } = useGame();
   const { players, localPlayer } = usePlayers();
   const [editorOpen, setEditorOpen] = useState(false);
-  
+
   const engineState = useMockStore((s) => s.engineState);
 
   const isAlive = localPlayer ? localPlayer.alive : true;
@@ -48,8 +48,8 @@ export default function GameHUD() {
   // Check if local player is ghost / eliminated
   const isGhost = localPlayer
     ? localPlayer.alive === false ||
-      localPlayer.status === 'GHOST' ||
-      localPlayer.status === 'ELIMINATED'
+    localPlayer.status === 'GHOST' ||
+    localPlayer.status === 'ELIMINATED'
     : false;
 
   // Retrieve local player's private task for this specific room (Strictly isolated to local player)
@@ -104,7 +104,7 @@ export default function GameHUD() {
         setEditorOpen(true);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [interactableRoom, editorOpen, isAlive, callMeeting, gamePhase]);

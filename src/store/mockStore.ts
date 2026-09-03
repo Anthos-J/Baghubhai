@@ -124,7 +124,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   myPrivateTasks: [],
   isLoading: false,
   error: null,
-  
+
   engineState: createInitialGameState(),
 
   // ── Timers & Meeting State ──
@@ -239,8 +239,8 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     const playerIds = players.length > 0
       ? players.map((p) => p.id)
       : session?.playerId
-      ? [session.playerId]
-      : ['local-player-1'];
+        ? [session.playerId]
+        : ['local-player-1'];
     const localId = session?.playerId || playerIds[0];
 
     // True Data Isolation: Requests and stores ONLY authorized tasks for the local player
@@ -461,14 +461,14 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     const legacyTaskId = taskId.startsWith('task-') && !taskId.includes('-login') && !taskId.includes('-sort') && !taskId.includes('-connect') && !taskId.includes('-validate') && !taskId.includes('-ready')
       ? taskId
       : taskId.includes('auth')
-      ? 'task-auth'
-      : taskId.includes('util')
-      ? 'task-utils'
-      : taskId.includes('db') || taskId.includes('database')
-      ? 'task-database'
-      : taskId.includes('payment')
-      ? 'task-payment'
-      : 'task-app';
+        ? 'task-auth'
+        : taskId.includes('util')
+          ? 'task-utils'
+          : taskId.includes('db') || taskId.includes('database')
+            ? 'task-database'
+            : taskId.includes('payment')
+              ? 'task-payment'
+              : 'task-app';
 
     const { tasks: nextTasks, progress: nextProgress } = solveTask(state.tasks, legacyTaskId);
 
@@ -548,12 +548,12 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     const legacyTaskId = taskId.includes('auth')
       ? 'task-auth'
       : taskId.includes('util')
-      ? 'task-utils'
-      : taskId.includes('db') || taskId.includes('database')
-      ? 'task-database'
-      : taskId.includes('payment')
-      ? 'task-payment'
-      : 'task-app';
+        ? 'task-utils'
+        : taskId.includes('db') || taskId.includes('database')
+          ? 'task-database'
+          : taskId.includes('payment')
+            ? 'task-payment'
+            : 'task-app';
 
     const { tasks: nextTasks, progress: nextProgress } = bugTask(state.tasks, legacyTaskId);
 
@@ -580,7 +580,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       };
     });
   },
-  
+
   setEngineState: (state) => set({ engineState: state, gamePhase: state.phase }),
 
   // ── Cleanup ──
