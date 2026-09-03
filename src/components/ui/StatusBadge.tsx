@@ -1,5 +1,5 @@
-import React from 'react';
 import { cn } from './PixelCard';
+
 
 interface StatusBadgeProps {
   status: 'online' | 'offline' | 'mafia' | 'developer' | 'eliminated';

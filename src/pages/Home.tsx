@@ -1,4 +1,3 @@
-import React from 'react';
 import { PixelCard } from '../components/ui/PixelCard';
 import { GameButton } from '../components/ui/GameButton';
 import { Settings, HelpCircle, Trophy, Volume2, Plus, LogIn, Play, BookOpen, AlertCircle, MessageSquareWarning, Megaphone, CheckSquare, Users, ShieldAlert, ArrowRight, DiscIcon as DiscordIcon } from 'lucide-react';

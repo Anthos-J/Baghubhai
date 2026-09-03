@@ -1,4 +1,3 @@
-import React from 'react';
 import { PixelCard } from '../components/ui/PixelCard';
 import { GameButton } from '../components/ui/GameButton';
 import { StatusBadge } from '../components/ui/StatusBadge';
