@@ -1,14 +1,22 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PixelCard } from '../components/ui/PixelCard';
 import { GameButton } from '../components/ui/GameButton';
 import { Settings, HelpCircle, Trophy, Volume2, Plus, LogIn, Play, BookOpen, AlertCircle, MessageSquareWarning, Megaphone, CheckSquare, Users, ShieldAlert, ArrowRight, DiscIcon as DiscordIcon } from 'lucide-react';
 
 export default function Home() {
+  const navigate = useNavigate();
+
+  const handleJoin = () => navigate('/room/test');
+
   return (
-    <div className="min-h-screen flex flex-col p-4 relative text-textMain">
-      
+    <div className="w-full flex-1 min-h-screen flex flex-col p-4 relative text-textMain">
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/assets/bg.jpg')" }}
+      />
       {/* Top Header */}
-      <header className="flex justify-between items-center w-full z-10 p-2">
+      <header className="flex justify-between items-center w-full z-10 p-2 relative">
         <div className="flex gap-2">
           <button className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white">
             <Settings size={20} />
@@ -28,7 +36,7 @@ export default function Home() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex w-full max-w-7xl mx-auto z-10 gap-8 mt-4">
+      <main className="flex-1 flex w-full max-w-7xl mx-auto z-10 gap-8 mt-4 relative">
         
         {/* Left Column - Info Panels */}
         <div className="w-[300px] flex flex-col gap-6 hidden md:flex">
@@ -69,7 +77,7 @@ export default function Home() {
           
           <div className="text-center mb-8 mt-4">
             <h1 className="font-pixel text-5xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-[0_0_15px_rgba(0,240,255,0.5)] leading-tight">
-              &lt;<span className="text-primary">CODE</span> <span className="text-mafia">MAFIA</span>&gt;
+              &lt;<span className="text-[#0066FF]">AMONG</span> <span className="text-mafia">DEVS</span>&gt;
             </h1>
             <div className="inline-block border-2 border-panelBorder bg-panel/80 px-6 py-2 mt-4 font-mono font-bold tracking-[0.2em] text-sm">
               <span className="text-primary">CODE.</span> <span className="text-mafia">DECEIVE.</span> <span className="text-gray-300">DEPLOY.</span>
@@ -77,9 +85,9 @@ export default function Home() {
           </div>
 
           <div className="w-full max-w-sm flex flex-col gap-4 mt-8 bg-panel/50 p-6 border-4 border-[#1a233a] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <GameButton variant="success" icon={<Plus size={18} />}>CREATE ROOM</GameButton>
-            <GameButton variant="primary" icon={<LogIn size={18} />}>JOIN ROOM</GameButton>
-            <GameButton variant="purple" icon={<Play size={18} />}>QUICK PLAY</GameButton>
+            <GameButton variant="success" icon={<Plus size={18} />} onClick={handleJoin}>CREATE ROOM</GameButton>
+            <GameButton variant="primary" icon={<LogIn size={18} />} onClick={handleJoin}>JOIN ROOM</GameButton>
+            <GameButton variant="purple" icon={<Play size={18} />} onClick={handleJoin}>QUICK PLAY</GameButton>
             <GameButton variant="ghost" icon={<BookOpen size={18} className="text-textMuted" />} className="mt-2 text-xs py-2">TUTORIAL</GameButton>
           </div>
 
@@ -123,7 +131,7 @@ export default function Home() {
       </main>
 
       {/* Bottom Footer HUD */}
-      <footer className="flex justify-between items-center w-full z-10 p-2 font-mono text-[10px] text-gray-500 tracking-widest mt-auto">
+      <footer className="flex justify-between items-center w-full z-10 p-2 font-mono text-[10px] text-gray-500 tracking-widest mt-auto relative">
         <div>v0.1.3 - ALPHA</div>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-primary rounded-full animate-pulse shadow-[0_0_5px_#00F0FF]"></span>
