@@ -8,5 +8,7 @@ export * from './roomMapping';
 export * from './RoomEditorModal';
 export * from './evidence';
 export * from './EvidenceDiffModal';
+export * from './privateTasks';
+
 
 
