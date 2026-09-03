@@ -1,16 +1,16 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRoom } from '../hooks/useRoom';
 import { useGame } from '../hooks/useGame';
 import { useMockStore } from '../store/mockStore';
-import { useGamePresence, useGameState, useEngineSync } from '../hooks/useRealtime';
+import { useGamePresence, useGameState, useEngineSync, useMeetingEvents } from '../hooks/useRealtime';
 import { getSession } from '../lib/roomService';
 import Result from './Result';
 import Lobby from './Lobby';
 import RoleReveal from './RoleReveal';
 import MeetingModal from '../components/meeting/MeetingModal';
+import EmergencyAlertOverlay from '../components/meeting/EmergencyAlertOverlay';
 import GameCanvas from '../map/GameCanvas';
-// import Result from './Result';
 
 export default function Room() {
   const navigate = useNavigate();
@@ -39,6 +39,7 @@ export default function Room() {
   useGamePresence(roomId || '', session?.playerId || '');
   useGameState(roomId || '');
   const { broadcastEngineState } = useEngineSync(roomId || '', isHost);
+  useMeetingEvents(roomId || '', session?.playerId || '');
 
   // ── Game Timer Loop (Host Only) ──
   useEffect(() => {
@@ -69,6 +70,9 @@ export default function Room() {
 
   return (
     <div className="w-full flex-1 flex flex-col items-center justify-center relative">
+      {/* ── Emergency Alert Klaxon Broadcast Overlay ── */}
+      <EmergencyAlertOverlay />
+
       {(gamePhase === 'LOBBY' || gamePhase === 'ROLE_REVEAL') && (
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           <video

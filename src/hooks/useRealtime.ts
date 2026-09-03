@@ -238,3 +238,121 @@ export function useEngineSync(roomId: string | null, isHost: boolean) {
 
   return { broadcastEngineState };
 }
+
+// MEETING EVENTS — synchronize emergency calls, chat, and votes in real time
+// ──────────────────────────────────────────────
+export function useMeetingEvents(roomId: string, playerId: string) {
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    if (!roomId) return;
+
+    const channel = supabase.channel(`room:${roomId}:events`);
+    channelRef.current = channel;
+
+    channel
+      .on('broadcast', { event: 'emergency_meeting' }, ({ payload }) => {
+        const store = useMockStore.getState();
+        store.triggerEmergencyMeeting(payload.callerName);
+      })
+      .on('broadcast', { event: 'meeting_chat' }, ({ payload }) => {
+        if (payload?.message && payload.message.playerId !== playerId) {
+          useMockStore.getState().addChatMessage(payload.message);
+        }
+      })
+      .on('broadcast', { event: 'meeting_vote' }, ({ payload }) => {
+        if (payload?.voterId && payload.voterId !== playerId) {
+          useMockStore.getState().castVote(payload.voterId, payload.targetId);
+        }
+      })
+      .on('broadcast', { event: 'meeting_retract_vote' }, ({ payload }) => {
+        if (payload?.voterId && payload.voterId !== playerId) {
+          useMockStore.getState().retractVote(payload.voterId);
+        }
+      })
+      .on('broadcast', { event: 'meeting_subphase' }, ({ payload }) => {
+        if (payload?.subPhase) {
+          useMockStore.getState().setMeetingSubPhase(payload.subPhase);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [roomId, playerId]);
+
+  const broadcastEmergencyMeeting = useCallback(
+    (callerName: string) => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'emergency_meeting',
+          payload: { callerName },
+        });
+      }
+    },
+    []
+  );
+
+  const broadcastChatMessage = useCallback(
+    (message: any) => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'meeting_chat',
+          payload: { message },
+        });
+      }
+    },
+    []
+  );
+
+  const broadcastVote = useCallback(
+    (voterId: string, targetId: string | 'SKIP') => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'meeting_vote',
+          payload: { voterId, targetId },
+        });
+      }
+    },
+    []
+  );
+
+  const broadcastRetractVote = useCallback(
+    (voterId: string) => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'meeting_retract_vote',
+          payload: { voterId },
+        });
+      }
+    },
+    []
+  );
+
+  const broadcastSubPhase = useCallback(
+    (subPhase: 'DISCUSSION' | 'VOTING') => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'meeting_subphase',
+          payload: { subPhase },
+        });
+      }
+    },
+    []
+  );
+
+  return {
+    broadcastEmergencyMeeting,
+    broadcastChatMessage,
+    broadcastVote,
+    broadcastRetractVote,
+    broadcastSubPhase,
+  };
+}
