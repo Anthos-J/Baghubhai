@@ -287,14 +287,23 @@ export function useMeetingEvents(roomId: string, playerId: string) {
           store.notifyMafiaTaskCompleted(payload.taskId, payload.roomName, payload.taskTitle);
         }
       })
-      .on('broadcast', { event: 'task_bugged_alarm' }, ({ payload }) => {
-        const store = useMockStore.getState();
-        store.triggerAlarm(payload.roomName, payload.message);
-      })
       .on('broadcast', { event: 'alarm_cleared' }, () => {
         useMockStore.getState().clearAlarm();
       })
+      .on('broadcast', { event: 'game_settings_update' }, ({ payload }) => {
+        if (payload?.settings) {
+          const store = useMockStore.getState();
+          const merged = { ...store.engineState.settings, ...payload.settings };
+          store.setEngineState({
+            ...store.engineState,
+            settings: merged,
+            gameTimeRemaining: merged.gameDurationSeconds ?? 900,
+            totalGameTime: merged.gameDurationSeconds ?? 900,
+          });
+        }
+      })
       .subscribe();
+
 
     return () => {
       channel.unsubscribe();

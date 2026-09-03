@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { Player, GamePhase, LocalSession, TaskItem, GameState as EngineGameState } from '../types/game';
-import { updateRoomPhase, clearSession } from '../lib/roomService';
+import { Player, GamePhase, LocalSession, TaskItem, GameState as EngineGameState, GameSettings } from '../types/game';
+import { updateRoomPhase, clearSession, updateRoomSettings } from '../lib/roomService';
 import { supabase } from '../lib/supabase';
 import { GameAction, gameReducer, createInitialGameState } from '../game/gameState';
 
-import { assignRoles } from '../game/roles';
+import { assignRoles, canCallMeeting } from '../game/roles';
 import { DEFAULT_TASKS, getDefaultTasks, solveTask, bugTask } from '../game/tasks';
 import { checkVictory } from '../game/victory';
 import {
@@ -14,6 +14,7 @@ import {
   fetchAuthorizedPlayerTasks,
   validateTaskModification,
 } from '../editor/privateTasks';
+import { triggerTrophyEvent } from '../lib/trophies';
 
 export interface ChatMessage {
   id: string;
@@ -60,8 +61,8 @@ interface GameStateStore {
   meetingAlertActive: boolean;
   meetingCallerName: string;
   meetingSubPhase: MeetingSubPhase;
-  meetingDiscussionTimer: number; // 180s (3m)
-  meetingVotingTimer: number; // 60s (1m)
+  meetingDiscussionTimer: number; // dynamically driven by settings
+  meetingVotingTimer: number; // dynamically driven by settings
   meetingChatMessages: ChatMessage[];
   votes: Record<string, string>; // voterId -> targetPlayerId | 'SKIP'
   votingResult: VotingResult | null;
@@ -115,7 +116,9 @@ interface GameStateStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
 
-  // ── Engine Sync ──
+  // ── Engine Sync & Settings ──
+  updateSettings: (settings: Partial<GameSettings>) => void;
+  setRoomSettings: (settings: GameSettings) => void;
   dispatchEngineAction: (action: GameAction) => void;
   setEngineState: (state: EngineGameState) => void;
 
@@ -152,7 +155,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   votes: {},
   votingResult: null,
 
-  // ── Sabotage, Escape Buffer & Alarm ──
+  // ── Sabotage & Alarm initial state ──
   alarmActive: false,
   alarmMessage: '',
   alarmRoomName: '',
@@ -217,20 +220,26 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   setGameTimerPaused: (paused) => set({ isGameTimerPaused: paused }),
 
   startGame: () => {
-    const { roomId, players, session } = get();
+    const { roomId, players, session, engineState } = get();
     if (!roomId) return;
 
-    // Reset game timer to 15 mins (900s) and assign roles if needed
+    // Validate and clamp mafia count based on actual players at game start (4-6 players -> 1 mafia, 7+ players -> 2 mafia)
+    const maxAllowedMafia = players.length >= 7 ? 2 : 1;
+    const configuredMafia = engineState.settings?.mafiaCount ?? 1;
+    const finalMafia = Math.min(configuredMafia, maxAllowedMafia);
+
     const assignedPlayers = players.some((p) => p.role === 'MAFIA')
       ? players
-      : assignRoles(players, 1);
+      : assignRoles(players, finalMafia);
+
+    const duration = engineState.settings?.gameDurationSeconds ?? 900;
 
     // Sync engine state to advance from LOBBY
     get().dispatchEngineAction({ type: 'START_GAME' });
 
     set({
-      players: assignedPlayers,
-      gameTimeRemaining: 900,
+      players: assignedPlayers.map((p) => ({ ...p, meetingsCalledCount: 0 })),
+      gameTimeRemaining: duration,
       isGameTimerPaused: false,
       gamePhase: 'ROLE_REVEAL',
     });
@@ -282,17 +291,40 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
 
   // ── Emergency & Meeting flow ──
   triggerEmergencyMeeting: (callerName?: string, isRemote: boolean = false) => {
-    const { roomId, session } = get();
+    const { roomId, session, meetingAlertActive, gamePhase, engineState, players } = get();
+    if (meetingAlertActive || gamePhase === 'MEETING' || gamePhase === 'VOTING') {
+      return;
+    }
+
+    const localPlayer = players.find((p) => p.id === session?.playerId);
+    if (!isRemote && localPlayer) {
+      if (!canCallMeeting(localPlayer, engineState)) {
+        console.warn('Emergency meeting blocked by cooldown or personal meeting limit.');
+        return;
+      }
+    }
 
     const name = callerName || session?.username || 'Crewmate';
+    const discTime = engineState.settings?.discussionDurationSeconds ?? 180;
+    const voteTime = engineState.settings?.votingDurationSeconds ?? 60;
+
+    // Increment meetingsCalledCount for caller
+    const nextPlayers = localPlayer && !isRemote
+      ? players.map((p) => (p.id === localPlayer.id ? { ...p, meetingsCalledCount: (p.meetingsCalledCount ?? 0) + 1 } : p))
+      : players;
+
+    if (!isRemote) {
+      triggerTrophyEvent('EMERGENCY_CALLED');
+    }
 
     set({
+      players: nextPlayers,
       meetingAlertActive: true,
       meetingCallerName: name,
       isGameTimerPaused: true,
       meetingSubPhase: 'DISCUSSION',
-      meetingDiscussionTimer: 180,
-      meetingVotingTimer: 60,
+      meetingDiscussionTimer: discTime,
+      meetingVotingTimer: voteTime,
       votes: {},
       votingResult: null,
       gamePhase: 'MEETING',
@@ -315,15 +347,16 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   setMeetingSubPhase: (subPhase) => set({ meetingSubPhase: subPhase }),
 
   tickMeetingTimer: () => {
-    const { meetingSubPhase, meetingDiscussionTimer, meetingVotingTimer, gamePhase } = get();
+    const { meetingSubPhase, meetingDiscussionTimer, meetingVotingTimer, gamePhase, engineState } = get();
     if (gamePhase !== 'MEETING' && gamePhase !== 'VOTING') return;
 
     if (meetingSubPhase === 'DISCUSSION') {
       if (meetingDiscussionTimer > 1) {
         set({ meetingDiscussionTimer: meetingDiscussionTimer - 1 });
       } else {
-        // Auto transition to VOTING
-        set({ meetingSubPhase: 'VOTING', meetingVotingTimer: 60 });
+        // Auto transition to VOTING with configured voting timer
+        const voteTime = engineState.settings?.votingDurationSeconds ?? 60;
+        set({ meetingSubPhase: 'VOTING', meetingVotingTimer: voteTime });
       }
     } else if (meetingSubPhase === 'VOTING') {
       if (meetingVotingTimer > 1) {
@@ -411,6 +444,16 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
         (p) => p.alive && p.id !== highestTarget && p.role === 'MAFIA'
       ).length;
 
+      // Check if local player voted for this target
+      const localId = get().session?.playerId;
+      if (localId && votes[localId] === highestTarget) {
+        if (wasImpostor) {
+          triggerTrophyEvent('VOTED_MAFIA');
+        } else if (eliminated?.role === 'DEVELOPER') {
+          triggerTrophyEvent('VOTED_INNOCENT');
+        }
+      }
+
       set({
         meetingSubPhase: 'RESULTS',
         votingResult: {
@@ -433,17 +476,27 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   },
 
   endMeeting: () => {
-    const { roomId } = get();
+    const { roomId, engineState } = get();
+    const cooldownSec = engineState.settings?.emergencyMeetingCooldownSeconds ?? 30;
+    const emergencyMeetingCooldownUntil = Date.now() + cooldownSec * 1000;
+    const discTime = engineState.settings?.discussionDurationSeconds ?? 180;
+    const voteTime = engineState.settings?.votingDurationSeconds ?? 60;
+
     set({
       gamePhase: 'PLAYING',
       isGameTimerPaused: false,
       meetingAlertActive: false,
       meetingSubPhase: 'DISCUSSION',
-      meetingDiscussionTimer: 180,
-      meetingVotingTimer: 60,
+      meetingDiscussionTimer: discTime,
+      meetingVotingTimer: voteTime,
       votes: {},
       votingResult: null,
       interactableRoom: null,
+      engineState: {
+        ...engineState,
+        phase: 'PLAYING',
+        emergencyMeetingCooldownUntil,
+      },
     });
 
     if (roomId) {
@@ -496,45 +549,48 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
               ? 'task-payment'
               : 'task-app';
 
+    const legacyTaskWasBugged = state.tasks.find((t) => t.id === legacyTaskId)?.status === 'BUGGED';
     const { tasks: nextTasks, progress: nextProgress } = solveTask(state.tasks, legacyTaskId);
+
+    // Trigger Developer Task trophies
+    triggerTrophyEvent('TASK_COMPLETED');
+    if (legacyTaskWasBugged) {
+      triggerTrophyEvent('BUG_HUNTED');
+    }
 
     // Check victory condition
     const winResult = checkVictory({
+      ...state.engineState,
       roomId: state.roomId || 'ROOM-1',
       phase: state.gamePhase,
-      phaseTimer: 600,
-      gameTimeRemaining: 900,
-      totalGameTime: 900,
-      isTimerPaused: false,
       players: state.players,
       tasks: nextTasks,
       progress: nextProgress,
-      alarm: null,
-      pendingSabotageAlert: null,
-      notifications: [],
-      meeting: null,
-      voting: null,
-      sabotageCooldowns: {},
-      syntaxBlackoutActive: false,
-      serverOverloadActive: false,
-      serverOverloadDeadline: null,
-      winner: null,
-      settings: {
-        maxPlayers: 10,
-        mafiaCount: 1,
-        difficulty: 'SMALL',
-        gameDurationSeconds: 900,
-        discussionDurationSeconds: 60,
-        votingDurationSeconds: 45,
-        sabotageCooldownSeconds: 30,
-        imposterEscapeDelaySeconds: 3,
-        syntaxBlackoutDurationSeconds: 30,
-      },
-      createdAt: Date.now(),
-      lastUpdatedAt: Date.now(),
     });
 
     if (winResult.winner) {
+      triggerTrophyEvent('GAME_COMPLETED');
+      const localPlayer = state.players.find((p) => p.id === state.session?.playerId);
+      const isDev = localPlayer?.role === 'DEVELOPER';
+      const isMafia = localPlayer?.role === 'MAFIA';
+      const survived = localPlayer?.alive ?? true;
+
+      if ((winResult.winner === 'DEVELOPERS' && isDev) || (winResult.winner === 'MAFIA' && isMafia)) {
+        triggerTrophyEvent('GAME_WON');
+      }
+      if (survived) {
+        triggerTrophyEvent('SURVIVED');
+      }
+      if (winResult.winner === 'MAFIA' && isMafia) {
+        triggerTrophyEvent('MAFIA_WON');
+        if (survived) {
+          triggerTrophyEvent('MAFIA_UNDETECTED');
+        }
+      }
+      if (winResult.winner === 'DEVELOPERS' && isDev && survived && updatedMyTasks.every((t) => t.status === 'COMPLETED')) {
+        triggerTrophyEvent('PERFECT_DEV');
+      }
+
       set({
         tasks: nextTasks,
         progress: nextProgress,
@@ -637,6 +693,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       myPrivateTasks: updatedMyTasks,
     });
 
+    triggerTrophyEvent('SABOTAGE_TRIGGERED');
     return found;
   },
 
@@ -672,6 +729,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   },
 
   triggerBugTaskAction: (taskId: string, roomName: string) => {
+    triggerTrophyEvent('SABOTAGE_TRIGGERED');
     const state = get();
     const legacyTaskId = taskId.includes('auth')
       ? 'task-auth'
@@ -729,7 +787,52 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 
-  // ── Engine Sync ──
+  // ── Engine Sync & Settings ──
+  updateSettings: (newSettings) => {
+    const state = get();
+    if (state.gamePhase !== 'LOBBY') return;
+    const merged = { ...state.engineState.settings, ...newSettings };
+    const duration = merged.gameDurationSeconds ?? 900;
+    const nextEngine = {
+      ...state.engineState,
+      settings: merged,
+      gameTimeRemaining: duration,
+      totalGameTime: duration,
+    };
+    set({
+      engineState: nextEngine,
+      gameTimeRemaining: duration,
+    });
+    get().dispatchEngineAction({ type: 'UPDATE_SETTINGS', settings: newSettings });
+
+    // Persist to Supabase and broadcast to other lobby clients
+    if (state.roomId) {
+      updateRoomSettings(state.roomId, merged, state.session?.playerId).catch((err) => {
+        console.warn('Could not persist settings to Supabase:', err);
+      });
+      supabase.channel(`room:${state.roomId}:events`).send({
+        type: 'broadcast',
+        event: 'game_settings_update',
+        payload: { settings: merged },
+      });
+    }
+  },
+
+  setRoomSettings: (settings) => {
+    const state = get();
+    const merged = { ...state.engineState.settings, ...settings };
+    const duration = merged.gameDurationSeconds ?? 900;
+    set({
+      engineState: {
+        ...state.engineState,
+        settings: merged,
+        gameTimeRemaining: duration,
+        totalGameTime: duration,
+      },
+      gameTimeRemaining: duration,
+    });
+  },
+
   dispatchEngineAction: (action) => {
     set((state) => {
       const nextEngine = gameReducer(state.engineState, action);

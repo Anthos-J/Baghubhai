@@ -49,31 +49,38 @@ export function calculateGameDuration(
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {
-  maxPlayers: 10,
+  maxPlayers: 5,
   mafiaCount: 1,
-  difficulty: 'SMALL',
-  gameDurationSeconds: 600, // 10 minutes default
-  discussionDurationSeconds: 40,
-  votingDurationSeconds: 25,
-  sabotageCooldownSeconds: 60, // 1 minute cooldown
-  imposterEscapeDelaySeconds: 3, // 3 seconds escape window
-  syntaxBlackoutDurationSeconds: 30,
+  difficulty: 'MEDIUM',
+  gameDurationSeconds: 900, // 15 minutes default
+  discussionDurationSeconds: 180, // 3 minutes default
+  votingDurationSeconds: 60, // 1 minute default
+  emergencyMeetingLimit: 1, // 1 per player
+  emergencyMeetingCooldownSeconds: 30, // 30s cooldown after meeting
+  sabotageCooldownSeconds: 45, // 45s cooldown
+  syntaxBlackoutDurationSeconds: 10, // 10s duration
+  imposterEscapeDelaySeconds: 5, // 5s escape window
 };
 
 /**
  * Creates a fresh GameState instance in the LOBBY phase.
  */
-export function createInitialGameState(roomId: string = 'ROOM-1', hostPlayer?: Player): GameState {
+export function createInitialGameState(
+  roomId: string = 'ROOM-1',
+  hostPlayer?: Player,
+  initialSettings?: Partial<GameSettings>
+): GameState {
   const initialPlayers: Player[] = hostPlayer ? [hostPlayer] : [];
   const initialTasks: TaskItem[] = getDefaultTasks();
-  const initialDuration = calculateGameDuration('SMALL', initialPlayers.length);
+  const mergedSettings: GameSettings = { ...DEFAULT_SETTINGS, ...initialSettings };
+  const duration = mergedSettings.gameDurationSeconds ?? 900;
 
   return {
     roomId,
     phase: 'LOBBY',
     phaseTimer: 0,
-    gameTimeRemaining: initialDuration,
-    totalGameTime: initialDuration,
+    gameTimeRemaining: duration,
+    totalGameTime: duration,
     isTimerPaused: false,
     players: initialPlayers,
     tasks: initialTasks,
@@ -83,18 +90,20 @@ export function createInitialGameState(roomId: string = 'ROOM-1', hostPlayer?: P
     notifications: [],
     meeting: null,
     voting: null,
+    emergencyMeetingCooldownUntil: null,
     sabotageCooldowns: {},
     syntaxBlackoutActive: false,
     serverOverloadActive: false,
     serverOverloadDeadline: null,
     winner: null,
-    settings: { ...DEFAULT_SETTINGS, gameDurationSeconds: initialDuration },
+    settings: mergedSettings,
     createdAt: Date.now(),
     lastUpdatedAt: Date.now(),
   };
 }
 
-export type { GameAction };
+export type { GameAction, GameState, GameSettings };
+
 
 
 

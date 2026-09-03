@@ -32,6 +32,10 @@ import {
   DiscIcon as DiscordIcon,
   Loader2,
 } from 'lucide-react';
+import { HomeSettingsModal } from '../components/home/HomeSettingsModal';
+import { HelpModal } from '../components/home/HelpModal';
+import { TrophiesModal } from '../components/home/TrophiesModal';
+import { TrophyToast } from '../components/home/TrophyToast';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -49,6 +53,11 @@ export default function Home() {
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ── Modals state ──
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isTrophiesOpen, setIsTrophiesOpen] = useState(false);
 
   // ── Restore saved username ──
   useEffect(() => {
@@ -211,7 +220,11 @@ export default function Home() {
       {/* Top Header */}
       <header className="flex justify-between items-center w-full z-10 p-2 relative">
         <div className="flex gap-2">
-          <button className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white">
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white cursor-pointer"
+            title="Player Settings"
+          >
             <Settings size={20} />
           </button>
         </div>
@@ -224,13 +237,25 @@ export default function Home() {
           <span className="font-tech text-sm text-gray-300">{username}</span>
         </div>
         <div className="flex gap-2">
-          <button className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white">
+          <button
+            onClick={() => setIsHelpOpen(true)}
+            className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white cursor-pointer"
+            title="Help / How to Play"
+          >
             <HelpCircle size={20} />
           </button>
-          <button className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white">
+          <button
+            onClick={() => setIsTrophiesOpen(true)}
+            className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white cursor-pointer"
+            title="Trophies & Achievements"
+          >
             <Trophy size={20} />
           </button>
-          <button className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white">
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-3 bg-panel border-4 border-panelBorder hover:border-primary transition-colors text-textMuted hover:text-white cursor-pointer"
+            title="Audio / Volume Settings"
+          >
             <Volume2 size={20} />
           </button>
         </div>
@@ -397,6 +422,12 @@ export default function Home() {
           23 PLAYERS ONLINE
         </div>
       </footer>
+
+      {/* Modals & Notification Toasts */}
+      <HomeSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      <TrophiesModal isOpen={isTrophiesOpen} onClose={() => setIsTrophiesOpen(false)} />
+      <TrophyToast />
     </div>
   );
 }
