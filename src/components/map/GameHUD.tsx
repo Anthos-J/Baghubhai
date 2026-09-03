@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { RoomEditorModal, isCodingRoom, getTaskIdForRoom, getPlayerTaskInRoom } from '../../editor';
 import AdminMapModal from './AdminMapModal';
+import Minimap from './Minimap';
 
 export default function GameHUD() {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ export default function GameHUD() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [tasksCollapsed, setTasksCollapsed] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
   const clearRoom = useMockStore((s) => s.clearRoom);
@@ -230,33 +232,38 @@ export default function GameHUD() {
         </div>
       </div>
 
-      {/* ── 2. TOP RIGHT: Map Button & Role Badge ── */}
-      <div className="absolute top-2 sm:top-3 right-3 sm:right-4 z-40 pointer-events-auto flex items-center gap-2">
-        {/* Role Badge */}
-        {isMafia ? (
-          <div className="px-3 py-1.5 bg-[#FF003C]/20 border-2 border-[#FF003C] text-[#FF003C] text-xs font-pixel flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,0,60,0.5)]">
-            <Flame size={14} className="animate-pulse" />
-            <span>ROLE: MAFIA</span>
-          </div>
-        ) : (
-          <div className="px-3 py-1.5 bg-[#00F0FF]/15 border-2 border-[#00F0FF] text-[#00F0FF] text-xs font-pixel flex items-center gap-1.5">
-            <span>DEVELOPER</span>
-          </div>
-        )}
+      {/* ── 2. TOP RIGHT: Role Badge & Live HUD Minimap ── */}
+      <div className="absolute top-2 sm:top-3 right-3 sm:right-4 z-40 pointer-events-auto flex flex-col items-end gap-1.5">
+        <div className="flex items-center gap-2">
+          {/* Role Badge */}
+          {isMafia ? (
+            <div className="px-3 py-1 bg-[#FF003C]/20 border-2 border-[#FF003C] text-[#FF003C] text-xs font-pixel flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,0,60,0.5)]">
+              <Flame size={13} className="animate-pulse" />
+              <span>ROLE: MAFIA</span>
+            </div>
+          ) : (
+            <div className="px-3 py-1 bg-[#00F0FF]/15 border-2 border-[#00F0FF] text-[#00F0FF] text-xs font-pixel flex items-center gap-1.5">
+              <span>DEVELOPER</span>
+            </div>
+          )}
 
-        <button
-          onClick={() => setMapOpen((prev) => !prev)}
-          className="px-3 py-1.5 bg-panel/90 hover:bg-panel border-2 border-panelBorder hover:border-success text-white text-xs font-tech flex items-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer rounded-xs"
-          title="Open Facility Map [M]"
-        >
-          <MapIcon size={16} className="text-success" />
-          <span className="font-bold">MAP [M]</span>
-        </button>
+          <button
+            onClick={() => setMapOpen((prev) => !prev)}
+            className="px-2.5 py-1 bg-panel/90 hover:bg-panel border-2 border-panelBorder hover:border-success text-white text-xs font-tech flex items-center gap-1.5 shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer rounded-xs"
+            title="Open Full Facility Radar [M]"
+          >
+            <MapIcon size={14} className="text-success" />
+            <span className="font-bold">RADAR [M]</span>
+          </button>
+        </div>
+
+        {/* Live Interactive Minimap */}
+        <Minimap onExpand={() => setMapOpen(true)} />
       </div>
 
-      {/* ── 3. RIGHT HAND SIDE: Code Tasks Frame (Customized for Mafia vs Dev) ── */}
-      <div className="absolute top-16 right-3 sm:right-4 z-30 pointer-events-auto w-68 sm:w-76 bg-black/85 border-2 border-panelBorder p-3 shadow-2xl backdrop-blur-xs flex flex-col gap-2 animate-in fade-in slide-in-from-right-4 duration-300 rounded-xs">
-        <div className="flex justify-between items-center pb-1.5 border-b border-panelBorder/70">
+      {/* ── 3. RIGHT HAND SIDE: Code Tasks Frame (Placed Beneath Minimap) ── */}
+      <div className="absolute top-[230px] sm:top-[245px] right-3 sm:right-4 z-30 pointer-events-auto w-60 sm:w-68 bg-black/85 border-2 border-panelBorder p-2.5 shadow-2xl backdrop-blur-xs flex flex-col gap-1.5 animate-in fade-in slide-in-from-right-4 duration-300 rounded-xs">
+        <div className="flex justify-between items-center pb-1 border-b border-panelBorder/70">
           <span className={`font-tech text-xs tracking-wider flex items-center gap-1.5 font-bold ${isMafia ? 'text-[#FF003C]' : 'text-warning'}`}>
             {isMafia ? (
               <>
@@ -268,88 +275,99 @@ export default function GameHUD() {
               </>
             )}
           </span>
-          <span className="font-mono text-[10px] text-gray-400">
-            {completedCount}/{tasks.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-gray-400">
+              {completedCount}/{tasks.length}
+            </span>
+            <button
+              onClick={() => setTasksCollapsed(!tasksCollapsed)}
+              className="text-gray-400 hover:text-white text-xs font-mono px-1 hover:bg-white/10 rounded cursor-pointer leading-none"
+              title={tasksCollapsed ? 'Expand Tasks' : 'Collapse Tasks'}
+            >
+              {tasksCollapsed ? '+' : '—'}
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar text-xs">
-          {tasks.map((task) => {
-            const completed = isTaskCompleted(task);
-            const isBugged = task.status === 'BUGGED';
+        {!tasksCollapsed && (
+          <div className="flex flex-col gap-1.5 max-h-[200px] sm:max-h-[250px] overflow-y-auto pr-1 custom-scrollbar text-xs">
+            {tasks.map((task) => {
+              const completed = isTaskCompleted(task);
+              const isBugged = task.status === 'BUGGED';
 
-            return (
-              <div
-                key={task.id}
-                className={`p-2 border rounded-xs transition-all flex items-start gap-2 ${
-                  isMafia
-                    ? completed
-                      ? 'bg-yellow-950/40 border-yellow-500 text-yellow-300 shadow-[0_0_10px_rgba(255,184,0,0.2)]'
+              return (
+                <div
+                  key={task.id}
+                  className={`p-2 border rounded-xs transition-all flex items-start gap-2 ${
+                    isMafia
+                      ? completed
+                        ? 'bg-yellow-950/40 border-yellow-500 text-yellow-300 shadow-[0_0_10px_rgba(255,184,0,0.2)]'
+                        : isBugged
+                        ? 'bg-red-950/40 border-red-500 text-red-300'
+                        : 'bg-panel/70 border-panelBorder/70 text-gray-400'
+                      : completed
+                      ? 'bg-success/15 border-success text-success shadow-[0_0_10px_rgba(0,255,0,0.15)]'
                       : isBugged
                       ? 'bg-red-950/40 border-red-500 text-red-300'
-                      : 'bg-panel/70 border-panelBorder/70 text-gray-400'
-                    : completed
-                    ? 'bg-success/15 border-success text-success shadow-[0_0_10px_rgba(0,255,0,0.15)]'
-                    : isBugged
-                    ? 'bg-red-950/40 border-red-500 text-red-300'
-                    : 'bg-panel/70 border-panelBorder/70 text-gray-300 hover:border-gray-500'
-                }`}
-              >
-                <div className="mt-0.5 flex-shrink-0">
-                  {isMafia ? (
-                    completed ? (
-                      <Bug size={14} className="text-yellow-400 animate-pulse" />
+                      : 'bg-panel/70 border-panelBorder/70 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="mt-0.5 flex-shrink-0">
+                    {isMafia ? (
+                      completed ? (
+                        <Bug size={14} className="text-yellow-400 animate-pulse" />
+                      ) : isBugged ? (
+                        <AlertTriangle size={14} className="text-red-500" />
+                      ) : (
+                        <div className="w-3 h-3 rounded-full border border-gray-600 mt-0.5" />
+                      )
+                    ) : completed ? (
+                      <Check size={14} className="text-success stroke-[3]" />
                     ) : isBugged ? (
-                      <AlertTriangle size={14} className="text-red-500" />
+                      <AlertTriangle size={14} className="text-red-500 animate-pulse" />
                     ) : (
-                      <div className="w-3 h-3 rounded-full border border-gray-600 mt-0.5" />
-                    )
-                  ) : completed ? (
-                    <Check size={14} className="text-success stroke-[3]" />
-                  ) : isBugged ? (
-                    <AlertTriangle size={14} className="text-red-500 animate-pulse" />
-                  ) : (
-                    <div className="w-3 h-3 rounded-full border border-warning/60 bg-warning/20 mt-0.5" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div
-                    className={`font-tech font-bold text-[11px] leading-tight ${
-                      isMafia
-                        ? completed
-                          ? 'text-yellow-300'
+                      <div className="w-3 h-3 rounded-full border border-warning/60 bg-warning/20 mt-0.5" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className={`font-tech font-bold text-[11px] leading-tight ${
+                        isMafia
+                          ? completed
+                            ? 'text-yellow-300'
+                            : isBugged
+                            ? 'text-red-400'
+                            : 'text-gray-400'
+                          : completed
+                          ? 'text-success'
                           : isBugged
                           ? 'text-red-400'
-                          : 'text-gray-400'
-                        : completed
-                        ? 'text-success'
-                        : isBugged
-                        ? 'text-red-400'
-                        : 'text-white'
-                    }`}
-                  >
-                    {task.title}
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="font-mono text-[9px] text-gray-400 truncate">
-                      {task.fileName}
-                    </span>
-                    {isMafia && completed && (
-                      <span className="font-pixel text-[9px] text-yellow-400 bg-yellow-950/80 px-1 py-0.5 border border-yellow-500">
-                        READY TO BUG ⚠️
+                          : 'text-white'
+                      }`}
+                    >
+                      {task.title}
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="font-mono text-[9px] text-gray-400 truncate">
+                        {task.fileName}
                       </span>
-                    )}
-                    {isBugged && (
-                      <span className="font-pixel text-[9px] text-red-400 bg-red-950/80 px-1 py-0.5 border border-red-500">
-                        BUGGED 🚨
-                      </span>
-                    )}
+                      {isMafia && completed && (
+                        <span className="font-pixel text-[9px] text-yellow-400 bg-yellow-950/80 px-1 py-0.5 border border-yellow-500">
+                          READY TO BUG ⚠️
+                        </span>
+                      )}
+                      {isBugged && (
+                        <span className="font-pixel text-[9px] text-red-400 bg-red-950/80 px-1 py-0.5 border border-red-500">
+                          BUGGED 🚨
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── 4. Center Terminal Interaction / Bug Prompt ── */}

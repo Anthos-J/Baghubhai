@@ -197,5 +197,68 @@ export class GameEngine {
       this.playerStates,
       this.totalTime
     );
+
+    // 3. Draw Player Vision Lighting / Darkness Radius (Fog of War)
+    const localPlayer = this.players.find((p) => p.id === this.localPlayerId);
+    if (localPlayer) {
+      this.drawVisionLighting(localPlayer);
+    }
+  }
+
+  /**
+   * Draws realistic Among Us style circular player vision radius.
+   * Only the area around the player is illuminated, with deep dark shadows across the rest of the map.
+   */
+  private drawVisionLighting(localPlayer: Player) {
+    const ctx = this.ctx;
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+
+    // Calculate local player's screen center coordinates
+    const screenX = localPlayer.x - this.camera.x + width / 2;
+    const screenY = localPlayer.y - this.camera.y + height / 2;
+
+    const isGhost = !localPlayer.alive;
+    const innerRadius = isGhost ? 380 : 180;
+    const outerRadius = isGhost ? 680 : 360;
+    const shadowOpacity = isGhost ? 0.35 : 0.94;
+
+    ctx.save();
+
+    // Create smooth radial gradient for vision cone falloff
+    const gradient = ctx.createRadialGradient(
+      screenX,
+      screenY,
+      innerRadius,
+      screenX,
+      screenY,
+      outerRadius
+    );
+
+    gradient.addColorStop(0, 'rgba(4, 7, 14, 0)');
+    gradient.addColorStop(0.3, 'rgba(4, 7, 14, 0.2)');
+    gradient.addColorStop(0.65, 'rgba(4, 7, 14, 0.65)');
+    gradient.addColorStop(0.9, `rgba(4, 7, 14, ${shadowOpacity * 0.92})`);
+    gradient.addColorStop(1, `rgba(4, 7, 14, ${shadowOpacity})`);
+
+    // Fill screen with darkness & illuminated player vision circle
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    // Add subtle ambient vignette at far screen edges
+    const vignette = ctx.createRadialGradient(
+      width / 2,
+      height / 2,
+      Math.min(width, height) * 0.45,
+      width / 2,
+      height / 2,
+      Math.max(width, height) * 0.8
+    );
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.restore();
   }
 }
