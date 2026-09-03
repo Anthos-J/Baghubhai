@@ -163,6 +163,7 @@ export default function Lobby() {
                         className="mt-2 mx-auto"
                       />
                     </div>
+                  </div>
                 );
               })}
             </div>
