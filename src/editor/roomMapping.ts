@@ -25,25 +25,40 @@ export interface RoomMapping {
  * Primary lookup by MapData room id (e.g. 'auth_lab').
  */
 const ROOM_ID_MAP: Record<string, RoomMapping> = {
-  library: { fileId: 'file-auth',     taskId: 'task-auth',     roomLabel: 'LIBRARY & ARCHIVES' },
-  medbay:  { fileId: 'file-database', taskId: 'task-database', roomLabel: 'MEDICAL BAY' },
-  storage: { fileId: 'file-utils',    taskId: 'task-utils',    roomLabel: 'STORAGE & CARGO' },
-  dev_lab: { fileId: 'file-payment',  taskId: 'task-payment',  roomLabel: 'DEV WORKSTATIONS' },
-  command: { fileId: 'file-app',      taskId: 'task-app',      roomLabel: 'COMMAND & TECH' },
+  // New MapData IDs
+  library:       { fileId: 'file-auth',     taskId: 'task-auth',     roomLabel: 'LIBRARY & ARCHIVES' },
+  medbay:        { fileId: 'file-database', taskId: 'task-database', roomLabel: 'MEDICAL BAY' },
+  storage:       { fileId: 'file-utils',    taskId: 'task-utils',    roomLabel: 'STORAGE & CARGO' },
+  dev_lab:       { fileId: 'file-payment',  taskId: 'task-payment',  roomLabel: 'DEV WORKSTATIONS' },
+  command:       { fileId: 'file-app',      taskId: 'task-app',      roomLabel: 'COMMAND & TECH' },
+
+  // Legacy MapData IDs for backward compatibility
+  auth_lab:      { fileId: 'file-auth',     taskId: 'task-auth',     roomLabel: 'AUTH LAB' },
+  database_room: { fileId: 'file-database', taskId: 'task-database', roomLabel: 'DATABASE ROOM' },
+  utilities_lab: { fileId: 'file-utils',    taskId: 'task-utils',    roomLabel: 'UTILITIES LAB' },
+  payment_lab:   { fileId: 'file-payment',  taskId: 'task-payment',  roomLabel: 'PAYMENT LAB' },
+  mainframe:     { fileId: 'file-app',      taskId: 'task-app',      roomLabel: 'MAINFRAME' },
 };
 
 /**
- * Secondary lookup by display name as currently returned by RoomZones.ts
- * (room.name instead of room.id).  Kept separate so the fix is isolated here
- * and does not require changing any P1 files.
+ * Secondary lookup by display name as returned by RoomZones.ts
  */
 const ROOM_NAME_MAP: Record<string, RoomMapping> = {
+  // New display names
   'LIBRARY & ARCHIVES': ROOM_ID_MAP['library'],
   'MEDICAL BAY':        ROOM_ID_MAP['medbay'],
   'STORAGE & CARGO':    ROOM_ID_MAP['storage'],
   'DEV WORKSTATIONS':   ROOM_ID_MAP['dev_lab'],
   'COMMAND & TECH':     ROOM_ID_MAP['command'],
+
+  // Legacy display names
+  'AUTH LAB':           ROOM_ID_MAP['auth_lab'],
+  'DATABASE ROOM':      ROOM_ID_MAP['database_room'],
+  'UTILITIES LAB':      ROOM_ID_MAP['utilities_lab'],
+  'PAYMENT LAB':        ROOM_ID_MAP['payment_lab'],
+  'MAINFRAME':          ROOM_ID_MAP['mainframe'],
 };
+
 
 /**
  * Returns the RoomMapping for the given room identifier, or null if the room
