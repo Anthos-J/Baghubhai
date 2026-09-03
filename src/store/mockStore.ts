@@ -178,9 +178,18 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
 
   // ── Game flow & Timers ──
   setGamePhase: (phase) => {
-    set({
-      gamePhase: phase,
-      isGameTimerPaused: phase === 'MEETING' || phase === 'VOTING' || phase === 'LOBBY' || phase === 'ROLE_REVEAL',
+    set((state) => {
+      const nextEngine = {
+        ...state.engineState,
+        phase,
+        phaseTimer: phase === 'PLAYING' ? (state.engineState.gameTimeRemaining || 900) : (phase === 'ROLE_REVEAL' ? 4 : state.engineState.phaseTimer),
+        players: state.players.length > 0 ? state.players : state.engineState.players,
+      };
+      return {
+        engineState: nextEngine,
+        gamePhase: phase,
+        isGameTimerPaused: phase === 'MEETING' || phase === 'VOTING' || phase === 'LOBBY' || phase === 'ROLE_REVEAL',
+      };
     });
   },
 
@@ -205,8 +214,20 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       ? players
       : assignRoles(players, 1);
 
+    const initialEngine = get().engineState;
+    const roleRevealEngine = {
+      ...initialEngine,
+      phase: 'ROLE_REVEAL' as const,
+      phaseTimer: 4,
+      players: assignedPlayers,
+      gameTimeRemaining: 900,
+      totalGameTime: 900,
+      winner: null,
+    };
+
     set({
       players: assignedPlayers,
+      engineState: roleRevealEngine,
       gameTimeRemaining: 900,
       isGameTimerPaused: false,
       gamePhase: 'ROLE_REVEAL',
@@ -224,13 +245,24 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     // the phase change via the Realtime Postgres Changes listener
     updateRoomPhase(roomId, 'ROLE_REVEAL').then(() => {
       setTimeout(() => {
-        updateRoomPhase(roomId, 'PLAYING');
+        updateRoomPhase(roomId, 'PLAYING').catch(console.error);
       }, 4000);
-    });
-
+    }).catch(console.error);
 
     setTimeout(() => {
-      set({ gamePhase: 'PLAYING', isGameTimerPaused: false });
+      const curEngine = get().engineState;
+      const playingEngine = {
+        ...curEngine,
+        phase: 'PLAYING' as const,
+        phaseTimer: curEngine.gameTimeRemaining || 900,
+        players: get().players,
+        winner: null,
+      };
+      set({
+        engineState: playingEngine,
+        gamePhase: 'PLAYING',
+        isGameTimerPaused: false,
+      });
     }, 4000);
   },
 

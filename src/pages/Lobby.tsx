@@ -38,8 +38,8 @@ export default function Lobby() {
         room_id: p.room_id,
         username: p.username,
         color: p.color,
-        x: 1000,
-        y: 750,
+        x: 1420,
+        y: 960,
         direction: 'down' as const,
         alive: p.alive,
         connected: true, // we assume everyone online until Presence says otherwise
@@ -179,9 +179,9 @@ export default function Lobby() {
                   variant="success"
                   icon={<Play size={18} />}
                   onClick={startGame}
-                  disabled={players.length < 4}
+                  disabled={players.length < 1}
                 >
-                  {players.length < 4 ? 'NEED 4+ PLAYERS' : 'START GAME'}
+                  {players.length < 1 ? 'NEED 1+ PLAYERS' : 'START GAME'}
                 </GameButton>
               ) : (
                 <div className="text-center font-tech text-gray-500 bg-[#1a1c23] p-3 border-2 border-panelBorder">

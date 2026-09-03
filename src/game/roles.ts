@@ -14,7 +14,7 @@ export function assignRoles(players: Player[], mafiaCount: number = 1): Player[]
   const targetMafiaCount = Math.max(1, Math.min(mafiaCount, Math.floor(players.length / 2) || 1));
 
   return shuffled.map((player, index) => {
-    const role: PlayerRole = index < targetMafiaCount ? 'MAFIA' : 'DEVELOPER';
+    const role: PlayerRole = players.length === 1 ? 'DEVELOPER' : (index < targetMafiaCount ? 'MAFIA' : 'DEVELOPER');
     return {
       ...player,
       role,
