@@ -3,6 +3,7 @@ import { Player, GamePhase, LocalSession, TaskItem, GameState as EngineGameState
 import { updateRoomPhase, clearSession } from '../lib/roomService';
 import { supabase } from '../lib/supabase';
 import { GameAction, gameReducer, createInitialGameState } from '../game/gameState';
+
 import { assignRoles } from '../game/roles';
 import { DEFAULT_TASKS, getDefaultTasks, solveTask, bugTask } from '../game/tasks';
 import { checkVictory } from '../game/victory';
@@ -224,6 +225,9 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       ? players
       : assignRoles(players, 1);
 
+    // Sync engine state to advance from LOBBY
+    get().dispatchEngineAction({ type: 'START_GAME' });
+
     set({
       players: assignedPlayers,
       gameTimeRemaining: 900,
@@ -249,6 +253,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
 
 
     setTimeout(() => {
+      get().dispatchEngineAction({ type: 'TRANSITION_TO_PLAYING' });
       set({ gamePhase: 'PLAYING', isGameTimerPaused: false });
     }, 4000);
   },
@@ -515,11 +520,14 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       serverOverloadDeadline: null,
       winner: null,
       settings: {
+        maxPlayers: 10,
+        mafiaCount: 1,
+        difficulty: 'SMALL',
         gameDurationSeconds: 900,
-        meetingDurationSeconds: 60,
+        discussionDurationSeconds: 60,
         votingDurationSeconds: 45,
         sabotageCooldownSeconds: 30,
-        serverOverloadResolutionTimeSeconds: 60,
+        imposterEscapeDelaySeconds: 3,
         syntaxBlackoutDurationSeconds: 30,
       },
       createdAt: Date.now(),
