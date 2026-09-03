@@ -6,6 +6,7 @@ import { Settings, Play, Users } from 'lucide-react';
 import { usePlayers } from '../hooks/usePlayers';
 import { useRoom } from '../hooks/useRoom';
 import { useGame } from '../hooks/useGame';
+import { resolvePlayerColor, getPlayerAvatarUrl } from '../map/SpriteManager';
 
 export default function Lobby() {
   const { players, localPlayer } = usePlayers();
@@ -44,8 +45,16 @@ export default function Lobby() {
                   {isLocal && (
                     <div className="absolute top-0 left-0 bg-primary text-black font-pixel text-[8px] px-2 py-1">YOU</div>
                   )}
-                  <div className="w-16 h-16 border-2 border-current flex items-center justify-center" style={{ color: p.color }}>
-                    <Users size={32} />
+                  <div className="w-24 h-28 border-2 border-current flex items-center justify-center bg-black/60 overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)]" style={{ color: p.color }}>
+                    <img 
+                      src={getPlayerAvatarUrl(p.color)} 
+                      alt={p.username} 
+                      className="w-full h-full object-cover object-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                      onError={(e) => {
+                        // Fallback if image load fails
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
                   </div>
                   <div className="text-center w-full">
                     <div className="font-tech font-bold text-lg text-white truncate w-full px-2">{p.username}</div>

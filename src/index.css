@@ -50,6 +50,10 @@
     @apply bg-[#aa0000] border-[#FF003C] text-white hover:bg-[#cc0000] hover:shadow-glow-mafia;
   }
   
+  .btn-warning {
+    @apply bg-[#bb7700] border-[#FFB800] text-white hover:bg-[#dd8800];
+  }
+  
   .btn-purple {
     @apply bg-[#5500aa] border-[#9D00FF] text-white hover:bg-[#7700cc];
   }

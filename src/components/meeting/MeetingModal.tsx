@@ -4,6 +4,7 @@ import { GameButton } from '../ui/GameButton';
 import { StatusBadge } from '../ui/StatusBadge';
 import { AlertTriangle, UserX, Users } from 'lucide-react';
 import { usePlayers } from '../../hooks/usePlayers';
+import { resolvePlayerColor, getPlayerAvatarUrl } from '../../map/SpriteManager';
 
 export default function MeetingModal() {
   const { players } = usePlayers();
@@ -26,8 +27,15 @@ export default function MeetingModal() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
           {players.map((p) => (
             <div key={p.id} className={`border-4 p-4 flex flex-col items-center gap-3 transition-transform ${!p.alive ? 'border-gray-800 opacity-50 grayscale' : 'border-panelBorder hover:border-primary cursor-pointer hover:-translate-y-1'}`}>
-              <div className="w-16 h-16 bg-black border-2 border-gray-600 flex items-center justify-center" style={{ color: p.alive ? p.color : '#555' }}>
-                {!p.alive ? <UserX size={32} className="text-mafia" /> : <Users size={32} />}
+              <div className="w-20 h-24 bg-black border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)]" style={{ color: p.alive ? p.color : '#555' }}>
+                <img 
+                  src={getPlayerAvatarUrl(p.color)} 
+                  alt={p.username} 
+                  className={`w-full h-full object-cover object-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${!p.alive ? 'opacity-40 grayscale' : ''}`}
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
               </div>
               <div className="font-tech font-bold text-center w-full truncate">{p.username}</div>
               {p.alive ? (

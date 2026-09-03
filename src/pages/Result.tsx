@@ -2,7 +2,7 @@ import React from 'react';
 import { GameButton } from '../components/ui/GameButton';
 
 export default function Result() {
-  const winner: 'developers' | 'mafia' = 'developers';
+  const winner = 'developers' as 'developers' | 'mafia';
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative bg-black text-textMain z-10">

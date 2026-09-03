@@ -17,13 +17,13 @@ interface GameState {
   callMeeting: () => void;
 }
 
-// Initial mock data
+// Initial mock data inside Cafeteria (Central Hub) center aisle
 const MOCK_PLAYERS: Player[] = [
-  { id: '1', username: 'Anthos', color: '#00F0FF', x: 1000, y: 750, direction: 'down', alive: true, connected: true },
-  { id: '2', username: 'ByteNinja', color: '#FF003C', x: 1050, y: 750, direction: 'left', alive: true, connected: true },
-  { id: '3', username: 'CyberPunk', color: '#00FF00', x: 950, y: 770, direction: 'up', alive: true, connected: true },
-  { id: '4', username: 'Deface', color: '#8A2BE2', x: 1000, y: 800, direction: 'right', alive: true, connected: true },
-  { id: '5', username: 'NullPtr', color: '#FFA500', x: 1020, y: 730, direction: 'down', alive: true, connected: true },
+  { id: '1', username: 'Anthos', color: '#00F0FF', x: 1420, y: 975, direction: 'down', alive: true, connected: true },
+  { id: '2', username: 'ByteNinja', color: '#FF003C', x: 1420, y: 920, direction: 'right', alive: true, connected: true },
+  { id: '3', username: 'CyberPunk', color: '#00FF00', x: 1420, y: 1040, direction: 'left', alive: true, connected: true },
+  { id: '4', username: 'Deface', color: '#8A2BE2', x: 1420, y: 860, direction: 'right', alive: true, connected: true },
+  { id: '5', username: 'NullPtr', color: '#FFA500', x: 1420, y: 1100, direction: 'left', alive: true, connected: true },
 ];
 
 export const useMockStore = create<GameState>((set) => ({

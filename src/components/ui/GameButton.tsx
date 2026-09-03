@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from './PixelCard'; // reusing cn
 
 interface GameButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'success' | 'danger' | 'purple' | 'ghost';
+  variant?: 'primary' | 'success' | 'danger' | 'warning' | 'purple' | 'ghost';
   icon?: React.ReactNode;
 }
 
@@ -18,6 +18,7 @@ export function GameButton({
     primary: 'btn-primary',
     success: 'btn-success',
     danger: 'btn-mafia',
+    warning: 'btn-warning',
     purple: 'btn-purple',
     ghost: 'btn-ghost'
   };
