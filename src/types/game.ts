@@ -3,6 +3,29 @@ export type ImposterRoleAlias = 'IMPOSTER'; // Developer vs Imposter terminology
 
 export type PlayerStatus = 'ALIVE' | 'ELIMINATED' | 'GHOST';
 
+// Master Implementation Context (Section 10) & 2D Map compatibility
+export type Player = {
+  id: string;
+  username: string;
+  name?: string; // alias for username
+  color: string;
+  x: number;
+  y: number;
+  direction: 'up' | 'down' | 'left' | 'right';
+  alive: boolean;
+  connected: boolean;
+  role?: PlayerRole;
+  status?: PlayerStatus;
+  isHost?: boolean;
+  avatar?: string;
+  tasksCompletedCount?: number;
+};
+
+export type MyPlayerState = {
+  playerId: string;
+  role: 'DEVELOPER' | 'MAFIA';
+};
+
 export type GamePhase = 
   | 'LOBBY' 
   | 'ROLE_REVEAL' 
@@ -12,19 +35,34 @@ export type GamePhase =
   | 'VOTE_REVEAL' 
   | 'GAME_OVER';
 
-export type TaskStatus = 'PENDING' | 'COMPLETED' | 'BUGGED';
-
-export interface Player {
+export type Task = {
   id: string;
-  name: string;
-  role: PlayerRole;
-  status: PlayerStatus;
-  isHost: boolean;
-  avatar?: string;
-  color?: string;
-  connected: boolean;
-  tasksCompletedCount: number;
-}
+  title: string;
+  description: string;
+  fileName: string;
+  assignedPlayerId?: string;
+  completed: boolean;
+};
+
+export type GameFile = {
+  id: string;
+  filename: string;
+  language: string;
+  content: string;
+  updatedBy: string | null;
+  updatedAt: string;
+};
+
+export type ActivityEvent = {
+  id: string;
+  type: string;
+  playerId: string;
+  fileName?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type TaskStatus = 'PENDING' | 'COMPLETED' | 'BUGGED';
 
 export interface TaskItem {
   id: string;
@@ -53,6 +91,15 @@ export interface GameAlarm {
   severity: 'high' | 'critical';
   // Overlay styles for UI
   overlayStyle: 'translucent-red-yellow' | 'blackout' | 'strobe-alert';
+}
+
+export interface PendingSabotageAlert {
+  id: string;
+  imposterId: string;
+  taskId: string;
+  triggeredAt: number;
+  broadcastAt: number; // 3 seconds escape window for imposter
+  processed: boolean;
 }
 
 export interface SabotageCooldown {
@@ -97,15 +144,6 @@ export interface WinResult {
 }
 
 export type CodeDifficulty = 'SMALL' | 'MEDIUM' | 'DIFFICULT';
-
-export interface PendingSabotageAlert {
-  id: string;
-  imposterId: string;
-  taskId: string;
-  triggeredAt: number;
-  broadcastAt: number; // 3 seconds escape window for imposter
-  processed: boolean;
-}
 
 export interface GameSettings {
   maxPlayers: number;
@@ -163,4 +201,3 @@ export type GameAction =
   | { type: 'FINISH_VOTE_REVEAL' }
   | { type: 'TICK'; deltaSeconds?: number }
   | { type: 'RESTART_GAME' };
-

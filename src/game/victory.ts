@@ -20,9 +20,12 @@ export function checkVictory(state: GameState): WinResult {
     return state.winner;
   }
 
-  const alivePlayers = state.players.filter((p) => p.status === 'ALIVE');
+  const alivePlayers = state.players.filter(
+    (p) => (p.status === 'ALIVE' || p.alive !== false) && p.status !== 'ELIMINATED' && p.status !== 'GHOST'
+  );
   const aliveDevelopers = alivePlayers.filter((p) => p.role === 'DEVELOPER');
   const aliveMafia = alivePlayers.filter((p) => p.role === 'MAFIA');
+
 
   // 1. Check Developer Task Completion (100% progress)
   if (state.progress >= 100) {

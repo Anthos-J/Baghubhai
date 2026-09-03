@@ -19,9 +19,18 @@ export function assignRoles(players: Player[], mafiaCount: number = 1): Player[]
       ...player,
       role,
       status: 'ALIVE',
+      alive: true,
+      username: player.username || player.name || `Player-${index + 1}`,
       tasksCompletedCount: 0,
     };
   });
+}
+
+function isAlive(player: Player): boolean {
+  if (!player) return false;
+  if (player.alive === false) return false;
+  if (player.status === 'ELIMINATED' || player.status === 'GHOST') return false;
+  return true;
 }
 
 /**
@@ -29,7 +38,7 @@ export function assignRoles(players: Player[], mafiaCount: number = 1): Player[]
  * Ghosts cannot edit. Editing locked during meetings and voting.
  */
 export function canEditCode(player: Player, state: GameState): boolean {
-  if (!player || player.status !== 'ALIVE') return false;
+  if (!isAlive(player)) return false;
   if (state.phase !== 'PLAYING') return false;
   return true;
 }
@@ -39,7 +48,7 @@ export function canEditCode(player: Player, state: GameState): boolean {
  * Only living Mafia members can sabotage during the PLAYING phase.
  */
 export function canSabotage(player: Player, state: GameState): boolean {
-  if (!player || player.status !== 'ALIVE') return false;
+  if (!isAlive(player)) return false;
   if (player.role !== 'MAFIA') return false;
   if (state.phase !== 'PLAYING') return false;
   return true;
@@ -50,7 +59,7 @@ export function canSabotage(player: Player, state: GameState): boolean {
  * Only living players can call a meeting during PLAYING phase.
  */
 export function canCallMeeting(player: Player, state: GameState): boolean {
-  if (!player || player.status !== 'ALIVE') return false;
+  if (!isAlive(player)) return false;
   if (state.phase !== 'PLAYING') return false;
   if (state.meeting !== null) return false;
   return true;
@@ -58,10 +67,9 @@ export function canCallMeeting(player: Player, state: GameState): boolean {
 
 /**
  * Checks if a player can cast a vote.
- * Only living players can vote during the VOTING phase.
  */
 export function canVote(player: Player, state: GameState): boolean {
-  if (!player || player.status !== 'ALIVE') return false;
+  if (!isAlive(player)) return false;
   if (state.phase !== 'VOTING') return false;
   return true;
 }

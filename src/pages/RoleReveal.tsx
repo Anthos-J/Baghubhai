@@ -1,10 +1,21 @@
+import { useEffect, useState } from 'react';
+import { usePlayers } from '../hooks/usePlayers';
+
 
 export default function RoleReveal() {
-  const role = 'mafia'; // Mocked state
+  const { localPlayerState } = usePlayers();
+  const role = localPlayerState?.role === 'MAFIA' ? 'mafia' : 'developer';
+  const [countdown, setCountdown] = useState(4);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative bg-black text-textMain z-10">
-      <div className="absolute inset-0 scanlines z-50"></div>
+    <div className="w-full h-full flex flex-col items-center justify-center p-4 relative bg-black text-textMain z-10">
       
       {/* Background Glow */}
       <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[150px] opacity-20 pointer-events-none ${role === 'mafia' ? 'bg-mafia' : 'bg-primary'}`}></div>
@@ -31,7 +42,7 @@ export default function RoleReveal() {
       </div>
       
       <div className="mt-12 font-mono text-gray-500 animate-bounce">
-        GAME STARTING IN 3...
+        GAME STARTING IN {countdown}...
       </div>
     </div>
   );

@@ -122,7 +122,7 @@ export function resolveVotes(state: GameState): GameState {
   if (!state.voting) return state;
 
   const votes = state.voting.votes;
-  const alivePlayers = state.players.filter((p) => p.status === 'ALIVE');
+  const alivePlayers = state.players.filter((p) => (p.status === 'ALIVE' || p.alive) && p.status !== 'ELIMINATED');
 
   // Count votes
   const counts: Record<string, number> = {};
@@ -167,13 +167,13 @@ export function resolveVotes(state: GameState): GameState {
       eliminatedPlayerId = winnerTarget;
       const targetPlayer = state.players.find((p) => p.id === winnerTarget);
       if (targetPlayer) {
-        eliminatedPlayerName = targetPlayer.name;
+        eliminatedPlayerName = targetPlayer.username || targetPlayer.name || 'Player';
         eliminatedRole = targetPlayer.role;
 
         // Eliminate player -> Ghost mode
         nextPlayers = state.players.map((p) =>
           p.id === winnerTarget
-            ? { ...p, status: 'ELIMINATED' as const }
+            ? { ...p, status: 'ELIMINATED' as const, alive: false }
             : p
         );
       }
