@@ -12,10 +12,7 @@ export default function GameHUD() {
   const [editorOpen, setEditorOpen] = useState(false);
   
   const engineState = useMockStore((s) => s.engineState);
-  const session = useMockStore((s) => s.session);
-  const players = useMockStore((s) => s.players);
-  
-  const localPlayer = players.find((p) => p.id === session?.playerId);
+
   const isAlive = localPlayer ? localPlayer.alive : true;
 
   const mins = Math.floor(engineState.gameTimeRemaining / 60);
