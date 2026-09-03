@@ -1,4 +1,5 @@
-import { GameState, GameSettings, Player, TaskItem, GameAction } from '../types/game';
+export type { GameState, GameSettings, Player, TaskItem, GameAction } from '../types/game';
+import type { GameState, GameSettings, Player, TaskItem, GameAction } from '../types/game';
 import { getDefaultTasks, solveTask } from './tasks';
 import { triggerBugInjection, triggerSyntaxBlackout, triggerServerOverload, resolveServerOverload, clearAlarm } from './sabotage';
 import { startEmergencyMeeting, castVote } from './voting';
@@ -93,8 +94,6 @@ export function createInitialGameState(roomId: string = 'ROOM-1', hostPlayer?: P
     lastUpdatedAt: Date.now(),
   };
 }
-
-export type { GameAction };
 
 
 

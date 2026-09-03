@@ -181,12 +181,12 @@ export interface GameSettings {
   maxPlayers?: number;
   mafiaCount?: number;
   difficulty?: CodeDifficulty;
-  gameDurationSeconds?: number;
+  gameDurationSeconds: number;
   discussionDurationSeconds?: number;
-  votingDurationSeconds?: number;
-  sabotageCooldownSeconds?: number; // 60s (1 minute) cooldown
+  votingDurationSeconds: number;
+  sabotageCooldownSeconds: number; // 60s (1 minute) cooldown
   imposterEscapeDelaySeconds?: number; // 3s escape window
-  syntaxBlackoutDurationSeconds?: number;
+  syntaxBlackoutDurationSeconds: number;
   meetingDurationSeconds?: number;
   serverOverloadResolutionTimeSeconds?: number;
 }

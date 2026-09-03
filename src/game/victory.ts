@@ -57,8 +57,8 @@ export function checkVictory(state: GameState): WinResult {
   }
 
   // 4. Check Imposter Parity (Living Mafia >= Living Developers)
-  // Only check if game has properly started and roles are assigned
-  if (state.phase !== 'ROLE_REVEAL' && aliveMafia.length > 0 && aliveMafia.length >= aliveDevelopers.length) {
+  // Only check if game has properly started, roles are assigned, and not in single-player test mode
+  if (state.phase !== 'ROLE_REVEAL' && state.players.length > 1 && aliveMafia.length > 0 && aliveMafia.length >= aliveDevelopers.length) {
     return {
       winner: 'MAFIA',
       reason: 'Imposters have compromised the team! (Living Imposters >= Living Developers)',
@@ -67,7 +67,7 @@ export function checkVictory(state: GameState): WinResult {
   }
 
   // 5. Check Global Game Timeout
-  if (state.phase === 'PLAYING' && (state.gameTimeRemaining <= 0 || state.phaseTimer <= 0)) {
+  if (state.phase === 'PLAYING' && state.gameTimeRemaining <= 0) {
     return {
       winner: 'MAFIA',
       reason: 'Sprint deadline reached! The team ran out of time to find the imposter and fix the codebase.',
