@@ -290,6 +290,14 @@ export function useMeetingEvents(roomId: string, playerId: string) {
       })
       .on('broadcast', { event: 'task_completed_event' }, ({ payload }) => {
         const store = useMockStore.getState();
+        if (payload?.completedTasksByPlayer) {
+          store.syncCumulativeTasks({
+            completedTasksByPlayer: payload.completedTasksByPlayer,
+            totalTasksCompleted: payload.totalTasksCompleted,
+            totalGameTasks: payload.totalGameTasks,
+            progress: payload.progress,
+          });
+        }
         const me = store.players.find((p) => p.id === playerId);
         if (me?.role === 'MAFIA') {
           store.notifyMafiaTaskCompleted(payload.taskId, payload.roomName, payload.taskTitle);
@@ -297,6 +305,17 @@ export function useMeetingEvents(roomId: string, playerId: string) {
       })
       .on('broadcast', { event: 'task_bugged_alarm' }, ({ payload }) => {
         const store = useMockStore.getState();
+        if (payload?.completedTasksByPlayer) {
+          store.syncCumulativeTasks({
+            completedTasksByPlayer: payload.completedTasksByPlayer,
+            totalTasksCompleted: payload.totalTasksCompleted,
+            totalGameTasks: payload.totalGameTasks,
+            progress: payload.progress,
+          });
+        }
+        if (payload?.taskId) {
+          store.sabotageTask(payload.taskId);
+        }
         store.triggerAlarm(payload.roomName, payload.message);
       })
       .on('broadcast', { event: 'alarm_cleared' }, () => {

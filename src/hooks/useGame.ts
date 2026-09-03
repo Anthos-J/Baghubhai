@@ -14,6 +14,10 @@ export function useGame() {
   const sabotageTask = useMockStore(state => state.sabotageTask);
   const assignTasks = useMockStore(state => state.assignTasks);
 
+  const totalTasksCompleted = useMockStore(state => state.totalTasksCompleted);
+  const totalGameTasks = useMockStore(state => state.totalGameTasks);
+  const completedTasksByPlayer = useMockStore(state => state.completedTasksByPlayer);
+
   return {
     gamePhase,
     setGamePhase,
@@ -22,6 +26,9 @@ export function useGame() {
     interactableRoom,
     progress,
     tasks,
+    totalTasksCompleted,
+    totalGameTasks,
+    completedTasksByPlayer,
     publicProject,
     myPrivateTasks,
     completeTask,
