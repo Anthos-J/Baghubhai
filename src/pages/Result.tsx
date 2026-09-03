@@ -2,9 +2,10 @@ import { GameButton } from '../components/ui/GameButton';
 
 interface ResultProps {
   winner?: 'developers' | 'mafia';
+  reason?: string;
 }
 
-export default function Result({ winner = 'developers' }: ResultProps) {
+export default function Result({ winner = 'developers', reason }: ResultProps) {
   const isMafiaWinner = (winner as string) === 'mafia';
 
   return (
@@ -19,7 +20,7 @@ export default function Result({ winner = 'developers' }: ResultProps) {
           {isMafiaWinner ? 'MAFIA WINS' : 'DEVELOPERS WIN'}
         </h1>
         <p className="font-mono mt-6 text-xl text-white">
-          {isMafiaWinner ? 'The project failed to deploy.' : 'All bugs were fixed. Deployment successful.'}
+          {reason || (isMafiaWinner ? 'The project failed to deploy.' : 'All bugs were fixed. Deployment successful.')}
         </p>
       </div>
 

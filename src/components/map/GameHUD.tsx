@@ -1,22 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../../hooks/useGame';
+import { usePlayers } from '../../hooks/usePlayers';
 import { useMockStore } from '../../store/mockStore';
 import { leaveRoom } from '../../lib/roomService';
 import { GameButton } from '../ui/GameButton';
 import { AlertTriangle, Clock, Map as MapIcon, CheckSquare, Check, LogOut } from 'lucide-react';
-import { RoomEditorModal, isCodingRoom } from '../../editor';
+import { RoomEditorModal, isCodingRoom, getTaskIdForRoom, getPlayerTaskInRoom } from '../../editor';
 import AdminMapModal from './AdminMapModal';
 
 export default function GameHUD() {
   const navigate = useNavigate();
-  const { interactableRoom, callMeeting, gamePhase } = useGame();
+  const {
+    interactableRoom,
+    callMeeting,
+    gamePhase,
+    progress,
+    completeTask: engineCompleteTask,
+    myPrivateTasks,
+    publicProject,
+  } = useGame();
+  const { players, localPlayer } = usePlayers();
   const [editorOpen, setEditorOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
   const clearRoom = useMockStore((s) => s.clearRoom);
+  const engineState = useMockStore((s) => s.engineState);
 
   // ── Game Timer Hookup ──
   const gameTimeRemaining = useMockStore((s) => s.gameTimeRemaining);
@@ -27,8 +38,12 @@ export default function GameHUD() {
   const tasks = useMockStore((s) => s.tasks);
   const completeTask = useMockStore((s) => s.completeTask);
 
-  const completedCount = tasks.filter((t) => t.completed).length;
-  const progressPercent = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
+  const isAlive = localPlayer ? localPlayer.alive : true;
+  const isGhost = !isAlive;
+
+  const isTaskCompleted = (t: (typeof tasks)[0]) => t.status === 'COMPLETED' || Boolean(t.completed);
+  const completedCount = tasks.filter(isTaskCompleted).length;
+  const progressPercent = tasks.length > 0 ? (completedCount / tasks.length) * 100 : (progress ?? 0);
 
   useEffect(() => {
     if (isGameTimerPaused) return;
@@ -107,7 +122,7 @@ export default function GameHUD() {
       // Only handle in-game interaction shortcuts in active PLAYING phase
       if (gamePhase !== 'PLAYING') return;
 
-      if (interactableRoom === 'EMERGENCY_TERMINAL' && (e.code === 'Space' || e.key.toLowerCase() === 'e')) {
+      if (isAlive && interactableRoom === 'EMERGENCY_TERMINAL' && (e.code === 'Space' || e.key.toLowerCase() === 'e')) {
         e.preventDefault();
         callMeeting();
         return;
@@ -115,6 +130,7 @@ export default function GameHUD() {
 
       if (
         e.key.toLowerCase() === 'e' &&
+        isAlive &&
         interactableRoom &&
         isCodingRoom(interactableRoom) &&
         !editorOpen
@@ -125,7 +141,23 @@ export default function GameHUD() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [interactableRoom, editorOpen, mapOpen, showExitModal, callMeeting, gamePhase]);
+  }, [interactableRoom, editorOpen, mapOpen, showExitModal, isAlive, callMeeting, gamePhase]);
+
+  // Handler for task completion from RoomEditorModal
+  const handleTaskPassed = (passedTaskId: string, updatedCode?: string) => {
+    completeTask(passedTaskId, localPlayer?.id, updatedCode);
+  };
+
+  // Inspect room tasks
+  const roomTaskId = interactableRoom ? getTaskIdForRoom(interactableRoom) : null;
+  const currentPrivateTask =
+    interactableRoom && localPlayer
+      ? getPlayerTaskInRoom(myPrivateTasks, localPlayer.id, interactableRoom)
+      : null;
+
+  const otherPlayersCount = interactableRoom
+    ? players.filter((p) => p.id !== localPlayer?.id && p.connected).length
+    : 0;
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-4 select-none">
@@ -164,7 +196,7 @@ export default function GameHUD() {
             <Clock size={12} className="text-primary animate-pulse" />
             <span className="font-tech text-[10px] text-gray-400 uppercase">GAME TIME</span>
             <span className="font-mono text-primary font-bold text-xs tracking-wider">
-              {formatGameTime(gameTimeRemaining)}
+              {formatGameTime(gameTimeRemaining || engineState?.gameTimeRemaining || 900)}
             </span>
           </div>
         </div>
@@ -194,42 +226,45 @@ export default function GameHUD() {
         </div>
 
         <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar text-xs">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className={`p-2 border rounded-xs transition-all flex items-start gap-2 ${
-                task.completed
-                  ? 'bg-success/15 border-success text-success shadow-[0_0_10px_rgba(0,255,0,0.15)]'
-                  : 'bg-panel/70 border-panelBorder/70 text-gray-300 hover:border-gray-500'
-              }`}
-            >
-              <div className="mt-0.5 flex-shrink-0">
-                {task.completed ? (
-                  <Check size={14} className="text-success stroke-[3]" />
-                ) : (
-                  <div className="w-3 h-3 rounded-full border border-warning/60 bg-warning/20 mt-0.5" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div
-                  className={`font-tech font-bold text-[11px] leading-tight ${
-                    task.completed ? 'text-success' : 'text-white'
-                  }`}
-                >
-                  {task.title}
+          {tasks.map((task) => {
+            const completed = isTaskCompleted(task);
+            return (
+              <div
+                key={task.id}
+                className={`p-2 border rounded-xs transition-all flex items-start gap-2 ${
+                  completed
+                    ? 'bg-success/15 border-success text-success shadow-[0_0_10px_rgba(0,255,0,0.15)]'
+                    : 'bg-panel/70 border-panelBorder/70 text-gray-300 hover:border-gray-500'
+                }`}
+              >
+                <div className="mt-0.5 flex-shrink-0">
+                  {completed ? (
+                    <Check size={14} className="text-success stroke-[3]" />
+                  ) : (
+                    <div className="w-3 h-3 rounded-full border border-warning/60 bg-warning/20 mt-0.5" />
+                  )}
                 </div>
-                <div className="font-mono text-[9px] text-gray-400 truncate mt-0.5">
-                  {task.fileName}
+                <div className="flex-1 min-w-0">
+                  <div
+                    className={`font-tech font-bold text-[11px] leading-tight ${
+                      completed ? 'text-success' : 'text-white'
+                    }`}
+                  >
+                    {task.title}
+                  </div>
+                  <div className="font-mono text-[9px] text-gray-400 truncate mt-0.5">
+                    {task.fileName}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* ── 4. Center Terminal Interaction Prompt ── */}
       <div className="flex flex-col items-center justify-center flex-1">
-        {interactableRoom && !editorOpen && isCodingRoom(interactableRoom) && (
+        {isAlive && interactableRoom && !editorOpen && isCodingRoom(interactableRoom) && (
           <div
             onClick={() => setEditorOpen(true)}
             className="bg-panel/95 border-4 border-primary p-6 animate-pulse text-center shadow-[0_0_30px_rgba(0,240,255,0.3)] pointer-events-auto cursor-pointer hover:border-warning transition-colors"
@@ -237,6 +272,12 @@ export default function GameHUD() {
             <div className="font-pixel text-xl text-primary mb-2">[{interactableRoom}]</div>
             <div className="font-tech text-white">
               Press <span className="text-warning font-bold">[E]</span> to Access Terminal
+              {isGhost && <span className="ml-2 text-mafia text-xs font-bold">[GHOST / READ-ONLY]</span>}
+              {currentPrivateTask && (
+                <div className="mt-1 font-mono text-xs text-primary">
+                  Assigned: {currentPrivateTask.title}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -245,7 +286,7 @@ export default function GameHUD() {
       {/* ── 5. Bottom Left HUD: Emergency Call button ── */}
       <div className="flex justify-between items-end">
         <div className="pointer-events-auto">
-          {interactableRoom === 'EMERGENCY_TERMINAL' && (
+          {isAlive && interactableRoom === 'EMERGENCY_TERMINAL' && (
             <div className="bg-black/90 border-4 border-[#FF003C] p-4 flex flex-col gap-2 shadow-[0_0_30px_rgba(255,0,60,0.6)] animate-in fade-in slide-in-from-bottom-4 duration-200">
               <div className="flex items-center gap-2 text-[#FF003C] font-tech text-xs tracking-wider uppercase font-bold">
                 <AlertTriangle size={16} className="animate-pulse text-[#FFB800]" />
@@ -271,9 +312,13 @@ export default function GameHUD() {
         <div className="pointer-events-auto">
           <RoomEditorModal
             roomId={interactableRoom}
+            publicProject={publicProject}
+            privateTask={currentPrivateTask}
+            anonymousPresenceCount={otherPlayersCount}
+            readOnly={isGhost}
             onClose={() => setEditorOpen(false)}
-            onTaskPassed={(taskId) => {
-              completeTask(taskId);
+            onTaskPassed={(taskId, updatedCode) => {
+              handleTaskPassed(taskId, updatedCode);
             }}
           />
         </div>

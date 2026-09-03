@@ -194,11 +194,20 @@ export default function Home() {
   // ──────────────────────────────────────────────
   return (
     <div className="w-full flex-1 min-h-screen flex flex-col p-4 relative text-textMain">
-      <div
-        className="absolute inset-0 z-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/assets/bg.jpg')" }}
-      />
-
+      {/* Live Video Background */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster="/assets/bg.jpg"
+          className="w-full h-full object-cover"
+        >
+          <source src="/assets/Bg_live.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-black/40" />
+      </div>
       {/* Top Header */}
       <header className="flex justify-between items-center w-full z-10 p-2 relative">
         <div className="flex gap-2">

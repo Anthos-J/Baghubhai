@@ -1,67 +1,88 @@
-import { MAP_ROOMS, MAP_WALLS, EMERGENCY_TERMINAL, WORLD_WIDTH, WORLD_HEIGHT } from './MapData';
+import { WORLD_WIDTH, WORLD_HEIGHT } from './MapData';
+import { initCollisionMask } from './Collision';
 
-export function drawMap(ctx: CanvasRenderingContext2D, cameraX: number, cameraY: number, canvasWidth: number, canvasHeight: number) {
-  // Clear background
-  ctx.fillStyle = '#0a0a0c'; // Deep dark background
+let mapImage: HTMLImageElement | null = null;
+let mapLoaded = false;
+
+function getMapImage(): HTMLImageElement {
+  if (!mapImage && typeof window !== 'undefined') {
+    mapImage = new Image();
+    mapImage.src = '/assets/Map.png';
+    mapImage.onload = () => {
+      mapLoaded = true;
+      initCollisionMask(mapImage!);
+    };
+    mapImage.onerror = () => {
+      console.error('Failed to load /assets/Map.png');
+    };
+  }
+  return mapImage!;
+}
+
+// Generate static background stars for the deep space void
+const STAR_COUNT = 150;
+interface Star {
+  x: number;
+  y: number;
+  r: number;
+  alpha: number;
+}
+const stars: Star[] = [];
+
+function initStars() {
+  if (stars.length > 0) return;
+  for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push({
+      x: Math.random() * (WORLD_WIDTH + 800) - 400,
+      y: Math.random() * (WORLD_HEIGHT + 800) - 400,
+      r: Math.random() * 1.5 + 0.5,
+      alpha: Math.random() * 0.7 + 0.3
+    });
+  }
+}
+
+export function drawMap(
+  ctx: CanvasRenderingContext2D,
+  cameraX: number,
+  cameraY: number,
+  canvasWidth: number,
+  canvasHeight: number
+) {
+  initStars();
+  const img = getMapImage();
+
+  // Clear canvas background with deep space dark
+  ctx.fillStyle = '#04050a';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   // Apply camera translation
   ctx.save();
   ctx.translate(-cameraX + canvasWidth / 2, -cameraY + canvasHeight / 2);
 
-  // Draw Grid/Floor
-  ctx.strokeStyle = '#1a1a24';
-  ctx.lineWidth = 1;
-  const gridSize = 50;
-  for (let x = 0; x <= WORLD_WIDTH; x += gridSize) {
+  // 1. Draw Deep Space Stars in the void outside the spaceship
+  ctx.save();
+  for (const s of stars) {
+    ctx.fillStyle = `rgba(200, 220, 255, ${s.alpha})`;
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, WORLD_HEIGHT);
-    ctx.stroke();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
   }
-  for (let y = 0; y <= WORLD_HEIGHT; y += gridSize) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(WORLD_WIDTH, y);
-    ctx.stroke();
-  }
+  ctx.restore();
 
-  // Draw Rooms
-  for (const room of MAP_ROOMS) {
-    // Room background
-    ctx.fillStyle = '#111';
-    ctx.fillRect(room.x, room.y, room.w, room.h);
-    
-    // Room Border (Neon)
-    ctx.strokeStyle = room.color;
-    ctx.lineWidth = 4;
-    ctx.strokeRect(room.x, room.y, room.w, room.h);
-
-    // Room Label
-    ctx.fillStyle = room.color;
-    ctx.font = '24px monospace';
+  // 2. Draw Scaled Map Image
+  if (img && (img.complete || mapLoaded) && img.naturalWidth > 0) {
+    initCollisionMask(img);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+  } else {
+    // Loading placeholder
+    ctx.fillStyle = '#11131c';
+    ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    ctx.fillStyle = '#00F0FF';
+    ctx.font = '28px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(room.name, room.x + room.w / 2, room.y + room.h / 2);
-  }
-
-  // Draw Emergency Terminal
-  ctx.fillStyle = '#221100';
-  ctx.fillRect(EMERGENCY_TERMINAL.x, EMERGENCY_TERMINAL.y, EMERGENCY_TERMINAL.w, EMERGENCY_TERMINAL.h);
-  ctx.strokeStyle = EMERGENCY_TERMINAL.color;
-  ctx.lineWidth = 4;
-  ctx.strokeRect(EMERGENCY_TERMINAL.x, EMERGENCY_TERMINAL.y, EMERGENCY_TERMINAL.w, EMERGENCY_TERMINAL.h);
-  ctx.fillStyle = EMERGENCY_TERMINAL.color;
-  ctx.font = 'bold 20px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('EMERGENCY', EMERGENCY_TERMINAL.x + EMERGENCY_TERMINAL.w / 2, EMERGENCY_TERMINAL.y + EMERGENCY_TERMINAL.h / 2);
-
-  // Draw Walls (Outer bounds)
-  ctx.fillStyle = '#222';
-  for (const wall of MAP_WALLS) {
-    ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(wall.x, wall.y, wall.w, wall.h);
+    ctx.fillText('LOADING SPACESHIP MAP...', WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
   }
 
   ctx.restore();

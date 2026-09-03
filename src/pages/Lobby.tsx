@@ -7,6 +7,7 @@ import { Settings, Play, Users, LogOut, Copy, Check, Loader2 } from 'lucide-reac
 import { useMockStore } from '../store/mockStore';
 import { fetchRoomPlayers, leaveRoom } from '../lib/roomService';
 import { Player } from '../types/game';
+import { getPlayerAvatarUrl } from '../map/SpriteManager';
 
 export default function Lobby() {
   const navigate = useNavigate();
@@ -142,11 +143,15 @@ export default function Lobby() {
                         YOU
                       </div>
                     )}
-                    <div
-                      className="w-16 h-16 border-2 border-current flex items-center justify-center"
-                      style={{ color: p.color }}
-                    >
-                      <Users size={32} />
+                    <div className="w-24 h-28 border-2 border-current flex items-center justify-center bg-black/60 overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.5)]" style={{ color: p.color }}>
+                      <img 
+                        src={getPlayerAvatarUrl(p.color)} 
+                        alt={p.username} 
+                        className="w-full h-full object-cover object-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
                     </div>
                     <div className="text-center w-full">
                       <div className="font-tech font-bold text-lg text-white truncate w-full px-2">

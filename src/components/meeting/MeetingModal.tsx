@@ -7,10 +7,12 @@ import {
   Send,
   Vote,
   Users,
+  FileCode,
 } from 'lucide-react';
 import { usePlayers } from '../../hooks/usePlayers';
 import { useMockStore, ChatMessage } from '../../store/mockStore';
 import { supabase } from '../../lib/supabase';
+import { EvidenceDiffModal } from '../../editor';
 
 // ── Stylized Crewmate SVG Icon ──
 function CrewmateAvatar({ color, dead }: { color: string; dead?: boolean }) {
@@ -75,7 +77,6 @@ function CrewmateAvatar({ color, dead }: { color: string; dead?: boolean }) {
         {/* Visor Glass Highlight */}
         {!dead && <ellipse cx="27" cy="14" rx="4" ry="2" fill="#e0f7fa" />}
       </svg>
-
       {/* Dead Player Red X Across Body */}
       {dead && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -113,6 +114,7 @@ export default function MeetingModal() {
   const [messageInput, setMessageInput] = useState('');
   const [hoveredPlayerId, setHoveredPlayerId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showEvidence, setShowEvidence] = useState(false);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const prevMsgCountRef = useRef(meetingChatMessages.length);
@@ -229,9 +231,18 @@ export default function MeetingModal() {
               <h1 className="font-pixel text-2xl sm:text-3xl text-[#1e293b] tracking-wider drop-shadow-sm flex items-center justify-center gap-2">
                 Who Is The Mafia?
               </h1>
-              <p className="font-tech text-xs sm:text-sm text-gray-600 uppercase tracking-widest mt-0.5">
+              <p className="font-tech text-xs sm:text-sm text-gray-600 uppercase tracking-widest mt-0.5 mb-2">
                 {meetingSubPhase === 'DISCUSSION' ? 'Discussion Phase' : 'Voting in Progress'}
               </p>
+              {/* Evidence Inspection Action */}
+              <button
+                id="inspect-evidence-btn"
+                onClick={() => setShowEvidence(true)}
+                className="border-2 border-warning text-warning bg-warning/10 hover:bg-warning hover:text-black font-pixel text-[10px] px-3 py-1.5 transition-all shadow-[0_0_10px_rgba(255,184,0,0.3)] flex items-center gap-1.5 cursor-pointer mx-auto rounded"
+              >
+                <FileCode size={12} />
+                [ EVIDENCE LOGS ]
+              </button>
             </div>
 
             {/* Top Right Chat Button with Red Badge */}
@@ -545,6 +556,14 @@ export default function MeetingModal() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Reusable P2 Evidence Diff Modal Overlay */}
+      {showEvidence && (
+        <EvidenceDiffModal
+          onClose={() => setShowEvidence(false)}
+          title="EMERGENCY MEETING // EVIDENCE LOGS"
+        />
       )}
     </div>
   );
