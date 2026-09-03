@@ -1,21 +1,14 @@
 import { Player, PlayerRole, GameState } from '../types/game';
 
 /**
- * Assigns roles randomly to players using probabilistic distribution.
- * Rule:
- * - 4 to 7 players: exactly 1 Mafia.
- * - More than 7 players (> 7): exactly 2 Mafias.
+ * Assigns roles randomly to players using uniform distribution.
+ * Default is 1 Mafia, or whatever mafiaCount is passed.
  */
-export function assignRoles(players: Player[], mafiaCount?: number): Player[] {
+export function assignRoles(players: Player[], mafiaCount: number = 1): Player[] {
   if (!players || players.length === 0) return [];
 
-  // Determine mafia count according to rule:
-  // 4 to 7 players -> 1 Mafia
-  // > 7 players -> 2 Mafias
-  const defaultCount = players.length > 7 ? 2 : 1;
-  const targetCount = mafiaCount !== undefined ? mafiaCount : defaultCount;
   const maxAllowed = Math.max(1, Math.floor((players.length - 1) / 2) || 1);
-  const finalMafiaCount = Math.max(1, Math.min(targetCount, maxAllowed));
+  const finalMafiaCount = Math.max(1, Math.min(mafiaCount, maxAllowed));
 
   // Fisher-Yates shuffle for uniform probability distribution
   const shuffled = [...players];
