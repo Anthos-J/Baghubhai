@@ -50,15 +50,17 @@ export default function GameCanvas() {
     }
   }, [players, localPlayerState]);
 
-  // Freeze movement when meeting alert is triggered or outside of PLAYING
+  // Freeze movement when meeting alert is triggered or outside of PLAYING or modals open
   const meetingAlertActive = useMockStore((s) => s.meetingAlertActive);
   const gamePhase = useMockStore((s) => s.gamePhase);
+  const editorOpen = useMockStore((s) => s.editorOpen);
+  const mapOpen = useMockStore((s) => s.mapOpen);
 
   useEffect(() => {
     if (engineRef.current) {
-      engineRef.current.isFrozen = meetingAlertActive || gamePhase !== 'PLAYING';
+      engineRef.current.isFrozen = meetingAlertActive || gamePhase !== 'PLAYING' || editorOpen || mapOpen;
     }
-  }, [meetingAlertActive, gamePhase]);
+  }, [meetingAlertActive, gamePhase, editorOpen, mapOpen]);
 
   // Handle resizing
   useEffect(() => {

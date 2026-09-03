@@ -51,6 +51,10 @@ interface GameStateStore {
   isLoading: boolean;
   error: string | null;
 
+  // ── UI Modal States ──
+  editorOpen: boolean;
+  mapOpen: boolean;
+
   // ── Engine Data ──
   engineState: EngineGameState;
 
@@ -114,6 +118,8 @@ interface GameStateStore {
   // ── UI state ──
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setEditorOpen: (open: boolean) => void;
+  setMapOpen: (open: boolean) => void;
 
   // ── Engine Sync ──
   dispatchEngineAction: (action: GameAction) => void;
@@ -137,6 +143,8 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   myPrivateTasks: [],
   isLoading: false,
   error: null,
+  editorOpen: false,
+  mapOpen: false,
   
   engineState: createInitialGameState(),
 
@@ -728,6 +736,8 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   // ── UI state ──
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
+  setEditorOpen: (open) => set({ editorOpen: open }),
+  setMapOpen: (open) => set({ mapOpen: open }),
 
   // ── Engine Sync ──
   dispatchEngineAction: (action) => {
@@ -757,6 +767,8 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       myPrivateTasks: [],
       isLoading: false,
       error: null,
+      editorOpen: false,
+      mapOpen: false,
       engineState: createInitialGameState(),
       gameTimeRemaining: 900,
       isGameTimerPaused: false,
