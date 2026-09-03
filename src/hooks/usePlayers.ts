@@ -9,7 +9,10 @@ export function usePlayers() {
 
   // Build a MyPlayerState-compatible object for backward compatibility
   const localPlayerState = session
-    ? { playerId: session.playerId, role: null as 'DEVELOPER' | 'MAFIA' | null }
+    ? {
+        playerId: session.playerId,
+        role: (localPlayer?.role || null) as 'DEVELOPER' | 'MAFIA' | null,
+      }
     : null;
 
   return {

@@ -15,6 +15,8 @@ export class GameEngine {
   private animationFrameId: number = 0;
   private lastTime: number = 0;
   
+  public isFrozen: boolean = false;
+  
   // Game state passed from React
   private players: Player[] = [];
   private localPlayerId: string = '';
@@ -61,7 +63,7 @@ export class GameEngine {
 
   private update(deltaTime: number) {
     const localPlayer = this.players.find(p => p.id === this.localPlayerId);
-    if (!localPlayer || !localPlayer.alive) return;
+    if (!localPlayer || !localPlayer.alive || this.isFrozen) return;
 
     const { vx, vy, direction } = this.movement.getVelocity();
     

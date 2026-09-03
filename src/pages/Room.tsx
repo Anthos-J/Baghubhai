@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useRoom } from '../hooks/useRoom';
 import { useGame } from '../hooks/useGame';
 import { useMockStore } from '../store/mockStore';
-import { useGamePresence, useGameState } from '../hooks/useRealtime';
+import { useGamePresence, useGameState, useMeetingEvents } from '../hooks/useRealtime';
 import { getSession } from '../lib/roomService';
 import Lobby from './Lobby';
 import RoleReveal from './RoleReveal';
 import MeetingModal from '../components/meeting/MeetingModal';
+import EmergencyAlertOverlay from '../components/meeting/EmergencyAlertOverlay';
 import GameCanvas from '../map/GameCanvas';
-// import Result from './Result';
 
 export default function Room() {
   const navigate = useNavigate();
@@ -34,6 +34,7 @@ export default function Room() {
   // ── Initialize Realtime connections ──
   useGamePresence(roomId || '', session?.playerId || '');
   useGameState(roomId || '');
+  useMeetingEvents(roomId || '', session?.playerId || '');
 
   // Don't render anything until we have a valid session
   if (!session) {
@@ -46,6 +47,9 @@ export default function Room() {
 
   return (
     <div className="w-full flex-1 flex flex-col items-center justify-center relative">
+      {/* ── Emergency Alert Klaxon Broadcast Overlay ── */}
+      <EmergencyAlertOverlay />
+
       {gamePhase === 'LOBBY' && <Lobby />}
       {gamePhase === 'ROLE_REVEAL' && <RoleReveal />}
       {gamePhase === 'PLAYING' && <GameCanvas />}

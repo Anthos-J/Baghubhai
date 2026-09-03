@@ -1,7 +1,23 @@
 import { MAP_ROOMS, EMERGENCY_TERMINAL } from './MapData';
 
 export function getInteractableRoom(playerX: number, playerY: number): string | null {
-  // A simple point-in-rect check for interaction zones
+  // 1. Prioritize Emergency Terminal check first (inside Central Hub)
+  // Check both expanded bounding box and distance to terminal center (1000, 750)
+  const termCenterX = EMERGENCY_TERMINAL.x + EMERGENCY_TERMINAL.w / 2;
+  const termCenterY = EMERGENCY_TERMINAL.y + EMERGENCY_TERMINAL.h / 2;
+  const distSq = (playerX - termCenterX) ** 2 + (playerY - termCenterY) ** 2;
+
+  if (
+    distSq <= 120 * 120 ||
+    (playerX >= EMERGENCY_TERMINAL.x - 30 &&
+      playerX <= EMERGENCY_TERMINAL.x + EMERGENCY_TERMINAL.w + 30 &&
+      playerY >= EMERGENCY_TERMINAL.y - 30 &&
+      playerY <= EMERGENCY_TERMINAL.y + EMERGENCY_TERMINAL.h + 30)
+  ) {
+    return 'EMERGENCY_TERMINAL';
+  }
+
+  // 2. Check room interaction zones
   for (const room of MAP_ROOMS) {
     if (
       playerX >= room.x &&
@@ -11,15 +27,6 @@ export function getInteractableRoom(playerX: number, playerY: number): string | 
     ) {
       return room.name; // Use ID for real app, Name for display mock
     }
-  }
-
-  if (
-    playerX >= EMERGENCY_TERMINAL.x &&
-    playerX <= EMERGENCY_TERMINAL.x + EMERGENCY_TERMINAL.w &&
-    playerY >= EMERGENCY_TERMINAL.y &&
-    playerY <= EMERGENCY_TERMINAL.y + EMERGENCY_TERMINAL.h
-  ) {
-    return 'EMERGENCY_TERMINAL';
   }
 
   return null;

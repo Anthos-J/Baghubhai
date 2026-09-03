@@ -50,6 +50,16 @@ export default function GameCanvas() {
     }
   }, [players, localPlayerState]);
 
+  // Freeze movement when meeting alert is triggered or outside of PLAYING
+  const meetingAlertActive = useMockStore((s) => s.meetingAlertActive);
+  const gamePhase = useMockStore((s) => s.gamePhase);
+
+  useEffect(() => {
+    if (engineRef.current) {
+      engineRef.current.isFrozen = meetingAlertActive || gamePhase !== 'PLAYING';
+    }
+  }, [meetingAlertActive, gamePhase]);
+
   // Handle resizing
   useEffect(() => {
     const handleResize = () => {
