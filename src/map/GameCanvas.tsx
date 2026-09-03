@@ -42,11 +42,19 @@ export default function GameCanvas() {
     };
   }, []);
 
-  // Update engine state when players change
+  // Update engine state when players change, and feed remote positions as interpolation targets
   useEffect(() => {
     if (engineRef.current && localPlayerState) {
       const playersCopy = JSON.parse(JSON.stringify(players));
       engineRef.current.updateState(playersCopy, localPlayerState.playerId);
+
+      // Feed each remote player's latest broadcast position into the engine as a lerp target.
+      // The engine glides toward these 60fps instead of snapping at the 10Hz broadcast rate.
+      for (const player of players) {
+        if (player.id !== localPlayerState.playerId) {
+          engineRef.current.setRemoteTarget(player.id, player.x, player.y, player.direction);
+        }
+      }
     }
   }, [players, localPlayerState]);
 

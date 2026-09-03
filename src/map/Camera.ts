@@ -4,7 +4,7 @@ export class Camera {
   
   // Smoothly follow the target
   public update(targetX: number, targetY: number, deltaTime: number) {
-    const lerpFactor = 5 * deltaTime; // Adjust for smoothness
+    const lerpFactor = 12 * deltaTime; // Tight follow — snappy camera with no input lag
     this.x += (targetX - this.x) * lerpFactor;
     this.y += (targetY - this.y) * lerpFactor;
   }

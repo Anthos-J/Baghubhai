@@ -28,6 +28,9 @@ export class GameEngine {
   private playerStates: Map<string, PlayerRenderInfo> = new Map();
   private lastFacing: Map<string, 'left' | 'right'> = new Map();
   private prevPositions: Map<string, { x: number; y: number }> = new Map();
+
+  // Client-side interpolation targets for remote players (set by GameCanvas on each broadcast)
+  private remoteTargets: Map<string, { x: number; y: number; direction: Player['direction'] }> = new Map();
   
   // Callbacks to sync state back to React/Zustand
   public onLocalPlayerMove?: (x: number, y: number, direction: Player['direction']) => void;
@@ -46,6 +49,15 @@ export class GameEngine {
   public updateState(players: Player[], localPlayerId: string) {
     this.players = players;
     this.localPlayerId = localPlayerId;
+  }
+
+  /**
+   * Called by GameCanvas whenever a Supabase broadcast arrives for a remote player.
+   * Stores the authoritative position as an interpolation TARGET — the engine lerps
+   * toward this each frame so movement is smooth at 60fps instead of snapping at 10Hz.
+   */
+  public setRemoteTarget(playerId: string, x: number, y: number, direction: Player['direction']) {
+    this.remoteTargets.set(playerId, { x, y, direction });
   }
 
   public start() {
@@ -148,26 +160,41 @@ export class GameEngine {
       }
     }
 
-    // Update remote / other players' animation states
+    // ── Client-side interpolation for remote players ──
+    // Instead of snapping to broadcast positions (10Hz), we lerp toward a stored
+    // target each frame (60Hz). This gives smooth movement AND correct sprite direction.
     for (const player of this.players) {
       if (player.id === this.localPlayerId) continue;
 
-      const prev = this.prevPositions.get(player.id);
-      let remoteIsMoving = false;
-      let remoteFacing = this.lastFacing.get(player.id) ?? (player.direction === 'left' ? 'left' : 'right');
+      const target = this.remoteTargets.get(player.id);
 
-      if (prev) {
-        const dx = player.x - prev.x;
-        const dy = player.y - prev.y;
-        if (Math.hypot(dx, dy) > 0.5) {
-          remoteIsMoving = true;
-          if (dx > 0.2) remoteFacing = 'right';
-          else if (dx < -0.2) remoteFacing = 'left';
-        }
+      if (!target) {
+        // No target yet (player just joined) — initialize and skip this frame
+        this.remoteTargets.set(player.id, { x: player.x, y: player.y, direction: player.direction });
+        this.lastFacing.set(player.id, player.direction === 'left' ? 'left' : 'right');
+        this.playerStates.set(player.id, { state: 'stand_right', isMoving: false });
+        continue;
       }
 
+      // Record position BEFORE lerp to detect per-frame movement delta
+      const prevX = player.x;
+      const prevY = player.y;
+
+      // Lerp factor: 8 = catches up to target in ~125ms, matching our 100ms broadcast interval
+      const lerpFactor = Math.min(1, 8 * deltaTime);
+      player.x += (target.x - player.x) * lerpFactor;
+      player.y += (target.y - player.y) * lerpFactor;
+
+      // Detect movement from PER-FRAME delta (runs at 60fps, always smooth)
+      const dx = player.x - prevX;
+      const dy = player.y - prevY;
+      const remoteIsMoving = Math.hypot(dx, dy) > 0.05;
+
+      // Update facing from direction of travel this frame
+      let remoteFacing = this.lastFacing.get(player.id) ?? 'right';
+      if (dx > 0.05) remoteFacing = 'right';
+      else if (dx < -0.05) remoteFacing = 'left';
       this.lastFacing.set(player.id, remoteFacing);
-      this.prevPositions.set(player.id, { x: player.x, y: player.y });
 
       const remoteState: PlayerAnimationState = remoteIsMoving
         ? (remoteFacing === 'right' ? 'run_right' : 'run_left')
@@ -175,7 +202,7 @@ export class GameEngine {
 
       this.playerStates.set(player.id, {
         state: remoteState,
-        isMoving: remoteIsMoving
+        isMoving: remoteIsMoving,
       });
     }
 
