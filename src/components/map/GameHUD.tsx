@@ -39,6 +39,7 @@ export default function GameHUD() {
   const [showInteractionPrompt, setShowInteractionPrompt] = useState(false);
 
   const clearRoom = useMockStore((s) => s.clearRoom);
+  const assignTasks = useMockStore((s) => s.assignTasks);
   const engineState = useMockStore((s) => s.engineState);
 
   // ΓöÇΓöÇ Game Timer Hookup ΓöÇΓöÇ
@@ -54,7 +55,6 @@ export default function GameHUD() {
   const escapeBufferSeconds = useMockStore((s) => s.escapeBufferSeconds);
   const mafiaNotifications = useMockStore((s) => s.mafiaNotifications);
   const triggerBugTaskAction = useMockStore((s) => s.triggerBugTaskAction);
-
   // ── Cumulative Multi-Player Tasks Hookup ──
   const totalTasksCompleted = useMockStore((s) => s.totalTasksCompleted);
   const totalGameTasks = useMockStore((s) => s.totalGameTasks);
@@ -78,7 +78,31 @@ export default function GameHUD() {
     ? Math.min(100, Math.round((effectiveTotalCompleted / effectiveTotalGameTasks) * 100))
     : (progress ?? 0);
 
-  // Local player's own task list & count
+  // ── Emergency Cooldown and Limit Hookup ──
+  const emergencyCooldownUntil = engineState.emergencyMeetingCooldownUntil;
+  const [cooldownSecondsLeft, setCooldownSecondsLeft] = useState<number>(0);
+
+  useEffect(() => {
+    if (!emergencyCooldownUntil) {
+      setCooldownSecondsLeft(0);
+      return;
+    }
+    const check = () => {
+      const diff = Math.max(0, Math.ceil((emergencyCooldownUntil - Date.now()) / 1000));
+      setCooldownSecondsLeft(diff);
+    };
+    check();
+    const interval = setInterval(check, 500);
+    return () => clearInterval(interval);
+  }, [emergencyCooldownUntil]);
+
+  const meetingLimit = engineState.settings.emergencyMeetingLimit;
+  const meetingsCalled = localPlayer?.meetingsCalledCount ?? 0;
+  const hasExceededMeetingLimit =
+    meetingLimit !== null && meetingLimit !== undefined && meetingsCalled >= meetingLimit;
+  const isEmergencyCooldownActive = cooldownSecondsLeft > 0;
+  const canCallEmergency = isAlive && !isEmergencyCooldownActive && !hasExceededMeetingLimit;
+
   const isTaskCompleted = (t: (typeof tasks)[0]) => t.status === 'COMPLETED' || Boolean(t.completed);
   const myCompletedList = localPlayer?.id && completedTasksByPlayer[localPlayer.id]
     ? completedTasksByPlayer[localPlayer.id]
@@ -107,6 +131,13 @@ export default function GameHUD() {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Initialize private tasks for local player if not yet assigned
+  useEffect(() => {
+    if (localPlayer && (!myPrivateTasks || myPrivateTasks.length === 0)) {
+      assignTasks?.();
+    }
+  }, [localPlayer, myPrivateTasks, assignTasks]);
 
   // Close editor if player walks away from the room zone
   useEffect(() => {
@@ -185,7 +216,7 @@ export default function GameHUD() {
       // Only handle in-game interaction shortcuts in active PLAYING phase
       if (gamePhase !== 'PLAYING') return;
 
-      if (isAlive && interactableRoom === 'EMERGENCY_TERMINAL' && (e.code === 'Space' || e.key.toLowerCase() === 'e')) {
+      if (canCallEmergency && interactableRoom === 'EMERGENCY_TERMINAL' && (e.code === 'Space' || e.key.toLowerCase() === 'e')) {
         e.preventDefault();
         callMeeting();
         return;
@@ -208,7 +239,7 @@ export default function GameHUD() {
         setEditorOpen(true);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [interactableRoom, editorOpen, mapOpen, showExitModal, isAlive, canBugThisRoom, roomTask, triggerBugTaskAction, callMeeting, gamePhase]);
@@ -501,26 +532,51 @@ export default function GameHUD() {
         </div>
       )}
 
-      {/* ΓöÇΓöÇ 7. Bottom Left HUD: Emergency Call button ΓöÇΓöÇ */}
+      {/* ── 6.5. Emergency Cooldown Active Banner (Top Center) ── */}
+      {isEmergencyCooldownActive && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto bg-amber-950/95 border-2 border-amber-500 px-6 py-2.5 shadow-[0_0_30px_rgba(245,158,11,0.5)] flex items-center gap-3 rounded-lg animate-pulse">
+          <AlertTriangle size={24} className="text-amber-400" />
+          <div className="text-center font-mono">
+            <span className="font-pixel text-xs text-amber-300 tracking-wider">
+              🚨 EMERGENCY COOLDOWN — {cooldownSecondsLeft}s
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── 7. Bottom Left HUD: Emergency Call button ── */}
       <div className="flex justify-between items-end">
         <div className="pointer-events-auto">
           {isAlive && interactableRoom === 'EMERGENCY_TERMINAL' && (
             <div className="bg-black/90 border-4 border-[#FF003C] p-4 flex flex-col gap-2 shadow-[0_0_30px_rgba(255,0,60,0.6)] animate-in fade-in slide-in-from-bottom-4 duration-200">
-              <div className="flex items-center gap-2 text-[#FF003C] font-tech text-xs tracking-wider uppercase font-bold">
-                <AlertTriangle size={16} className="animate-pulse text-[#FFB800]" />
-                EMERGENCY TERMINAL DETECTED
+              <div className="flex items-center justify-between gap-4 text-[#FF003C] font-tech text-xs tracking-wider uppercase font-bold">
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle size={16} className="animate-pulse text-[#FFB800]" />
+                  EMERGENCY TERMINAL DETECTED
+                </span>
+                <span className="text-[10px] text-gray-400 font-mono">
+                  {meetingLimit === null
+                    ? 'UNLIMITED'
+                    : `LIMIT: ${meetingsCalled}/${meetingLimit}`}
+                </span>
               </div>
               <GameButton
                 variant="danger"
                 icon={<AlertTriangle size={20} />}
                 onClick={callMeeting}
-                className="text-base px-6 py-3 font-pixel tracking-wider shadow-[0_0_20px_#FF003C] hover:scale-105 transition-transform"
+                disabled={!canCallEmergency}
+                className="text-base px-6 py-3 font-pixel tracking-wider shadow-[0_0_20px_#FF003C] hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                CALL FOR MEET [SPACE]
+                {isEmergencyCooldownActive
+                  ? `🚨 COOLDOWN: ${cooldownSecondsLeft}s`
+                  : hasExceededMeetingLimit
+                  ? `LIMIT REACHED (${meetingsCalled}/${meetingLimit})`
+                  : 'CALL FOR MEET [SPACE]'}
               </GameButton>
             </div>
           )}
         </div>
+
 
         <div className="pointer-events-auto" />
       </div>

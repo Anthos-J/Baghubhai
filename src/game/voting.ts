@@ -16,20 +16,25 @@ export function startEmergencyMeeting(
   }
 
   const now = Date.now();
-  const duration = state.settings.discussionDurationSeconds || 45;
+  const duration = state.settings.discussionDurationSeconds || 180;
 
   const notification: GameNotification = {
     id: `notif-${now}`,
     timestamp: now,
-    message: `🚨 EMERGENCY MEETING called by ${caller.name}!`,
+    message: `🚨 EMERGENCY MEETING called by ${caller.username || caller.name || 'Crewmate'}!`,
     level: 'warning',
     isGlobal: true,
   };
+
+  const updatedPlayers = state.players.map((p) =>
+    p.id === callerId ? { ...p, meetingsCalledCount: (p.meetingsCalledCount ?? 0) + 1 } : p
+  );
 
   const nextState: GameState = {
     ...state,
     phase: 'MEETING',
     phaseTimer: duration,
+    players: updatedPlayers,
     meeting: {
       callerId,
       callerName: caller.username || caller.name || 'Unknown',
@@ -39,6 +44,7 @@ export function startEmergencyMeeting(
     },
     // Clear transient alarms upon meeting
     alarm: null,
+    emergencyMeetingCooldownUntil: null,
     notifications: [notification, ...state.notifications].slice(0, 50),
     lastUpdatedAt: now,
   };
@@ -51,7 +57,8 @@ export function startEmergencyMeeting(
  */
 export function startVotingPhase(state: GameState): GameState {
   const now = Date.now();
-  const duration = state.settings.votingDurationSeconds || 30;
+  const duration = state.settings.votingDurationSeconds || 60;
+
 
   const initialVoting: VotingState = {
     startedAt: now,

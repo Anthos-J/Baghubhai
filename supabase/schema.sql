@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(10) UNIQUE NOT NULL,
     phase VARCHAR(20) DEFAULT 'LOBBY' NOT NULL,
+    settings JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

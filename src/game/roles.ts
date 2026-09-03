@@ -7,8 +7,10 @@ import { Player, PlayerRole, GameState } from '../types/game';
 export function assignRoles(players: Player[], mafiaCount: number = 1): Player[] {
   if (!players || players.length === 0) return [];
 
-  const maxAllowed = Math.max(1, Math.floor((players.length - 1) / 2) || 1);
+  // Specification rule: 4–6 players allows max 1 Mafia; 7–10 players allows 1 or 2 Mafia
+  const maxAllowed = players.length >= 7 ? 2 : 1;
   const finalMafiaCount = Math.max(1, Math.min(mafiaCount, maxAllowed));
+
 
   // Fisher-Yates shuffle for uniform probability distribution
   const shuffled = [...players];
@@ -61,11 +63,24 @@ export function canSabotage(player: Player, state: GameState): boolean {
 /**
  * Checks if a player can call an Emergency Meeting.
  * Only living players can call a meeting during PLAYING phase.
+ * Must respect global cooldown and personal meeting limit.
  */
 export function canCallMeeting(player: Player, state: GameState): boolean {
   if (!isAlive(player)) return false;
   if (state.phase !== 'PLAYING') return false;
   if (state.meeting !== null) return false;
+
+  // Emergency cooldown check
+  if (state.emergencyMeetingCooldownUntil && Date.now() < state.emergencyMeetingCooldownUntil) {
+    return false;
+  }
+
+  // Personal emergency meeting limit check (1, 2, or null for UNLIMITED)
+  const limit = state.settings.emergencyMeetingLimit;
+  if (limit !== null && limit !== undefined && (player.meetingsCalledCount ?? 0) >= limit) {
+    return false;
+  }
+
   return true;
 }
 

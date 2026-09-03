@@ -5,9 +5,10 @@ import { GameButton } from '../components/ui/GameButton';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Settings, Play, Users, LogOut, Copy, Check, Loader2 } from 'lucide-react';
 import { useMockStore } from '../store/mockStore';
-import { fetchRoomPlayers, leaveRoom } from '../lib/roomService';
+import { fetchRoomPlayers, fetchRoomSettings, leaveRoom } from '../lib/roomService';
 import { Player } from '../types/game';
 import { getPlayerAvatarUrl } from '../map/SpriteManager';
+import { LobbySettingsModal } from '../components/lobby/LobbySettingsModal';
 
 export default function Lobby() {
   const navigate = useNavigate();
@@ -18,20 +19,32 @@ export default function Lobby() {
   const startGame = useMockStore((s) => s.startGame);
   const setRoomPlayers = useMockStore((s) => s.setRoomPlayers);
   const clearRoom = useMockStore((s) => s.clearRoom);
+  const engineState = useMockStore((s) => s.engineState);
+  const updateSettings = useMockStore((s) => s.updateSettings);
+  const setRoomSettings = useMockStore((s) => s.setRoomSettings);
 
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const isHost = session?.isHost ?? false;
   const localPlayerId = session?.playerId;
+  const maxPlayers = engineState.settings.maxPlayers ?? 5;
 
-  // ── Fetch real players from Supabase on mount ──
+  // ── Fetch real players and settings from Supabase on mount ──
   useEffect(() => {
     if (!session?.roomId) return;
 
     const load = async () => {
       setIsLoadingPlayers(true);
-      const dbPlayers = await fetchRoomPlayers(session.roomId);
+      const [dbPlayers, persistedSettings] = await Promise.all([
+        fetchRoomPlayers(session.roomId),
+        fetchRoomSettings(session.roomId),
+      ]);
+
+      if (persistedSettings) {
+        setRoomSettings(persistedSettings);
+      }
 
       const mapped: Player[] = dbPlayers.map((p: any) => ({
         id: p.id,
@@ -95,7 +108,7 @@ export default function Lobby() {
           <div className="text-right">
             <div className="font-tech text-gray-400 flex items-center gap-2">
               <Users size={16} /> PLAYER COUNT:{' '}
-              <span className="text-white">{players.length}/10</span>
+              <span className="text-white">{players.length}/{maxPlayers}</span>
             </div>
           </div>
           <button
@@ -170,8 +183,11 @@ export default function Lobby() {
           )}
 
           <div className="mt-8 pt-4 border-t-2 border-panelBorder flex justify-between items-center">
-            <button className="flex items-center gap-2 text-textMuted hover:text-white font-tech transition-colors">
-              <Settings size={20} /> GAME SETTINGS
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex items-center gap-2 text-textMuted hover:text-white font-tech transition-colors hover:bg-white/5 px-3 py-2 rounded-lg border border-transparent hover:border-panelBorder"
+            >
+              <Settings size={20} className="text-primary" /> GAME SETTINGS
             </button>
             <div className="w-64">
               {isHost ? (
@@ -192,6 +208,16 @@ export default function Lobby() {
           </div>
         </PixelCard>
       </main>
+
+      {/* Lobby Game Settings Modal */}
+      <LobbySettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentSettings={engineState.settings}
+        isHost={isHost}
+        onSaveSettings={(newSettings) => updateSettings(newSettings)}
+      />
     </div>
   );
 }
+

@@ -321,7 +321,20 @@ export function useMeetingEvents(roomId: string, playerId: string) {
       .on('broadcast', { event: 'alarm_cleared' }, () => {
         useMockStore.getState().clearAlarm();
       })
+      .on('broadcast', { event: 'game_settings_update' }, ({ payload }) => {
+        if (payload?.settings) {
+          const store = useMockStore.getState();
+          const merged = { ...store.engineState.settings, ...payload.settings };
+          store.setEngineState({
+            ...store.engineState,
+            settings: merged,
+            gameTimeRemaining: merged.gameDurationSeconds ?? 900,
+            totalGameTime: merged.gameDurationSeconds ?? 900,
+          });
+        }
+      })
       .subscribe();
+
 
     return () => {
       channel.unsubscribe();

@@ -6,6 +6,8 @@ import GameShell from './components/game/GameShell';
 import { getSession } from './lib/roomService';
 import { useMockStore } from './store/mockStore';
 
+import { TrophyToast } from './components/home/TrophyToast';
+
 /**
  * SessionRecovery — checks localStorage on app startup.
  * If a valid session exists, restore it to the store and
@@ -39,6 +41,7 @@ function App() {
           <Route path="/room/:roomId" element={<Room />} />
         </Routes>
       </GameShell>
+      <TrophyToast />
     </BrowserRouter>
   );
 }

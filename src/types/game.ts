@@ -21,6 +21,7 @@ export type Player = {
   isHost?: boolean;
   avatar?: string;
   tasksCompletedCount?: number;
+  meetingsCalledCount?: number;
 };
 
 export type MyPlayerState = {
@@ -176,6 +177,7 @@ export interface WinResult {
 }
 
 export type CodeDifficulty = 'SMALL' | 'MEDIUM' | 'DIFFICULT';
+export type EmergencyMeetingLimit = 1 | 2 | null;
 
 export interface GameSettings {
   maxPlayers?: number;
@@ -189,6 +191,8 @@ export interface GameSettings {
   syntaxBlackoutDurationSeconds: number;
   meetingDurationSeconds?: number;
   serverOverloadResolutionTimeSeconds?: number;
+  emergencyMeetingLimit?: 1 | 2 | null;
+  emergencyMeetingCooldownSeconds?: number;
 }
 
 export interface GameState {
@@ -206,6 +210,7 @@ export interface GameState {
   notifications: GameNotification[];
   meeting: MeetingState | null;
   voting: VotingState | null;
+  emergencyMeetingCooldownUntil?: number | null;
   sabotageCooldowns: Record<string, SabotageCooldown>; // imposterId -> cooldowns
   syntaxBlackoutActive: boolean;
   serverOverloadActive: boolean;

@@ -18,11 +18,8 @@ export function transitionToRoleReveal(state: GameState): GameState {
   const tasks = getDefaultTasks();
   const progress = calculateProgress(tasks);
 
-  // Dynamic game duration:
-  // - Difficult code: max 15 minutes (900s)
-  // - Small code: 10 minutes (600s)
-  // - Adjusted by player count
-  const duration = calculateGameDuration(state.settings.difficulty, playersWithRoles.length);
+  // Authoritative Host-selected Game Duration
+  const duration = state.settings.gameDurationSeconds ?? 900;
 
   return {
     ...state,
@@ -31,20 +28,17 @@ export function transitionToRoleReveal(state: GameState): GameState {
     gameTimeRemaining: duration,
     totalGameTime: duration,
     isTimerPaused: false,
-    players: playersWithRoles,
+    players: playersWithRoles.map((p) => ({ ...p, meetingsCalledCount: 0 })),
     tasks,
     progress,
     alarm: null,
     meeting: null,
     voting: null,
+    emergencyMeetingCooldownUntil: null,
     winner: null,
     syntaxBlackoutActive: false,
     serverOverloadActive: false,
     serverOverloadDeadline: null,
-    settings: {
-      ...state.settings,
-      gameDurationSeconds: duration,
-    },
     lastUpdatedAt: Date.now(),
   };
 }
@@ -107,7 +101,7 @@ export function transitionToVoteReveal(state: GameState): GameState {
 
 /**
  * Transitions from VOTE_REVEAL to either PLAYING or GAME_OVER.
- * If returning to PLAYING, the whole-game timer RESUMES.
+ * If returning to PLAYING, the whole-game timer RESUMES and emergency cooldown starts.
  */
 export function transitionFromVoteReveal(state: GameState): GameState {
   if (state.phase !== 'VOTE_REVEAL') return state;
@@ -118,6 +112,10 @@ export function transitionFromVoteReveal(state: GameState): GameState {
     return transitionToGameOver(state, victory);
   }
 
+  // Emergency cooldown starts when meeting ends
+  const cooldownSec = state.settings.emergencyMeetingCooldownSeconds ?? 30;
+  const emergencyMeetingCooldownUntil = Date.now() + cooldownSec * 1000;
+
   // Resume PLAYING with paused timer unpaused
   return {
     ...state,
@@ -126,6 +124,7 @@ export function transitionFromVoteReveal(state: GameState): GameState {
     isTimerPaused: false, // Resume global timer
     meeting: null,
     voting: null,
+    emergencyMeetingCooldownUntil,
     lastUpdatedAt: Date.now(),
   };
 }
@@ -149,7 +148,7 @@ export function transitionToGameOver(state: GameState, victory: WinResult): Game
  * Resets state back to LOBBY for a new match.
  */
 export function transitionToLobby(state: GameState): GameState {
-  const resetDuration = calculateGameDuration(state.settings.difficulty, state.players.length);
+  const resetDuration = state.settings.gameDurationSeconds ?? 900;
 
   return {
     ...state,
@@ -163,6 +162,7 @@ export function transitionToLobby(state: GameState): GameState {
     alarm: null,
     meeting: null,
     voting: null,
+    emergencyMeetingCooldownUntil: null,
     winner: null,
     syntaxBlackoutActive: false,
     serverOverloadActive: false,
@@ -172,10 +172,12 @@ export function transitionToLobby(state: GameState): GameState {
       ...p,
       status: 'ALIVE',
       tasksCompletedCount: 0,
+      meetingsCalledCount: 0,
     })),
     lastUpdatedAt: Date.now(),
   };
 }
+
 
 /**
  * Heartbeat / Tick function called every second.
