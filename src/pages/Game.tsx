@@ -1,8 +1,8 @@
-import React from 'react';
 import { TerminalPanel } from '../components/ui/TerminalPanel';
 import { GameButton } from '../components/ui/GameButton';
-import { AlertTriangle, Activity, Code2, Terminal, ShieldAlert } from 'lucide-react';
+import { Activity, Code2, ShieldAlert } from 'lucide-react';
 import { StatusBadge } from '../components/ui/StatusBadge';
+
 
 export default function Game() {
   return (

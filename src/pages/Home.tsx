@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { PixelCard } from '../components/ui/PixelCard';
 import { GameButton } from '../components/ui/GameButton';
 import { useMockStore } from '../store/mockStore';
