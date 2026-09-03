@@ -61,7 +61,7 @@ export class GameEngine {
 
   private update(deltaTime: number) {
     const localPlayer = this.players.find(p => p.id === this.localPlayerId);
-    if (!localPlayer || !localPlayer.alive) return;
+    if (!localPlayer) return;
 
     const { vx, vy, direction } = this.movement.getVelocity();
     
@@ -72,10 +72,16 @@ export class GameEngine {
       const PLAYER_SIZE = 30;
 
       // Handle collision logic
-      if (!checkCollision(newX, localPlayer.y, PLAYER_SIZE, MAP_WALLS)) {
+      if (localPlayer.alive) {
+        if (!checkCollision(newX, localPlayer.y, PLAYER_SIZE, MAP_WALLS)) {
+          localPlayer.x = newX;
+        }
+        if (!checkCollision(localPlayer.x, newY, PLAYER_SIZE, MAP_WALLS)) {
+          localPlayer.y = newY;
+        }
+      } else {
+        // Ghost mode - walk through walls
         localPlayer.x = newX;
-      }
-      if (!checkCollision(localPlayer.x, newY, PLAYER_SIZE, MAP_WALLS)) {
         localPlayer.y = newY;
       }
       
@@ -88,12 +94,20 @@ export class GameEngine {
         this.onLocalPlayerMove(localPlayer.x, localPlayer.y, localPlayer.direction);
       }
 
-      // Check interaction zones
-      const newRoom = getInteractableRoom(localPlayer.x, localPlayer.y);
-      if (newRoom !== this.currentInteractableRoom) {
-        this.currentInteractableRoom = newRoom;
+      // Check interaction zones ONLY if alive
+      if (localPlayer.alive) {
+        const newRoom = getInteractableRoom(localPlayer.x, localPlayer.y);
+        if (newRoom !== this.currentInteractableRoom) {
+          this.currentInteractableRoom = newRoom;
+          if (this.onInteractableRoomChange) {
+            this.onInteractableRoomChange(newRoom);
+          }
+        }
+      } else if (this.currentInteractableRoom !== null) {
+        // clear if died in room
+        this.currentInteractableRoom = null;
         if (this.onInteractableRoomChange) {
-          this.onInteractableRoomChange(newRoom);
+          this.onInteractableRoomChange(null);
         }
       }
     }
@@ -105,6 +119,6 @@ export class GameEngine {
     // 1. Draw Map
     drawMap(this.ctx, this.camera.x, this.camera.y, this.canvas.width, this.canvas.height);
     // 2. Draw Players
-    drawPlayers(this.ctx, this.players, this.camera.x, this.camera.y, this.canvas.width, this.canvas.height);
+    drawPlayers(this.ctx, this.players, this.localPlayerId, this.camera.x, this.camera.y, this.canvas.width, this.canvas.height);
   }
 }

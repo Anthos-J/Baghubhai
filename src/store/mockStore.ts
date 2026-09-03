@@ -1,18 +1,21 @@
 import { create } from 'zustand';
-import { Player, GamePhase, LocalSession, Task } from '../types/game';
+import { Player, GamePhase, LocalSession, TaskItem } from '../types/game';
 import { updateRoomPhase, clearSession } from '../lib/roomService';
+import { GameState as EngineGameState, GameAction, gameReducer, createInitialGameState } from '../game/gameState';
 
-interface GameState {
+interface GameStateStore {
   // ── Data ──
   players: Player[];
   session: LocalSession | null;
   roomId: string | null;
   roomCode: string | null;
   gamePhase: GamePhase;
-  tasks: Task[];
   interactableRoom: string | null;
   isLoading: boolean;
   error: string | null;
+
+  // ── Engine Data ──
+  engineState: EngineGameState;
 
   // ── Session ──
   setSession: (session: LocalSession) => void;
@@ -34,21 +37,26 @@ interface GameState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
 
+  // ── Engine Sync ──
+  dispatchEngineAction: (action: GameAction) => void;
+  setEngineState: (state: EngineGameState) => void;
+
   // ── Cleanup ──
   clearRoom: () => void;
 }
 
-export const useMockStore = create<GameState>((set, get) => ({
+export const useMockStore = create<GameStateStore>((set, get) => ({
   // ── Initial state — NO mock data ──
   players: [],
   session: null,
   roomId: null,
   roomCode: null,
   gamePhase: 'LOBBY',
-  tasks: [],
   interactableRoom: null,
   isLoading: false,
   error: null,
+  
+  engineState: createInitialGameState(),
 
   // ── Session ──
   setSession: (session) =>
@@ -125,6 +133,19 @@ export const useMockStore = create<GameState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 
+  // ── Engine Sync ──
+  dispatchEngineAction: (action) => {
+    set((state) => {
+      const nextEngine = gameReducer(state.engineState, action);
+      return {
+        engineState: nextEngine,
+        gamePhase: nextEngine.phase,
+      };
+    });
+  },
+  
+  setEngineState: (state) => set({ engineState: state, gamePhase: state.phase }),
+
   // ── Cleanup ──
   clearRoom: () => {
     clearSession();
@@ -134,10 +155,10 @@ export const useMockStore = create<GameState>((set, get) => ({
       roomId: null,
       roomCode: null,
       gamePhase: 'LOBBY',
-      tasks: [],
       interactableRoom: null,
       isLoading: false,
       error: null,
+      engineState: createInitialGameState(),
     });
   },
 }));

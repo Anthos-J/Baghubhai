@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useRoom } from '../hooks/useRoom';
 import { useGame } from '../hooks/useGame';
 import { useMockStore } from '../store/mockStore';
-import { useGamePresence, useGameState } from '../hooks/useRealtime';
+import { useGamePresence, useGameState, useEngineSync } from '../hooks/useRealtime';
 import { getSession } from '../lib/roomService';
+import Result from './Result';
 import Lobby from './Lobby';
 import RoleReveal from './RoleReveal';
 import MeetingModal from '../components/meeting/MeetingModal';
@@ -17,6 +18,9 @@ export default function Room() {
   const { gamePhase } = useGame();
   const session = useMockStore((s) => s.session);
   const setSession = useMockStore((s) => s.setSession);
+  const engineState = useMockStore((s) => s.engineState);
+  const dispatchEngineAction = useMockStore((s) => s.dispatchEngineAction);
+  const isHost = session?.isHost ?? false;
 
   // ── Restore session from localStorage if store is empty ──
   useEffect(() => {
@@ -34,6 +38,25 @@ export default function Room() {
   // ── Initialize Realtime connections ──
   useGamePresence(roomId || '', session?.playerId || '');
   useGameState(roomId || '');
+  const { broadcastEngineState } = useEngineSync(roomId || '', isHost);
+
+  // ── Game Timer Loop (Host Only) ──
+  useEffect(() => {
+    if (!isHost || gamePhase !== 'PLAYING') return;
+
+    const interval = setInterval(() => {
+      dispatchEngineAction({ type: 'TICK', deltaSeconds: 1 });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isHost, gamePhase, dispatchEngineAction]);
+
+  // ── Broadcast Engine State (Host Only) ──
+  useEffect(() => {
+    if (isHost) {
+      broadcastEngineState(engineState);
+    }
+  }, [isHost, engineState, broadcastEngineState]);
 
   // Don't render anything until we have a valid session
   if (!session) {
@@ -49,6 +72,7 @@ export default function Room() {
       {gamePhase === 'LOBBY' && <Lobby />}
       {gamePhase === 'ROLE_REVEAL' && <RoleReveal />}
       {gamePhase === 'PLAYING' && <GameCanvas />}
+      {gamePhase === 'GAME_OVER' && <Result winner={engineState.winner?.winner === 'DEVELOPERS' ? 'developers' : 'mafia'} reason={engineState.winner?.reason} />}
       {(gamePhase === 'MEETING' || gamePhase === 'VOTING') && (
         <>
           <div className="absolute inset-0 z-0 blur-sm pointer-events-none">

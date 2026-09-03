@@ -1,13 +1,21 @@
 import { Player } from '../types/game';
 
-export function drawPlayers(ctx: CanvasRenderingContext2D, players: Player[], cameraX: number, cameraY: number, canvasWidth: number, canvasHeight: number) {
+export function drawPlayers(ctx: CanvasRenderingContext2D, players: Player[], localPlayerId: string, cameraX: number, cameraY: number, canvasWidth: number, canvasHeight: number) {
   ctx.save();
   ctx.translate(-cameraX + canvasWidth / 2, -cameraY + canvasHeight / 2);
 
   const PLAYER_SIZE = 30;
 
+  const localPlayer = players.find(p => p.id === localPlayerId);
+  const isLocalAlive = localPlayer ? localPlayer.alive : true;
+
   for (const player of players) {
     if (!player.connected) continue;
+
+    // Alive players cannot see ghosts (except themselves, which shouldn't happen, but just in case)
+    if (!player.alive && isLocalAlive && player.id !== localPlayerId) {
+      continue;
+    }
 
     // Player body
     ctx.fillStyle = player.alive ? player.color : 'rgba(150, 150, 150, 0.5)';

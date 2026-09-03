@@ -192,3 +192,49 @@ export function useGameState(roomId: string) {
     };
   }, [roomId]);
 }
+
+// ──────────────────────────────────────────────
+// ENGINE STATE — broadcast tick and game state from Host to Clients
+// ──────────────────────────────────────────────
+export function useEngineSync(roomId: string | null, isHost: boolean) {
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    if (!roomId) return;
+
+    const channel = supabase.channel(`room:${roomId}:engine`);
+    channelRef.current = channel;
+
+    if (!isHost) {
+      channel
+        .on('broadcast', { event: 'engine_sync' }, ({ payload }) => {
+          if (payload?.state) {
+            useMockStore.getState().setEngineState(payload.state);
+          }
+        })
+        .subscribe();
+    } else {
+      channel.subscribe();
+    }
+
+    return () => {
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [roomId, isHost]);
+
+  const broadcastEngineState = useCallback(
+    (state: any) => {
+      if (isHost && channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'engine_sync',
+          payload: { state },
+        });
+      }
+    },
+    [isHost]
+  );
+
+  return { broadcastEngineState };
+}
