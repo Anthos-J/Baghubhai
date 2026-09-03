@@ -18,7 +18,7 @@ export function GameButton({
     primary: 'btn-primary',
     success: 'btn-success',
     danger: 'btn-mafia',
-    warning: 'bg-[#b8860b] border-[#FFB800] text-black hover:bg-[#d4af37]',
+    warning: 'btn-warning',
     purple: 'btn-purple',
     ghost: 'btn-ghost'
   };

@@ -1,11 +1,12 @@
 import { drawMap } from './MapRenderer';
-import { drawPlayers } from './PlayerRenderer';
+import { drawPlayers, PlayerRenderInfo } from './PlayerRenderer';
 import { MovementController } from './Movement';
 import { checkCollision } from './Collision';
 import { Camera } from './Camera';
 import { Player } from '../types/game';
-import { MAP_WALLS } from './MapData';
+import { ALL_COLLIDERS } from './MapData';
 import { getInteractableRoom } from './RoomZones';
+import { PlayerAnimationState } from './SpriteManager';
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -14,11 +15,17 @@ export class GameEngine {
   private camera: Camera;
   private animationFrameId: number = 0;
   private lastTime: number = 0;
+  private totalTime: number = 0;
   
   // Game state passed from React
   private players: Player[] = [];
   private localPlayerId: string = '';
   private currentInteractableRoom: string | null = null;
+
+  // Animation and state tracking
+  private playerStates: Map<string, PlayerRenderInfo> = new Map();
+  private lastFacing: Map<string, 'left' | 'right'> = new Map();
+  private prevPositions: Map<string, { x: number; y: number }> = new Map();
   
   // Callbacks to sync state back to React/Zustand
   public onLocalPlayerMove?: (x: number, y: number, direction: Player['direction']) => void;
@@ -50,7 +57,7 @@ export class GameEngine {
   }
 
   private loop = (currentTime: number) => {
-    const deltaTime = (currentTime - this.lastTime) / 1000;
+    const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1);
     this.lastTime = currentTime;
 
     this.update(deltaTime);
@@ -60,23 +67,50 @@ export class GameEngine {
   };
 
   private update(deltaTime: number) {
+    this.totalTime += deltaTime;
+
     const localPlayer = this.players.find(p => p.id === this.localPlayerId);
     if (!localPlayer) return;
 
     const { vx, vy, direction } = this.movement.getVelocity();
-    
-    if (vx !== 0 || vy !== 0 || direction !== null) {
+    const isMoving = vx !== 0 || vy !== 0;
+
+    // Track facing direction (right or left)
+    let localFacing = this.lastFacing.get(this.localPlayerId) ?? (localPlayer.direction === 'left' ? 'left' : 'right');
+    if (vx > 0) {
+      localFacing = 'right';
+    } else if (vx < 0) {
+      localFacing = 'left';
+    }
+    this.lastFacing.set(this.localPlayerId, localFacing);
+
+    // Determine local animation state based on user requirements:
+    // Moving right -> 'run_right' (Color Player R)
+    // Moving left -> 'run_left' (Color Player L)
+    // Stop after moving right -> 'stand_right' (Color Player 1)
+    // Stop after moving left -> 'stand_left' (Color Player 1L)
+    let localAnimState: PlayerAnimationState;
+    if (isMoving) {
+      localAnimState = localFacing === 'right' ? 'run_right' : 'run_left';
+    } else {
+      localAnimState = localFacing === 'right' ? 'stand_right' : 'stand_left';
+    }
+
+    this.playerStates.set(this.localPlayerId, {
+      state: localAnimState,
+      isMoving
+    });
+
+    if (isMoving) {
       let newX = localPlayer.x + vx * deltaTime;
       let newY = localPlayer.y + vy * deltaTime;
       
-      const PLAYER_SIZE = 30;
-
-      // Handle collision logic
+      // Handle collision logic against walls and obstacles using the feet-only hitbox
       if (localPlayer.alive) {
-        if (!checkCollision(newX, localPlayer.y, PLAYER_SIZE, MAP_WALLS)) {
+        if (!checkCollision(newX, localPlayer.y, ALL_COLLIDERS)) {
           localPlayer.x = newX;
         }
-        if (!checkCollision(localPlayer.x, newY, PLAYER_SIZE, MAP_WALLS)) {
+        if (!checkCollision(localPlayer.x, newY, ALL_COLLIDERS)) {
           localPlayer.y = newY;
         }
       } else {
@@ -112,6 +146,37 @@ export class GameEngine {
       }
     }
 
+    // Update remote / other players' animation states
+    for (const player of this.players) {
+      if (player.id === this.localPlayerId) continue;
+
+      const prev = this.prevPositions.get(player.id);
+      let remoteIsMoving = false;
+      let remoteFacing = this.lastFacing.get(player.id) ?? (player.direction === 'left' ? 'left' : 'right');
+
+      if (prev) {
+        const dx = player.x - prev.x;
+        const dy = player.y - prev.y;
+        if (Math.hypot(dx, dy) > 0.5) {
+          remoteIsMoving = true;
+          if (dx > 0.2) remoteFacing = 'right';
+          else if (dx < -0.2) remoteFacing = 'left';
+        }
+      }
+
+      this.lastFacing.set(player.id, remoteFacing);
+      this.prevPositions.set(player.id, { x: player.x, y: player.y });
+
+      const remoteState: PlayerAnimationState = remoteIsMoving
+        ? (remoteFacing === 'right' ? 'run_right' : 'run_left')
+        : (remoteFacing === 'right' ? 'stand_right' : 'stand_left');
+
+      this.playerStates.set(player.id, {
+        state: remoteState,
+        isMoving: remoteIsMoving
+      });
+    }
+
     this.camera.update(localPlayer.x, localPlayer.y, deltaTime);
   }
 
@@ -119,6 +184,16 @@ export class GameEngine {
     // 1. Draw Map
     drawMap(this.ctx, this.camera.x, this.camera.y, this.canvas.width, this.canvas.height);
     // 2. Draw Players
-    drawPlayers(this.ctx, this.players, this.localPlayerId, this.camera.x, this.camera.y, this.canvas.width, this.canvas.height);
+    drawPlayers(
+      this.ctx,
+      this.players,
+      this.camera.x,
+      this.camera.y,
+      this.canvas.width,
+      this.canvas.height,
+      this.localPlayerId,
+      this.playerStates,
+      this.totalTime
+    );
   }
 }
