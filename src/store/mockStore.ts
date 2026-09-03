@@ -1,61 +1,143 @@
 import { create } from 'zustand';
-import { Player, GamePhase, MyPlayerState, Task } from '../types/game';
+import { Player, GamePhase, LocalSession, Task } from '../types/game';
+import { updateRoomPhase, clearSession } from '../lib/roomService';
 
 interface GameState {
-  // Data
+  // ── Data ──
   players: Player[];
-  localPlayerState: MyPlayerState | null;
+  session: LocalSession | null;
+  roomId: string | null;
+  roomCode: string | null;
   gamePhase: GamePhase;
   tasks: Task[];
   interactableRoom: string | null;
-  
-  // Actions
-  setGamePhase: (phase: GamePhase) => void;
+  isLoading: boolean;
+  error: string | null;
+
+  // ── Session ──
+  setSession: (session: LocalSession) => void;
+
+  // ── Player management ──
+  setRoomPlayers: (players: Player[]) => void;
+  addPlayer: (player: Player) => void;
+  removePlayer: (playerId: string) => void;
   updatePlayerPosition: (id: string, x: number, y: number, direction: Player['direction']) => void;
+  updatePresence: (onlinePlayerIds: string[]) => void;
+
+  // ── Game flow ──
+  setGamePhase: (phase: GamePhase) => void;
   setInteractableRoom: (room: string | null) => void;
   startGame: () => void;
   callMeeting: () => void;
+
+  // ── UI state ──
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+
+  // ── Cleanup ──
+  clearRoom: () => void;
 }
 
-// Initial mock data
-const MOCK_PLAYERS: Player[] = [
-  { id: '1', username: 'Anthos', color: '#00F0FF', x: 1000, y: 750, direction: 'down', alive: true, connected: true },
-  { id: '2', username: 'ByteNinja', color: '#FF003C', x: 1050, y: 750, direction: 'left', alive: true, connected: true },
-  { id: '3', username: 'CyberPunk', color: '#00FF00', x: 950, y: 770, direction: 'up', alive: true, connected: true },
-  { id: '4', username: 'Deface', color: '#8A2BE2', x: 1000, y: 800, direction: 'right', alive: true, connected: true },
-  { id: '5', username: 'NullPtr', color: '#FFA500', x: 1020, y: 730, direction: 'down', alive: true, connected: true },
-];
-
-export const useMockStore = create<GameState>((set) => ({
-  players: MOCK_PLAYERS,
-  localPlayerState: {
-    playerId: '1',
-    role: 'DEVELOPER'
-  },
+export const useMockStore = create<GameState>((set, get) => ({
+  // ── Initial state — NO mock data ──
+  players: [],
+  session: null,
+  roomId: null,
+  roomCode: null,
   gamePhase: 'LOBBY',
   tasks: [],
   interactableRoom: null,
+  isLoading: false,
+  error: null,
 
-  setGamePhase: (phase) => set({ gamePhase: phase }),
-  
-  updatePlayerPosition: (id, x, y, direction) => 
+  // ── Session ──
+  setSession: (session) =>
+    set({
+      session,
+      roomId: session.roomId,
+      roomCode: session.roomCode,
+    }),
+
+  // ── Player management ──
+  setRoomPlayers: (players) => set({ players }),
+
+  addPlayer: (player) =>
+    set((state) => {
+      // Prevent duplicates
+      if (state.players.find((p) => p.id === player.id)) return state;
+      return { players: [...state.players, player] };
+    }),
+
+  removePlayer: (playerId) =>
     set((state) => ({
-      players: state.players.map(p => 
-        p.id === id ? { ...p, x, y, direction } : p
-      )
+      players: state.players.filter((p) => p.id !== playerId),
     })),
-    
+
+  updatePlayerPosition: (id, x, y, direction) =>
+    set((state) => ({
+      players: state.players.map((p) =>
+        p.id === id ? { ...p, x, y, direction } : p
+      ),
+    })),
+
+  updatePresence: (onlinePlayerIds) =>
+    set((state) => ({
+      players: state.players.map((p) => ({
+        ...p,
+        connected: onlinePlayerIds.includes(p.id),
+      })),
+    })),
+
+  // ── Game flow ──
+  setGamePhase: (phase) => set({ gamePhase: phase }),
+
   setInteractableRoom: (room) => set({ interactableRoom: room }),
 
   startGame: () => {
-    // Transition to role reveal
+    const { roomId } = get();
+    if (!roomId) return;
+
+    // Write to Supabase — all connected clients will receive
+    // the phase change via the Realtime Postgres Changes listener
+    updateRoomPhase(roomId, 'ROLE_REVEAL').then(() => {
+      // Transition to PLAYING after 4 seconds
+      setTimeout(() => {
+        updateRoomPhase(roomId, 'PLAYING');
+      }, 4000);
+    });
+
+    // Also update local state immediately for the host
     set({ gamePhase: 'ROLE_REVEAL' });
-    
-    // Auto transition to playing after 4 seconds
     setTimeout(() => {
       set({ gamePhase: 'PLAYING' });
     }, 4000);
   },
 
-  callMeeting: () => set({ gamePhase: 'MEETING' })
+  callMeeting: () => {
+    const { roomId } = get();
+    if (!roomId) return;
+
+    updateRoomPhase(roomId, 'MEETING');
+    set({ gamePhase: 'MEETING' });
+  },
+
+  // ── UI state ──
+  setLoading: (loading) => set({ isLoading: loading }),
+  setError: (error) => set({ error }),
+
+  // ── Cleanup ──
+  clearRoom: () => {
+    clearSession();
+    set({
+      players: [],
+      session: null,
+      roomId: null,
+      roomCode: null,
+      gamePhase: 'LOBBY',
+      tasks: [],
+      interactableRoom: null,
+      isLoading: false,
+      error: null,
+    });
+  },
 }));

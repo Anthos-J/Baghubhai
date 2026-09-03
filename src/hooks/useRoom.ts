@@ -1,16 +1,13 @@
 import { useParams } from 'react-router-dom';
-import { usePlayers } from './usePlayers';
+import { useMockStore } from '../store/mockStore';
 
 export function useRoom() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { players, localPlayer } = usePlayers();
-  
-  // A mock logic to determine if the local player is the host
-  const isHost = localPlayer?.id === players[0]?.id;
+  const session = useMockStore((state) => state.session);
 
   return {
     roomId,
-    isHost,
-    isConnected: true // Mocked connection status
+    isHost: session?.isHost ?? false,
+    isConnected: !!session,
   };
 }
