@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Player, GamePhase, LocalSession, TaskItem, GameState as EngineGameState, GameSettings } from '../types/game';
+import { Player, GamePhase, LocalSession, TaskItem, GameState as EngineGameState, GameSettings, MafiaTaskAlteredEvent, CodeIntegrityAlert } from '../types/game';
 import { updateRoomPhase, clearSession, updateRoomSettings } from '../lib/roomService';
 import { supabase } from '../lib/supabase';
 import { GameAction, gameReducer, createInitialGameState } from '../game/gameState';
@@ -146,10 +146,15 @@ interface GameStateStore {
   alarmRoomName: string;
   escapeBufferSeconds: number | null;
   mafiaNotifications: { id: string; message: string; roomName: string; timestamp: number }[];
+  codeIntegrityAlert: CodeIntegrityAlert | null;
+  lastMafiaTaskAlteredEvent: MafiaTaskAlteredEvent | null;
+  processedImposterEventIds: string[];
   triggerAlarm: (roomName: string, message?: string) => void;
   clearAlarm: () => void;
   notifyMafiaTaskCompleted: (taskId: string, roomName: string, taskTitle: string) => void;
   triggerBugTaskAction: (taskId: string, roomName: string) => void;
+  handleMafiaChangedCompletedTask: (event: MafiaTaskAlteredEvent) => void;
+  clearCodeIntegrityAlert: () => void;
 
   // ── UI state ──
   setLoading: (loading: boolean) => void;
@@ -209,6 +214,9 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   alarmRoomName: '',
   escapeBufferSeconds: null,
   mafiaNotifications: [],
+  codeIntegrityAlert: null,
+  lastMafiaTaskAlteredEvent: null,
+  processedImposterEventIds: [],
 
   // ── Session ──
   setSession: (session) => {
@@ -1166,8 +1174,15 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   },
 
   triggerBugTaskAction: (taskId: string, _roomName: string) => {
-    triggerTrophyEvent('SABOTAGE_TRIGGERED');
     const state = get();
+    // Authoritative check: Player must be Mafia
+    const localPlayer = state.players.find((p) => p.id === state.session?.playerId);
+    if (localPlayer && localPlayer.role !== 'MAFIA') {
+      console.warn('Unauthorized: Only Mafia can alter or bug tasks.');
+      return;
+    }
+
+    triggerTrophyEvent('SABOTAGE_TRIGGERED');
     const legacyTaskId = taskId.includes('auth')
       ? 'task-auth'
       : taskId.includes('util')
@@ -1178,8 +1193,17 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       ? 'task-payment'
       : 'task-app';
 
+    // Detect if task was previously completed
+    const targetTask = state.tasks.find((t) => t.id === legacyTaskId || t.id === taskId);
+    const wasCompleted = targetTask ? (targetTask.status === 'COMPLETED' || Boolean(targetTask.completed)) : false;
+
     // 1. Mutate task code and revert status to BUGGED
     const { tasks: updatedTasks } = bugTask(state.tasks, legacyTaskId);
+    const isNowBugged = updatedTasks.find((t) => t.id === legacyTaskId)?.status === 'BUGGED';
+    if (!isNowBugged) {
+      console.warn('Failed to apply bug to task.');
+      return;
+    }
 
     // 2. Personal tasks are NOT affected! Only total task bar decreases by 1
     const newTotalCompleted = Math.max(0, state.totalTasksCompleted - 1);
@@ -1191,7 +1215,36 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       ? Math.min(100, Math.round((newTotalCompleted / totalGameTasks) * 100))
       : 0;
 
-    // 3. Start the 3-second escape buffer for Mafia
+    // 3. Prepare MafiaTaskAlteredEvent if the task was previously completed
+    let alteredEvent: MafiaTaskAlteredEvent | null = null;
+    if (wasCompleted) {
+      alteredEvent = {
+        id: `mafia-tamper-${legacyTaskId}-${Date.now()}`,
+        type: 'MAFIA_CHANGED_COMPLETED_TASK',
+        gameId: state.roomId || 'local-game',
+        taskId: legacyTaskId,
+        timestamp: Date.now(),
+      };
+
+      // Trigger Code Integrity Alert immediately
+      get().handleMafiaChangedCompletedTask(alteredEvent);
+
+      // Broadcast immediately to all connected players over realtime channel
+      const { roomId } = get();
+      if (roomId) {
+        try {
+          supabase.channel(`room:${roomId}:events`).send({
+            type: 'broadcast',
+            event: 'mafia_changed_completed_task',
+            payload: alteredEvent,
+          });
+        } catch {
+          // ignore offline/mock in tests
+        }
+      }
+    }
+
+    // 4. Start the 3-second escape buffer for Mafia
     set({
       tasks: updatedTasks,
       progress: cumulativeProgress,
@@ -1210,31 +1263,82 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
         clearInterval(interval);
         set({ escapeBufferSeconds: null });
 
-        // 4. Sound global red-yellow alarm without revealing the room/code
+        // Trigger Code Integrity Alert if completed assignment was altered
+        if (alteredEvent) {
+          get().handleMafiaChangedCompletedTask(alteredEvent);
+        }
+
+        // 5. Sound global red-yellow alarm without revealing the room/code
         get().triggerAlarm(
           '',
-          'CRITICAL ALERT: Terminal code bugged! Developers must search facility rooms to locate and patch the defect!'
+          alteredEvent
+            ? 'CRITICAL ALERT: A completed assignment has been altered! Search facility rooms to locate and patch the bug!'
+            : 'CRITICAL ALERT: Terminal code bugged! Developers must search facility rooms to locate and patch the defect!'
         );
 
         // Broadcast to other players via Supabase realtime
         const { roomId } = get();
         if (roomId) {
+          if (alteredEvent) {
+            supabase.channel(`room:${roomId}:events`).send({
+              type: 'broadcast',
+              event: 'mafia_changed_completed_task',
+              payload: alteredEvent,
+            });
+          }
           supabase.channel(`room:${roomId}:events`).send({
             type: 'broadcast',
             event: 'task_bugged_alarm',
             payload: {
               roomName: '',
               taskId: legacyTaskId,
-              message: 'CRITICAL ALERT: Terminal code bugged! Developers must search facility rooms to locate and patch the defect!',
+              message: alteredEvent
+                ? 'CRITICAL ALERT: A completed assignment has been altered! Search facility rooms to locate and patch the bug!'
+                : 'CRITICAL ALERT: Terminal code bugged! Developers must search facility rooms to locate and patch the defect!',
               completedTasksByPlayer: state.completedTasksByPlayer,
               totalTasksCompleted: newTotalCompleted,
               totalGameTasks,
               progress: cumulativeProgress,
+              mafiaAlteredEvent: alteredEvent,
             },
           });
         }
       }
     }, 1000);
+  },
+
+  handleMafiaChangedCompletedTask: (event: MafiaTaskAlteredEvent) => {
+    if (!event || event.type !== 'MAFIA_CHANGED_COMPLETED_TASK' || !event.id) return;
+    const state = get();
+    // Deduplicate: ignore if already processed
+    if (state.processedImposterEventIds.includes(event.id)) {
+      return;
+    }
+
+    const alert: CodeIntegrityAlert = {
+      id: event.id,
+      taskId: event.taskId,
+      title: '⚠ CODE INTEGRITY ALERT',
+      message: 'A completed assignment has been altered.',
+      timestamp: event.timestamp || Date.now(),
+    };
+
+    set((s) => ({
+      processedImposterEventIds: [...s.processedImposterEventIds, event.id].slice(-50),
+      codeIntegrityAlert: alert,
+      lastMafiaTaskAlteredEvent: event,
+    }));
+
+    // Auto-clear alert after 5 seconds
+    setTimeout(() => {
+      if (get().codeIntegrityAlert?.id === event.id) {
+        set({ codeIntegrityAlert: null });
+      }
+    }, 5000);
+  },
+
+  clearCodeIntegrityAlert: () => {
+    set({ codeIntegrityAlert: null });
   },
 
   syncCumulativeTasks: (data) => {
@@ -1432,6 +1536,8 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       alarmRoomName: '',
       escapeBufferSeconds: null,
       mafiaNotifications: [],
+      codeIntegrityAlert: null,
+      lastMafiaTaskAlteredEvent: null,
     }));
 
     if (roomId) {
@@ -1485,6 +1591,8 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       alarmRoomName: '',
       escapeBufferSeconds: null,
       mafiaNotifications: [],
+      codeIntegrityAlert: null,
+      lastMafiaTaskAlteredEvent: null,
     }));
   },
 
@@ -1525,6 +1633,8 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       alarmRoomName: '',
       escapeBufferSeconds: null,
       mafiaNotifications: [],
+      codeIntegrityAlert: null,
+      lastMafiaTaskAlteredEvent: null,
     });
   },
 }));

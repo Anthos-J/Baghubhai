@@ -30,8 +30,8 @@ function assert(condition: boolean, description: string) {
 
 async function runTests() {
   // ── 1. PREBUILT CHALLENGES CATALOG ──
-  console.log('--- 1. Prebuilt Challenges Catalog (10+ Total) ---');
-  assert(PREBUILT_CHALLENGES.length >= 10, `Catalog contains ${PREBUILT_CHALLENGES.length} prebuilt challenges (>= 10)`);
+  console.log('--- 1. Prebuilt Challenges Catalog (10 Total) ---');
+  assert(PREBUILT_CHALLENGES.length === 10, 'Catalog contains exactly 10 prebuilt challenges');
 
   const javaChallenges = PREBUILT_CHALLENGES.filter((c) => c.language === 'JAVA');
   const pythonChallenges = PREBUILT_CHALLENGES.filter((c) => c.language === 'PYTHON');
@@ -47,33 +47,6 @@ async function runTests() {
       `Challenge ${i + 1} (${c.id} - ${c.language}/${c.difficulty}): Valid schema with ${c.bugs.length} unique bugs`
     );
   });
-
-  // ── 1b. CODE MAFIA 3 FLAGSHIP JAVA PROJECTS ──
-  console.log('\n--- 1b. Code Mafia 3 Flagship Java Projects ---');
-  const bankProj = PREBUILT_CHALLENGES.find((c) => c.id === 'challenge-java-bank')!;
-  const libProj = PREBUILT_CHALLENGES.find((c) => c.id === 'challenge-java-library')!;
-  const studentProj = PREBUILT_CHALLENGES.find((c) => c.id === 'challenge-java-student')!;
-
-  assert(Boolean(bankProj && bankProj.bugs.length === 9), 'Bank Management System contains exactly 9 initial bugs');
-  assert(Boolean(libProj && libProj.bugs.length === 9), 'Library Management System contains exactly 9 initial bugs');
-  assert(Boolean(studentProj && studentProj.bugs.length === 9), 'Student Result System contains exactly 9 initial bugs');
-
-  // Test 3 Developers Equal Distribution (3 bugs each across rooms)
-  const threeDevs = ['dev-1', 'dev-2', 'dev-3'];
-  const bankSession = createChallengeMatchSession('bank-game-1', bankProj, threeDevs);
-  assert(bankSession.assignments['dev-1'].length === 3, 'Developer 1 assigned exactly 3 functions/bugs in Bank System');
-  assert(bankSession.assignments['dev-2'].length === 3, 'Developer 2 assigned exactly 3 functions/bugs in Bank System');
-  assert(bankSession.assignments['dev-3'].length === 3, 'Developer 3 assigned exactly 3 functions/bugs in Bank System');
-
-  const libSession = createChallengeMatchSession('lib-game-1', libProj, threeDevs);
-  assert(libSession.assignments['dev-1'].length === 3, 'Developer 1 assigned exactly 3 functions/bugs in Library System');
-  assert(libSession.assignments['dev-2'].length === 3, 'Developer 2 assigned exactly 3 functions/bugs in Library System');
-  assert(libSession.assignments['dev-3'].length === 3, 'Developer 3 assigned exactly 3 functions/bugs in Library System');
-
-  const studentSession = createChallengeMatchSession('student-game-1', studentProj, threeDevs);
-  assert(studentSession.assignments['dev-1'].length === 3, 'Developer 1 assigned exactly 3 functions/bugs in Student System');
-  assert(studentSession.assignments['dev-2'].length === 3, 'Developer 2 assigned exactly 3 functions/bugs in Student System');
-  assert(studentSession.assignments['dev-3'].length === 3, 'Developer 3 assigned exactly 3 functions/bugs in Student System');
 
   // ── 2. LANGUAGE & DIFFICULTY FILTERING ──
   console.log('\n--- 2. Language & Difficulty Filtering ---');

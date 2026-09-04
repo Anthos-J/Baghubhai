@@ -60,6 +60,8 @@ export default function GameHUD() {
   const escapeBufferSeconds = useMockStore((s) => s.escapeBufferSeconds);
   const mafiaNotifications = useMockStore((s) => s.mafiaNotifications);
   const triggerBugTaskAction = useMockStore((s) => s.triggerBugTaskAction);
+  const codeIntegrityAlert = useMockStore((s) => s.codeIntegrityAlert);
+  const clearCodeIntegrityAlert = useMockStore((s) => s.clearCodeIntegrityAlert);
   // ── Cumulative Multi-Player Tasks Hookup ──
   const totalTasksCompleted = useMockStore((s) => s.totalTasksCompleted);
   const totalGameTasks = useMockStore((s) => s.totalGameTasks);
@@ -327,6 +329,34 @@ export default function GameHUD() {
           <span className="font-bold hidden sm:inline text-[11px]">CODE INFO</span>
         </button>
       </div>
+
+      {/* ── CODE INTEGRITY ALERT BANNER (MAFIA TAMPER TRIGGER) ── */}
+      {codeIntegrityAlert && (
+        <div
+          data-testid="code-integrity-alert"
+          className="absolute top-20 sm:top-22 left-1/2 -translate-x-1/2 z-50 pointer-events-auto flex items-center gap-3 px-4 py-2 bg-black/95 border-2 border-[#FF003C] text-[#FF003C] shadow-[0_0_25px_rgba(255,0,60,0.7)] animate-in fade-in slide-in-from-top duration-300 rounded-xs max-w-[90vw]"
+        >
+          <AlertTriangle size={18} className="text-[#FF003C] shrink-0 animate-pulse" />
+          <div className="flex flex-col text-left">
+            <span className="font-pixel text-[11px] tracking-wider uppercase text-[#FF003C]">
+              ⚠ CODE INTEGRITY ALERT
+            </span>
+            <span className="font-tech text-xs text-white tracking-wide">
+              {codeIntegrityAlert.message.includes(':')
+                ? codeIntegrityAlert.message.split(':')[1]?.trim() || 'A completed assignment has been altered.'
+                : codeIntegrityAlert.message}
+            </span>
+          </div>
+          <button
+            onClick={clearCodeIntegrityAlert}
+            className="ml-2 text-gray-400 hover:text-white font-mono text-xs px-1.5 py-0.5 hover:bg-white/10 rounded cursor-pointer transition-colors"
+            title="Dismiss"
+            aria-label="Dismiss Alert"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ΓöÇΓöÇ 2. TOP RIGHT: Role Badge & Live HUD Minimap ΓöÇΓöÇ */}
       <div className="absolute top-2 sm:top-3 right-3 sm:right-4 z-40 pointer-events-auto flex flex-col items-end gap-1.5">

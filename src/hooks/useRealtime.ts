@@ -340,6 +340,11 @@ export function useMeetingEvents(roomId: string, playerId: string) {
           store.notifyMafiaTaskCompleted(payload.taskId, payload.roomName, payload.taskTitle);
         }
       })
+      .on('broadcast', { event: 'mafia_changed_completed_task' }, ({ payload }) => {
+        if (payload?.type === 'MAFIA_CHANGED_COMPLETED_TASK') {
+          useMockStore.getState().handleMafiaChangedCompletedTask(payload);
+        }
+      })
       .on('broadcast', { event: 'task_bugged_alarm' }, ({ payload }) => {
         const store = useMockStore.getState();
         if (payload?.completedTasksByPlayer) {
@@ -352,6 +357,9 @@ export function useMeetingEvents(roomId: string, playerId: string) {
         }
         if (payload?.taskId) {
           store.sabotageTask(payload.taskId);
+        }
+        if (payload?.mafiaAlteredEvent) {
+          store.handleMafiaChangedCompletedTask(payload.mafiaAlteredEvent);
         }
         store.triggerAlarm(payload.roomName, payload.message);
       })

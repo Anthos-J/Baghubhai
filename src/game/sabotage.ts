@@ -43,8 +43,15 @@ export function triggerBugInjection(
     return { success: false, state, reason: 'Target task not found.' };
   }
 
+  // Detect whether task was previously completed
+  const wasTaskCompleted = targetTask.status === 'COMPLETED' || Boolean(targetTask.completed);
+
   // Mutate task code and drop progress immediately
   const { tasks: updatedTasks, progress: updatedProgress } = bugTask(state.tasks, targetTaskId);
+  const isNowBugged = updatedTasks.find((t) => t.id === targetTaskId)?.status === 'BUGGED';
+  if (!isNowBugged) {
+    return { success: false, state, reason: 'Failed to apply bug to target task.' };
+  }
 
   // 1-minute (60s) cooldown
   const cooldownDurationMs = (state.settings.sabotageCooldownSeconds ?? 60) * 1000 || DEFAULT_COOLDOWN_MS;
@@ -66,14 +73,35 @@ export function triggerBugInjection(
     triggeredAt: now,
     broadcastAt: now + escapeDelayMs,
     processed: false,
+    wasTaskCompleted,
   };
+
+  let immediateAlert = null;
+  let immediateEvent = null;
+  if (escapeDelayMs <= 0 && wasTaskCompleted) {
+    immediateEvent = {
+      id: `mafia-tamper-${targetTaskId}-${now}`,
+      type: 'MAFIA_CHANGED_COMPLETED_TASK' as const,
+      gameId: state.roomId,
+      taskId: targetTaskId,
+      timestamp: now,
+    };
+    immediateAlert = {
+      id: immediateEvent.id,
+      title: '⚠ CODE INTEGRITY ALERT',
+      message: 'A completed assignment has been altered.',
+      timestamp: now,
+    };
+  }
 
   const nextState: GameState = {
     ...state,
     tasks: updatedTasks,
     progress: updatedProgress,
     // Alarm not yet active during the 3s escape window
-    pendingSabotageAlert: pendingAlert,
+    pendingSabotageAlert: escapeDelayMs > 0 ? pendingAlert : null,
+    codeIntegrityAlert: immediateAlert ?? state.codeIntegrityAlert,
+    lastMafiaTaskAlteredEvent: immediateEvent ?? state.lastMafiaTaskAlteredEvent,
     sabotageCooldowns: nextCooldowns,
     lastUpdatedAt: now,
   };
@@ -95,11 +123,39 @@ export function processPendingSabotageAlert(state: GameState, currentTime: numbe
     return state;
   }
 
+  const wasCompleted = Boolean(state.pendingSabotageAlert.wasTaskCompleted);
+
+  const alteredEvent = wasCompleted
+    ? {
+        id: `mafia-tamper-${state.pendingSabotageAlert.taskId}-${currentTime}`,
+        type: 'MAFIA_CHANGED_COMPLETED_TASK' as const,
+        gameId: state.roomId,
+        taskId: state.pendingSabotageAlert.taskId,
+        timestamp: currentTime,
+      }
+    : null;
+
+  const codeIntegrityAlert = alteredEvent
+    ? {
+        id: alteredEvent.id,
+        taskId: alteredEvent.taskId,
+        title: '⚠ CODE INTEGRITY ALERT',
+        message: 'A completed assignment has been altered.',
+        timestamp: currentTime,
+      }
+    : null;
+
+  const notificationMessage = wasCompleted
+    ? '⚠️ CODE INTEGRITY ALERT: A completed assignment has been altered.'
+    : '⚠️ SECURITY ANOMALY: Codebase corrupted! A module has been altered. Inspect repository and run tests.';
+
   // Escape window ended -> Sound alarm across crewmembers!
   const alarm: GameAlarm = {
     isActive: true,
     type: 'RED_YELLOW_ALERT',
-    message: 'CRITICAL ALERT: System anomaly detected across codebase! One or more modules have been corrupted!',
+    message: wasCompleted
+      ? 'CRITICAL ALERT: A completed assignment has been altered! Search facility rooms to locate and patch the bug!'
+      : 'CRITICAL ALERT: System anomaly detected across codebase! One or more modules have been corrupted!',
     startedAt: currentTime,
     durationSeconds: 20,
     severity: 'critical',
@@ -107,9 +163,9 @@ export function processPendingSabotageAlert(state: GameState, currentTime: numbe
   };
 
   const notification: GameNotification = {
-    id: `notif-${currentTime}-${Math.random().toString(36).substring(2, 7)}`,
+    id: alteredEvent?.id || `notif-${currentTime}-${Math.random().toString(36).substring(2, 7)}`,
     timestamp: currentTime,
-    message: '⚠️ SECURITY ANOMALY: Codebase corrupted! A module has been altered. Inspect repository and run tests.',
+    message: notificationMessage,
     level: 'alarm',
     isGlobal: true,
   };
@@ -118,6 +174,8 @@ export function processPendingSabotageAlert(state: GameState, currentTime: numbe
     ...state,
     alarm,
     pendingSabotageAlert: null,
+    codeIntegrityAlert,
+    lastMafiaTaskAlteredEvent: alteredEvent,
     notifications: [notification, ...state.notifications].slice(0, 50),
     lastUpdatedAt: currentTime,
   };

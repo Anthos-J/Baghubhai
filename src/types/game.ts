@@ -140,6 +140,23 @@ export interface PendingSabotageAlert {
   triggeredAt: number;
   broadcastAt: number; // 3 seconds escape window for imposter
   processed: boolean;
+  wasTaskCompleted?: boolean;
+}
+
+export interface MafiaTaskAlteredEvent {
+  id: string;
+  type: 'MAFIA_CHANGED_COMPLETED_TASK';
+  gameId: string;
+  taskId: string;
+  timestamp: number;
+}
+
+export interface CodeIntegrityAlert {
+  id: string;
+  taskId?: string;
+  title: string;
+  message: string;
+  timestamp: number;
 }
 
 export interface SabotageCooldown {
@@ -227,6 +244,8 @@ export interface GameState {
   winner: WinResult | null;
   settings: GameSettings;
   challengeSession?: any; // ChallengeMatchSession from challengeService
+  codeIntegrityAlert?: CodeIntegrityAlert | null;
+  lastMafiaTaskAlteredEvent?: MafiaTaskAlteredEvent | null;
   createdAt: number;
   lastUpdatedAt: number;
 }
