@@ -525,8 +525,10 @@ export default function MeetingModal() {
               </>
             )}
 
-            <p className="font-mono text-xs text-gray-500 mt-10 tracking-widest uppercase animate-pulse">
-              Resuming operations in a moment...
+            <p className="font-mono text-xs text-gray-400 mt-10 tracking-widest uppercase animate-pulse">
+              {votingResult.remainingImpostors === 0
+                ? '🏆 DEVS VICTORY! Finalizing match results...'
+                : 'Resuming operations in a moment...'}
             </p>
           </div>
         </div>
