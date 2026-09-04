@@ -57,8 +57,19 @@ export class GameEngine {
   }
 
   public updateState(players: Player[], localPlayerId: string) {
-    this.players = players;
+    const existingLocal = this.players.find(p => p.id === this.localPlayerId);
     this.localPlayerId = localPlayerId;
+    this.players = players;
+
+    // If local player already exists and has an active engine position,
+    // preserve their current live engine coordinates so store re-renders never snap them back!
+    if (existingLocal) {
+      const currentLocal = this.players.find(p => p.id === localPlayerId);
+      if (currentLocal) {
+        currentLocal.x = existingLocal.x;
+        currentLocal.y = existingLocal.y;
+      }
+    }
   }
 
   /**

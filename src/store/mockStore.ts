@@ -777,12 +777,37 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
         },
         players: players.map((p) => (p.id === highestTarget ? { ...p, alive: false } : p)),
       });
-    }
 
-    // Auto resume game after 5 seconds of results
-    setTimeout(() => {
-      get().endMeeting();
-    }, 5000);
+      // If all imposters were eliminated: DEVELOPERS WIN!
+      if (wasImpostor && remainingImpostors === 0) {
+        setTimeout(() => {
+          get().triggerGameOver(
+            'DEVELOPERS',
+            'All Impostors were successfully identified and ejected! Developers win!'
+          );
+        }, 5000);
+        return;
+      }
+
+      // If Imposters achieved parity: MAFIA WINS!
+      const remainingDevs = players.filter(
+        (p) => p.alive && p.id !== highestTarget && p.role === 'DEVELOPER'
+      ).length;
+      if (remainingImpostors > 0 && remainingImpostors >= remainingDevs && players.length > 1) {
+        setTimeout(() => {
+          get().triggerGameOver(
+            'MAFIA',
+            'Imposters have compromised the team! (Living Imposters >= Living Developers)'
+          );
+        }, 5000);
+        return;
+      }
+
+      // Otherwise auto resume game after 5 seconds of results
+      setTimeout(() => {
+        get().endMeeting();
+      }, 5000);
+    }
   },
 
   endMeeting: () => {
@@ -1312,7 +1337,17 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       if (state.players && state.players.length > 0) {
         nextPlayers = currentPlayers.map((cp) => {
           const ep = state.players.find((p) => p.id === cp.id);
-          return ep ? { ...cp, ...ep, role: ep.role ?? cp.role } : cp;
+          if (!ep) return cp;
+          // CRITICAL: Preserve live movement coordinates (x, y, direction) so players
+          // are never snapped back to spawn point by engine sync ticks!
+          return {
+            ...cp,
+            ...ep,
+            x: cp.x,
+            y: cp.y,
+            direction: cp.direction,
+            role: ep.role ?? cp.role,
+          };
         });
       }
       return {
