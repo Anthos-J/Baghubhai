@@ -57,6 +57,7 @@ export const LobbySettingsModal: React.FC<LobbySettingsModalProps> = ({
     const finalSettings: GameSettings = {
       maxPlayers: normalizedMaxPlayers,
       mafiaCount: normalizedMafiaCount,
+      language: draft.language || 'JAVA',
       difficulty: draft.difficulty || 'MEDIUM',
       gameDurationSeconds: Math.max(600, Math.min(1200, draft.gameDurationSeconds ?? 900)),
       discussionDurationSeconds: Math.max(30, Math.min(180, draft.discussionDurationSeconds ?? 180)),
@@ -109,8 +110,8 @@ export const LobbySettingsModal: React.FC<LobbySettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1 font-mono text-sm">
+        {/* Form Body */}
+        <div className="p-6 overflow-y-auto flex-1 font-mono text-sm space-y-6">
           {saveSuccess && (
             <div className="p-3 rounded-lg bg-green-500/20 border border-green-500/50 text-green-300 flex items-center gap-2 font-mono text-xs">
               <Check className="w-4 h-4" /> GAME SETTINGS SAVED & BROADCASTED
@@ -120,7 +121,7 @@ export const LobbySettingsModal: React.FC<LobbySettingsModalProps> = ({
           {/* Section 1: PLAYERS */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-primary font-bold tracking-wider text-xs border-b border-panelBorder pb-1">
-              <Users className="w-4 h-4" /> PLAYERS
+              <Users className="w-4 h-4" /> PLAYERS & ROLES
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Max Players */}
@@ -168,13 +169,40 @@ export const LobbySettingsModal: React.FC<LobbySettingsModalProps> = ({
           {/* Section 2: GAMEPLAY */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-primary font-bold tracking-wider text-xs border-b border-panelBorder pb-1">
-              <Clock className="w-4 h-4" /> GAMEPLAY
+              <Clock className="w-4 h-4" /> GAMEPLAY & CODING
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Programming Language */}
+              <div className="bg-black/30 p-3 rounded-lg border border-panelBorder flex flex-col justify-between">
+                <label className="text-xs text-textMuted mb-1 flex justify-between items-center">
+                  <span className="flex items-center gap-1">Language {!isHost && <Lock size={10} />}</span>
+                </label>
+                <div className="grid grid-cols-3 gap-1">
+                  {(['JAVA', 'PYTHON', 'C'] as const).map((lang) => {
+                    const active = (draft.language || 'JAVA') === lang;
+                    return (
+                      <button
+                        key={lang}
+                        type="button"
+                        disabled={!isHost}
+                        onClick={() => setDraft({ ...draft, language: lang })}
+                        className={`py-1 text-xs font-tech rounded border transition-all ${
+                          active
+                            ? 'bg-primary/20 border-primary text-primary font-bold shadow-[0_0_10px_rgba(0,240,255,0.2)]'
+                            : 'bg-black/40 border-panelBorder text-textMuted hover:text-white'
+                        } disabled:opacity-60 disabled:cursor-not-allowed`}
+                      >
+                        {lang}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Difficulty */}
               <div className="bg-black/30 p-3 rounded-lg border border-panelBorder flex flex-col justify-between">
                 <label className="text-xs text-textMuted mb-1 flex justify-between items-center">
-                  <span className="flex items-center gap-1">Coding Difficulty {!isHost && <Lock size={10} />}</span>
+                  <span className="flex items-center gap-1">Difficulty {!isHost && <Lock size={10} />}</span>
                 </label>
                 <div className="grid grid-cols-3 gap-1">
                   {(['SMALL', 'MEDIUM', 'DIFFICULT'] as CodeDifficulty[]).map((diff) => {
@@ -202,18 +230,18 @@ export const LobbySettingsModal: React.FC<LobbySettingsModalProps> = ({
               {/* Game Duration */}
               <div className="bg-black/30 p-3 rounded-lg border border-panelBorder flex flex-col justify-between">
                 <label className="text-xs text-textMuted mb-1 flex justify-between items-center">
-                  <span className="flex items-center gap-1">Game Duration {!isHost && <Lock size={10} />}</span>
-                  <span className="text-primary font-bold">{Math.round((draft.gameDurationSeconds ?? 900) / 60)} min</span>
+                  <span className="flex items-center gap-1">Duration {!isHost && <Lock size={10} />}</span>
+                  <span className="text-primary font-bold">{Math.round((draft.gameDurationSeconds ?? 900) / 60)}m</span>
                 </label>
                 <select
                   disabled={!isHost}
                   value={draft.gameDurationSeconds ?? 900}
                   onChange={(e) => setDraft({ ...draft, gameDurationSeconds: Number(e.target.value) })}
-                  className="bg-black/60 border border-panelBorder rounded px-3 py-1.5 text-white font-tech focus:border-primary focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="bg-black/60 border border-panelBorder rounded px-2 py-1 text-white font-tech text-xs focus:border-primary focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {[10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((m) => (
                     <option key={m} value={m * 60}>
-                      {m} Minutes ({m * 60}s)
+                      {m} Min ({m * 60}s)
                     </option>
                   ))}
                 </select>

@@ -52,6 +52,7 @@ export function calculateGameDuration(
 export const DEFAULT_SETTINGS: GameSettings = {
   maxPlayers: 5,
   mafiaCount: 1,
+  language: 'JAVA',
   difficulty: 'MEDIUM',
   gameDurationSeconds: 900, // 15 minutes default
   discussionDurationSeconds: 180, // 3 minutes default

@@ -15,6 +15,13 @@ import {
   validateTaskModification,
 } from '../editor/privateTasks';
 import { triggerTrophyEvent } from '../lib/trophies';
+import {
+  selectMatchChallenge,
+  createChallengeMatchSession,
+  saveChallengeSession,
+  getChallengeSession,
+  ChallengeMatchSession,
+} from '../services/challengeService';
 
 /**
  * Calculates total cumulative tasks across all active developers/players in the room.
@@ -58,6 +65,7 @@ interface GameStateStore {
   interactableRoom: string | null;
   publicProject: PublicProjectContext;
   myPrivateTasks: PrivatePlayerTask[];
+  challengeSession: ChallengeMatchSession | null;
   // ── Cumulative Multi-Player Tasks ──
   completedTasksByPlayer: Record<string, string[]>;
   totalTasksCompleted: number;
@@ -163,6 +171,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   interactableRoom: null,
   publicProject: PUBLIC_PROJECT_CONTEXT,
   myPrivateTasks: [],
+  challengeSession: null,
   completedTasksByPlayer: {},
   totalTasksCompleted: 0,
   totalGameTasks: 5,
@@ -192,12 +201,48 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   mafiaNotifications: [],
 
   // ── Session ──
-  setSession: (session) =>
-    set({
+  setSession: (session) => {
+    const existingChallengeSession = session.roomId ? getChallengeSession(session.roomId) : null;
+    let convertedTasks: PrivatePlayerTask[] = [];
+    let challengeProject: PublicProjectContext = PUBLIC_PROJECT_CONTEXT;
+
+    if (existingChallengeSession) {
+      const localAssignments = existingChallengeSession.assignments[session.playerId] || [];
+      convertedTasks = localAssignments.map((a) => ({
+        taskId: a.bugId,
+        assignedPlayerId: a.playerId,
+        fileId: `file-${a.roomId}`,
+        fileName: `${a.roomId}.${existingChallengeSession.language === 'JAVA' ? 'java' : existingChallengeSession.language === 'PYTHON' ? 'py' : 'c'}`,
+        roomId: a.roomId,
+        roomLabel: a.roomLabel,
+        title: a.title,
+        description: a.objective,
+        sectionCode: existingChallengeSession.sharedCode,
+        baselineCode: existingChallengeSession.sharedCode,
+        status: a.status,
+        testKey: a.testKey,
+        hint: a.hint,
+      }));
+
+      challengeProject = {
+        projectId: existingChallengeSession.challengeId,
+        title: existingChallengeSession.title.toUpperCase(),
+        system: `${existingChallengeSession.language} Environment (${existingChallengeSession.difficulty})`,
+        description: existingChallengeSession.description,
+        objective: `Fix your assigned bug objective in the shared ${existingChallengeSession.language} codebase across the facility terminals.`,
+        filesSummary: [`Shared Program (${existingChallengeSession.language})`],
+      };
+    }
+
+    set((state) => ({
       session,
       roomId: session.roomId,
       roomCode: session.roomCode,
-    }),
+      challengeSession: existingChallengeSession || state.challengeSession,
+      publicProject: existingChallengeSession ? challengeProject : state.publicProject,
+      myPrivateTasks: convertedTasks.length > 0 ? convertedTasks : state.myPrivateTasks,
+    }));
+  },
 
   // ── Player management ──
   setRoomPlayers: (players) =>
@@ -261,7 +306,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
 
   setGameTimerPaused: (paused) => set({ isGameTimerPaused: paused }),
 
-  startGame: () => {
+  startGame: async () => {
     const { roomId, players, session, engineState } = get();
     if (!roomId) return;
     if (players.length < 4) return;
@@ -276,6 +321,54 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       : assignRoles(players, finalMafia);
 
     const duration = engineState.settings?.gameDurationSeconds ?? 900;
+
+    // 1. Language & Difficulty selection from Host settings
+    const selectedLang = engineState.settings?.language || 'JAVA';
+    const selectedDiff = engineState.settings?.difficulty || 'MEDIUM';
+
+    // 2. Query and select ONE eligible prebuilt coding challenge
+    let activeChallengeSession = getChallengeSession(roomId);
+    if (!activeChallengeSession) {
+      const challengeRes = await selectMatchChallenge(selectedLang, selectedDiff);
+      if (!challengeRes.success || !challengeRes.challenge) {
+        const errorMsg = challengeRes.error || `No coding challenges are currently available for ${selectedLang} / ${selectedDiff}.`;
+        console.error(errorMsg);
+        set({ error: errorMsg });
+        return;
+      }
+
+      const playerIds = assignedPlayers.length > 0 ? assignedPlayers.map((p) => p.id) : [session?.playerId || 'local-player-1'];
+      activeChallengeSession = createChallengeMatchSession(roomId, challengeRes.challenge, playerIds);
+      saveChallengeSession(activeChallengeSession);
+    }
+
+    const localId = session?.playerId || assignedPlayers[0]?.id || 'local-player-1';
+    const localAssignments = activeChallengeSession.assignments[localId] || [];
+
+    const convertedPrivateTasks: PrivatePlayerTask[] = localAssignments.map((a) => ({
+      taskId: a.bugId,
+      assignedPlayerId: a.playerId,
+      fileId: `file-${a.roomId}`,
+      fileName: `${a.roomId}.${activeChallengeSession.language === 'JAVA' ? 'java' : activeChallengeSession.language === 'PYTHON' ? 'py' : 'c'}`,
+      roomId: a.roomId,
+      roomLabel: a.roomLabel,
+      title: a.title,
+      description: a.objective,
+      sectionCode: activeChallengeSession.sharedCode,
+      baselineCode: activeChallengeSession.sharedCode,
+      status: a.status,
+      testKey: a.testKey,
+      hint: a.hint,
+    }));
+
+    const challengePublicProject: PublicProjectContext = {
+      projectId: activeChallengeSession.challengeId,
+      title: activeChallengeSession.title.toUpperCase(),
+      system: `${activeChallengeSession.language} Environment (${activeChallengeSession.difficulty})`,
+      description: activeChallengeSession.description,
+      objective: `Fix your assigned bug objective in the shared ${activeChallengeSession.language} codebase across the facility terminals.`,
+      filesSummary: [`Shared Program (${activeChallengeSession.language})`],
+    };
 
     // Sync engine state to advance from LOBBY
     get().dispatchEngineAction({ type: 'START_GAME' });
@@ -292,7 +385,11 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
         gameTimeRemaining: duration,
         totalGameTime: duration,
         winner: null,
+        challengeSession: activeChallengeSession,
       },
+      challengeSession: activeChallengeSession,
+      publicProject: challengePublicProject,
+      myPrivateTasks: convertedPrivateTasks,
       totalGameTasks,
       totalTasksCompleted: 0,
       completedTasksByPlayer: {},
@@ -301,14 +398,6 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       isGameTimerPaused: false,
       gamePhase: 'ROLE_REVEAL',
     });
-
-    // Fetch authorized tasks strictly for this client
-    const playerIds = assignedPlayers.length > 0 ? assignedPlayers.map((p) => p.id) : [session?.playerId || 'local-player-1'];
-    const localId = session?.playerId || playerIds[0];
-    const res = fetchAuthorizedPlayerTasks(localId, localId, playerIds);
-    if (res.success) {
-      set({ myPrivateTasks: res.tasks });
-    }
 
     // Write to Supabase — all connected clients will receive
     // the phase change via the Realtime Postgres Changes listener
@@ -325,13 +414,40 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   },
 
   assignTasks: () => {
-    const { players, session } = get();
+    const { players, session, roomId, challengeSession } = get();
+    const activeSession = challengeSession || (roomId ? getChallengeSession(roomId) : null);
+    const localId = session?.playerId || (players[0]?.id) || 'local-player-1';
+
+    if (activeSession) {
+      const localAssignments = activeSession.assignments[localId] || [];
+      const convertedTasks: PrivatePlayerTask[] = localAssignments.map((a) => ({
+        taskId: a.bugId,
+        assignedPlayerId: a.playerId,
+        fileId: `file-${a.roomId}`,
+        fileName: `${a.roomId}.${activeSession.language === 'JAVA' ? 'java' : activeSession.language === 'PYTHON' ? 'py' : 'c'}`,
+        roomId: a.roomId,
+        roomLabel: a.roomLabel,
+        title: a.title,
+        description: a.objective,
+        sectionCode: activeSession.sharedCode,
+        baselineCode: activeSession.sharedCode,
+        status: a.status,
+        testKey: a.testKey,
+        hint: a.hint,
+      }));
+
+      set({
+        challengeSession: activeSession,
+        myPrivateTasks: convertedTasks,
+      });
+      return;
+    }
+
     const playerIds = players.length > 0
       ? players.map((p) => p.id)
       : session?.playerId
         ? [session.playerId]
         : ['local-player-1'];
-    const localId = session?.playerId || playerIds[0];
 
     // True Data Isolation: Requests and stores ONLY authorized tasks for the local player
     const res = fetchAuthorizedPlayerTasks(localId, localId, playerIds);

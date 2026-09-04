@@ -325,13 +325,21 @@ export function RoomEditorModal({
           {privateTask && (
             <div className="bg-[#0D1426] border-b border-[#1A233A] px-3 py-1 text-[10px] font-mono text-gray-400 flex items-center gap-1.5">
               <Code2 size={12} className="text-primary" />
-              <span>YOUR AUTHORIZED CODE SECTION // ONLY ACCESSIBLE BY YOU</span>
+              <span>SHARED FACILITY CODEBASE // YOUR PRIVATE ROOM OBJECTIVE</span>
             </div>
           )}
           <CodeEditor
             key={privateTask ? privateTask.taskId : (activeFile?.id ?? 'editor')}
             value={privateTask ? taskCode : (activeFile?.content ?? '')}
-            language="javascript"
+            language={
+              privateTask?.fileName?.endsWith('.java')
+                ? 'java'
+                : privateTask?.fileName?.endsWith('.py')
+                ? 'python'
+                : privateTask?.fileName?.endsWith('.c') || privateTask?.fileName?.endsWith('.cpp')
+                ? 'cpp'
+                : (activeFile?.language || 'javascript')
+            }
             readOnly={readOnly}
             onChange={handleCodeChange}
             height="100%"

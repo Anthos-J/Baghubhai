@@ -10,6 +10,7 @@
  */
 
 import { sanitizeSource, TestResult } from './testRunner';
+import { PREBUILT_CHALLENGES } from '../services/challengeService';
 
 export type TaskLifecycleStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'COMPROMISED';
 
@@ -635,18 +636,27 @@ export function getPlayerTaskInRoom(
  */
 export function validatePrivateTaskCode(taskId: string, code: string): TestResult[] {
   const def = getTaskSectionDefinition(taskId);
-  if (!def) {
-    return [
-      {
-        testId: 'unknown-task',
-        taskId,
-        fileId: 'unknown',
-        name: 'Unknown task validation',
-        passed: false,
-        message: `Task ${taskId} has no validator.`,
-      },
-    ];
+  if (def) {
+    return def.validator(code);
   }
-  return def.validator(code);
+
+  // Check if taskId belongs to any bug in the 10 prebuilt challenges
+  for (const challenge of PREBUILT_CHALLENGES) {
+    const bug = challenge.bugs.find((b) => b.bugId === taskId);
+    if (bug) {
+      return bug.validator(code);
+    }
+  }
+
+  return [
+    {
+      testId: 'unknown-task',
+      taskId,
+      fileId: 'unknown',
+      name: 'Unknown task validation',
+      passed: false,
+      message: `Task ${taskId} has no validator.`,
+    },
+  ];
 }
 
