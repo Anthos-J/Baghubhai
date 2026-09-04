@@ -288,6 +288,7 @@ export async function saveCrewmateCode(params: {
       .from('game_files')
       .upsert(
         {
+          id: currentFile.id || `${gameId}-${normRoom}`,
           game_id: gameId,
           room_id: normRoom,
           file_name: currentFile.file_name,
@@ -494,6 +495,7 @@ export async function sabotageSharedCode(params: {
       .from('game_files')
       .upsert(
         {
+          id: latestFile.id || `${gameId}-${normRoom}`,
           game_id: gameId,
           room_id: normRoom,
           file_name: latestFile.file_name,

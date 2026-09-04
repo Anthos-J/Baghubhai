@@ -742,8 +742,9 @@ export default function GameHUD() {
             roomTaskStatus={roomTask?.status}
             canBug={Boolean(canBugThisRoom)}
             onBugTask={() => {
-              if (roomTask && interactableRoom) {
-                triggerBugTaskAction(roomTask.id, interactableRoom);
+              const targetTaskId = roomTask?.id || roomTaskId || (interactableRoom ? getTaskIdForRoom(interactableRoom) : null) || 'task-auth';
+              if (interactableRoom) {
+                triggerBugTaskAction(targetTaskId, interactableRoom);
                 setEditorOpen(false);
               }
             }}

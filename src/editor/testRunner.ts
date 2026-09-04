@@ -174,21 +174,19 @@ export const validateAuthTask: TaskValidator = (source: string): TestResult[] =>
   const normalizedClean = normalizeWhitespace(cleanCode);
 
   // 1. Check for illegal OR condition in authentication logic
-  const hasOrCondition = /username\s*===\s*["']admin["']\s*\|\|\s*password\s*===\s*["']admin123["']/.test(normalizedClean) ||
-    /password\s*===\s*["']admin123["']\s*\|\|\s*username\s*===\s*["']admin["']/.test(normalizedClean);
+  const hasOrCondition =
+    /username\s*===\s*["']admin["']\s*\|\|\s*password\s*===\s*["']admin123["']/.test(normalizedClean) ||
+    /password\s*===\s*["']admin123["']\s*\|\|\s*username\s*===\s*["']admin["']/.test(normalizedClean) ||
+    /["']admin["']\s*\|\|\s*["']admin123["']/.test(normalizedClean) ||
+    /===\s*["']admin["']\s*\|\|/.test(normalizedClean);
 
   // 2. Check for required AND condition
-  const hasAndCondition = /username\s*===\s*["']admin["']\s*&&\s*password\s*===\s*["']admin123["']/.test(normalizedClean) ||
-    /password\s*===\s*["']admin123["']\s*&&\s*username\s*===\s*["']admin["']/.test(normalizedClean);
+  const hasAndCondition =
+    /username\s*===\s*["']admin["']\s*&&\s*password\s*===\s*["']admin123["']/.test(normalizedClean) ||
+    /password\s*===\s*["']admin123["']\s*&&\s*username\s*===\s*["']admin["']/.test(normalizedClean) ||
+    (normalizedClean.includes('admin') && normalizedClean.includes('admin123') && normalizedClean.includes('&&') && !normalizedClean.includes('||'));
 
-  // 3. Ensure structure actually evaluates credentials (not a fake constant outside login)
-  const loginBody = extractFunctionBody(cleanCode, 'login');
-  const loginBodyHasAnd = loginBody ? (
-    /username\s*===\s*["']admin["']\s*&&\s*password\s*===\s*["']admin123["']/.test(loginBody) ||
-    /password\s*===\s*["']admin123["']\s*&&\s*username\s*===\s*["']admin["']/.test(loginBody)
-  ) : false;
-
-  const passed = hasAndCondition && !hasOrCondition && loginBodyHasAnd;
+  const passed = hasAndCondition && !hasOrCondition;
 
   return [
     {
@@ -201,9 +199,7 @@ export const validateAuthTask: TaskValidator = (source: string): TestResult[] =>
         ? 'Passed: Authentication logic requires both admin username and admin123 password.'
         : hasOrCondition
           ? 'Failed: Authentication vulnerability detected: logic permits login via OR (||) condition.'
-          : !hasAndCondition
-            ? 'Failed: Valid credentials check (username === "admin" && password === "admin123") missing.'
-            : 'Failed: Credentials check must reside inside the login() function body.'
+          : 'Failed: Valid credentials check (username === "admin" && password === "admin123") missing.'
     }
   ];
 };
@@ -211,27 +207,26 @@ export const validateAuthTask: TaskValidator = (source: string): TestResult[] =>
 /**
  * VALIDATOR: task-utils (utils.js)
  * Expected:
- * - sortScoresAscending must sort scores in ascending order (a - b)
+ * - sortScoresAscending / sortScores must sort scores in ascending order (a - b)
  * - Must NOT sort descending (b - a)
- * - Supports variations: (a, b) => a - b, (a,b)=>a-b, (a, b) => { return a - b; }, function(a, b) { return a - b; }
  */
 export const validateUtilsTask: TaskValidator = (source: string): TestResult[] => {
   const { cleanCode } = sanitizeSource(source);
-
-  const utilsBody = extractFunctionBody(cleanCode, 'sortScoresAscending') || cleanCode;
-  const normalizedBody = normalizeWhitespace(utilsBody);
+  const normalizedBody = normalizeWhitespace(cleanCode);
 
   // Check for descending comparator: b - a
   const hasDescending =
     /\(\s*a\s*,\s*b\s*\)\s*=>\s*b\s*-\s*a/.test(normalizedBody) ||
     /\(\s*a\s*,\s*b\s*\)\s*=>\s*\{\s*return\s+b\s*-\s*a\s*;?\s*\}/.test(normalizedBody) ||
-    /function\s*\(\s*a\s*,\s*b\s*\)\s*\{\s*return\s+b\s*-\s*a\s*;?\s*\}/.test(normalizedBody);
+    /function\s*\(\s*a\s*,\s*b\s*\)\s*\{\s*return\s+b\s*-\s*a\s*;?\s*\}/.test(normalizedBody) ||
+    /\bb\s*-\s*a\b/.test(normalizedBody);
 
   // Check for ascending comparator: a - b
   const hasAscending =
     /\(\s*a\s*,\s*b\s*\)\s*=>\s*a\s*-\s*b/.test(normalizedBody) ||
     /\(\s*a\s*,\s*b\s*\)\s*=>\s*\{\s*return\s+a\s*-\s*b\s*;?\s*\}/.test(normalizedBody) ||
-    /function\s*\(\s*a\s*,\s*b\s*\)\s*\{\s*return\s+a\s*-\s*b\s*;?\s*\}/.test(normalizedBody);
+    /function\s*\(\s*a\s*,\s*b\s*\)\s*\{\s*return\s+a\s*-\s*b\s*;?\s*\}/.test(normalizedBody) ||
+    /\ba\s*-\s*b\b/.test(normalizedBody);
 
   const passed = hasAscending && !hasDescending;
 
@@ -246,7 +241,7 @@ export const validateUtilsTask: TaskValidator = (source: string): TestResult[] =
         ? 'Passed: Scores correctly sorted in ascending order using (a - b) comparator.'
         : hasDescending
           ? 'Failed: Array comparator is still sorting in descending order (b - a).'
-          : 'Failed: Ascending comparator (a, b) => a - b not found in sortScoresAscending.'
+          : 'Failed: Ascending comparator (a, b) => a - b not found in sorting function.'
     }
   ];
 };
@@ -259,27 +254,12 @@ export const validateUtilsTask: TaskValidator = (source: string): TestResult[] =
  */
 export const validateDatabaseTask: TaskValidator = (source: string): TestResult[] => {
   const { cleanCode } = sanitizeSource(source);
-  const dbBody = extractFunctionBody(cleanCode, 'connectDatabase');
-
-  if (dbBody === null) {
-    return [
-      {
-        testId: 'test-db-connection',
-        taskId: 'task-database',
-        fileId: 'file-database',
-        name: 'connectDatabase() establishes connection',
-        passed: false,
-        message: 'Failed: connectDatabase function definition not found.'
-      }
-    ];
-  }
-
-  const normalizedBody = normalizeWhitespace(dbBody);
+  const normalizedBody = normalizeWhitespace(cleanCode);
 
   // Check for return false
-  const returnsFalse = /\breturn\s+false\b/.test(normalizedBody) || /^\s*false\b/.test(normalizedBody);
+  const returnsFalse = /\breturn\s+false\b/.test(normalizedBody) || /=>\s*false\b/.test(normalizedBody);
   // Check for return true
-  const returnsTrue = /\breturn\s+true\b/.test(normalizedBody) || /^\s*true\b/.test(normalizedBody);
+  const returnsTrue = /\breturn\s+true\b/.test(normalizedBody) || /=>\s*true\b/.test(normalizedBody);
 
   const passed = returnsTrue && !returnsFalse;
 
@@ -302,16 +282,15 @@ export const validateDatabaseTask: TaskValidator = (source: string): TestResult[
 /**
  * VALIDATOR: task-payment (payment.js)
  * Expected:
- * - processTransaction requires amount to be strictly positive (amount > 0)
- * - Rejects zero-amount / negative transactions (rejects amount >= 0)
+ * - processTransaction / validateAmount requires amount to be strictly positive (amount > 0)
+ * - Rejects zero-amount / negative transactions (rejects amount >= 0 or <= 0)
  */
 export const validatePaymentTask: TaskValidator = (source: string): TestResult[] => {
-  const { structureCode } = sanitizeSource(source);
-  const paymentBody = extractFunctionBody(structureCode, 'processTransaction') || structureCode;
-  const normalizedBody = normalizeWhitespace(paymentBody);
+  const { cleanCode } = sanitizeSource(source);
+  const normalizedBody = normalizeWhitespace(cleanCode);
 
-  // Check if amount >= 0 or 0 <= amount is present in logic
-  const hasZeroAllowed = /amount\s*>=\s*0/.test(normalizedBody) || /0\s*<=\s*amount/.test(normalizedBody);
+  // Check if amount >= 0 or amount <= 0 is present in logic
+  const hasZeroAllowed = /amount\s*>=\s*0/.test(normalizedBody) || /0\s*<=\s*amount/.test(normalizedBody) || /amount\s*<=\s*0/.test(normalizedBody);
 
   // Check if amount > 0 or 0 < amount is present in logic
   const hasStrictPositive = /amount\s*>\s*0/.test(normalizedBody) || /0\s*<\s*amount/.test(normalizedBody);
@@ -328,7 +307,7 @@ export const validatePaymentTask: TaskValidator = (source: string): TestResult[]
       message: passed
         ? 'Passed: Transaction amount is strictly validated to be positive (amount > 0).'
         : hasZeroAllowed
-          ? 'Failed: Zero-amount exploit detected: logic still permits amount >= 0.'
+          ? 'Failed: Zero-amount exploit detected: logic still permits amount >= 0 or <= 0.'
           : 'Failed: Strict positive transaction validation (amount > 0) missing.'
     }
   ];
@@ -337,21 +316,21 @@ export const validatePaymentTask: TaskValidator = (source: string): TestResult[]
 /**
  * VALIDATOR: task-app (app.js)
  * Expected:
- * - Production configuration is not inverted (isProd ? false : true is fixed)
- * - ready status evaluates to true for production configuration
+ * - Application status is set to READY
+ * - Production configuration is not inverted
  */
 export const validateAppTask: TaskValidator = (source: string): TestResult[] => {
-  const { structureCode } = sanitizeSource(source);
-  const appBody = extractFunctionBody(structureCode, 'initializeApp') || structureCode;
-  const normalizedBody = normalizeWhitespace(appBody);
+  const { cleanCode } = sanitizeSource(source);
+  const normalizedBody = normalizeWhitespace(cleanCode);
 
-  // Check for buggy inversion patterns: isProd ? false : true or ready: !isProd
-  const hasInversion =
+  const hasReady = /["']READY["']/.test(normalizedBody) || /ready\s*:\s*true\b/.test(normalizedBody) || /ready\s*:\s*isProd\b/.test(normalizedBody);
+  const hasBuggyInversion =
     /isProd\s*\?\s*false\s*:\s*true/.test(normalizedBody) ||
     /ready\s*:\s*!isProd\b/.test(normalizedBody) ||
-    /ready\s*:\s*isProd\s*===\s*false/.test(normalizedBody);
+    /["']INITIALIZING["']/.test(normalizedBody) ||
+    /["']CRASHED["']/.test(normalizedBody);
 
-  const passed = !hasInversion;
+  const passed = hasReady && !hasBuggyInversion;
 
   return [
     {
@@ -362,7 +341,7 @@ export const validateAppTask: TaskValidator = (source: string): TestResult[] => 
       passed,
       message: passed
         ? 'Passed: Application initialization succeeds in production environment.'
-        : 'Failed: Production ready status is inverted (isProd ? false : true).'
+        : 'Failed: Application status must evaluate to READY for production initialization.'
     }
   ];
 };
@@ -373,10 +352,20 @@ export const validateAppTask: TaskValidator = (source: string): TestResult[] => 
 
 export const TASK_VALIDATORS: Record<string, { fileId: string; validator: TaskValidator }> = {
   'task-auth': { fileId: 'file-auth', validator: validateAuthTask },
+  'task-auth-login': { fileId: 'file-auth', validator: validateAuthTask },
+  'task-auth-session': { fileId: 'file-auth', validator: validateAuthTask },
   'task-utils': { fileId: 'file-utils', validator: validateUtilsTask },
+  'task-utils-sort': { fileId: 'file-utils', validator: validateUtilsTask },
+  'task-utils-sanitize': { fileId: 'file-utils', validator: validateUtilsTask },
   'task-database': { fileId: 'file-database', validator: validateDatabaseTask },
+  'task-db-connect': { fileId: 'file-database', validator: validateDatabaseTask },
+  'task-db-ping': { fileId: 'file-database', validator: validateDatabaseTask },
   'task-payment': { fileId: 'file-payment', validator: validatePaymentTask },
-  'task-app': { fileId: 'file-app', validator: validateAppTask }
+  'task-payment-validate': { fileId: 'file-payment', validator: validatePaymentTask },
+  'task-payment-fee': { fileId: 'file-payment', validator: validatePaymentTask },
+  'task-app': { fileId: 'file-app', validator: validateAppTask },
+  'task-app-ready': { fileId: 'file-app', validator: validateAppTask },
+  'task-app-health': { fileId: 'file-app', validator: validateAppTask }
 };
 
 /**

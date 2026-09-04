@@ -9,9 +9,11 @@
  * 5. Lifecycle states: ASSIGNED -> IN_PROGRESS -> COMPLETED -> COMPROMISED -> IN_PROGRESS -> COMPLETED.
  */
 
-import { sanitizeSource, TestResult } from './testRunner';
+import { sanitizeSource, TestResult, TASK_VALIDATORS } from './testRunner';
 import { getRoomMapping } from './roomMapping';
 import { PREBUILT_CHALLENGES } from '../services/challengeService';
+import { findBugById } from './problemDataset';
+import { evaluateTaskCode } from '../game/tasks';
 
 export type TaskLifecycleStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'COMPROMISED';
 
@@ -97,7 +99,9 @@ export const TASK_SECTIONS: TaskSectionDefinition[] = [
 
       const hasAnd = structureCode.includes('&&');
       const hasOr = structureCode.includes('||');
-      const hasCorrectCredentials = cleanCode.includes('"admin"') && cleanCode.includes('"admin123"');
+      const hasCorrectCredentials =
+        (cleanCode.includes('"admin"') || cleanCode.includes("'admin'")) &&
+        (cleanCode.includes('"admin123"') || cleanCode.includes("'admin123'"));
 
       if (!hasAnd || hasOr) {
         results.push({
@@ -653,17 +657,67 @@ export function getPlayerTaskInRoom(
  * Validates a private task's section code using deterministic rules.
  */
 export function validatePrivateTaskCode(taskId: string, code: string): TestResult[] {
+  // 1. Direct section definition
   const def = getTaskSectionDefinition(taskId);
   if (def) {
     return def.validator(code);
   }
 
-  // Check if taskId belongs to any bug in the 10 prebuilt challenges
+  // 2. Check if taskId belongs to any bug in the 10 prebuilt challenges
   for (const challenge of PREBUILT_CHALLENGES) {
     const bug = challenge.bugs.find((b) => b.bugId === taskId);
     if (bug) {
       return bug.validator(code);
     }
+  }
+
+  // 3. Check if taskId belongs to any big Java problem
+  const javaBug = findBugById(taskId);
+  if (javaBug) {
+    return javaBug.validator(code);
+  }
+
+  // 4. Check TASK_VALIDATORS map (testRunner)
+  const normKey = LEGACY_TASK_ALIAS[taskId] || taskId;
+  if (TASK_VALIDATORS[normKey]) {
+    return TASK_VALIDATORS[normKey].validator(code);
+  }
+  if (TASK_VALIDATORS[taskId]) {
+    return TASK_VALIDATORS[taskId].validator(code);
+  }
+
+  // 5. Keyword room fallback
+  const fallbackId = taskId.includes('auth')
+    ? 'task-auth'
+    : taskId.includes('util')
+    ? 'task-utils'
+    : taskId.includes('db') || taskId.includes('database')
+    ? 'task-database'
+    : taskId.includes('payment')
+    ? 'task-payment'
+    : taskId.includes('app')
+    ? 'task-app'
+    : null;
+
+  if (fallbackId && TASK_VALIDATORS[fallbackId]) {
+    return TASK_VALIDATORS[fallbackId].validator(code);
+  }
+
+  // 6. Generic evaluateTaskCode fallback
+  if (fallbackId) {
+    const passed = evaluateTaskCode(fallbackId, code);
+    return [
+      {
+        testId: `test-${fallbackId}`,
+        taskId,
+        fileId: fallbackId.replace('task-', 'file-'),
+        name: `Deterministic test check for ${taskId}`,
+        passed,
+        message: passed
+          ? `Passed: Logic validated successfully.`
+          : `Failed: Logic does not meet required specifications.`,
+      },
+    ];
   }
 
   return [

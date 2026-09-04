@@ -280,13 +280,12 @@ export function RoomEditorModal({
     setTestResults([]);
   }, []);
 
-  const handleRunTests = useCallback(() => {
+  const handleRunTests = useCallback(async () => {
     if (!taskId) return;
 
-    let results: TestResult[] = [];
-    if (privateTask) {
-      results = validatePrivateTaskCode(taskId, code);
-    } else {
+    // Use robust fallback validation across all task definitions and problem datasets
+    let results = validatePrivateTaskCode(taskId, code);
+    if (results.length === 0 || results.some((r) => r.testId === 'unknown-task')) {
       const roomFileId = mapping?.fileId ?? 'file-auth';
       results = runTaskTests(
         [{ id: roomFileId, name: fileName, language: 'javascript', content: code }],
@@ -297,10 +296,47 @@ export function RoomEditorModal({
     setTestResults(results);
     setHasRun(true);
 
-    if (results.length > 0 && results.every((r) => r.passed)) {
+    const isAllPassed = results.length > 0 && results.every((r) => r.passed);
+    if (isAllPassed) {
+      // Auto-save Crewmate code to Supabase so that:
+      // 1. Supabase version increments
+      // 2. Mafia can immediately see the updated code
+      // 3. Task is marked completed and sabotage trigger is generated
+      setIsSaving(true);
+      try {
+        const saveRes = await saveCrewmateCode({
+          gameId,
+          roomIdOrFileId: roomId,
+          content: code,
+          expectedVersion: version,
+          playerId,
+        });
+
+        if (saveRes.success && saveRes.file) {
+          setVersion(saveRes.file.version);
+          lastLoadedCodeRef.current = saveRes.file.content;
+          setRemoteUpdateNotice(null);
+
+          logGameEvent({
+            gameId,
+            type: 'TASK_COMPLETED',
+            playerId,
+            roomId,
+            fileId: saveRes.file.id,
+            fileName: saveRes.file.file_name,
+            previousVersion: version,
+            newVersion: saveRes.file.version,
+          });
+        }
+      } catch (err) {
+        console.warn('Auto-save on test pass notice:', err);
+      } finally {
+        setIsSaving(false);
+      }
+
       onTaskPassed?.(taskId, code);
     }
-  }, [taskId, privateTask, code, mapping, fileName, onTaskPassed]);
+  }, [taskId, privateTask, code, mapping, fileName, onTaskPassed, gameId, roomId, version, playerId]);
 
   // ── Explicit Save / Submit Handler (Supabase Persistence with Stale Check) ──
   const handleSaveAndSubmit = async () => {
@@ -310,13 +346,16 @@ export function RoomEditorModal({
 
     // 1. Run deterministic test validation first
     let passed = false;
+    let results: TestResult[] = [];
     if (taskId) {
-      const results = privateTask
-        ? validatePrivateTaskCode(taskId, code)
-        : runTaskTests(
-            [{ id: mapping?.fileId ?? 'file-auth', name: fileName, language: 'javascript', content: code }],
-            taskId
-          );
+      results = validatePrivateTaskCode(taskId, code);
+      if (results.length === 0 || results.some((r) => r.testId === 'unknown-task')) {
+        const roomFileId = mapping?.fileId ?? 'file-auth';
+        results = runTaskTests(
+          [{ id: roomFileId, name: fileName, language: 'javascript', content: code }],
+          taskId
+        );
+      }
       setTestResults(results);
       setHasRun(true);
       passed = results.length > 0 && results.every((r) => r.passed);
