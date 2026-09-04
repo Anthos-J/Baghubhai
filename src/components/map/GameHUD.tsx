@@ -357,114 +357,138 @@ export default function GameHUD() {
         <Minimap onExpand={() => setMapOpen(true)} />
       </div>
 
-      {/* ΓöÇΓöÇ 3. RIGHT HAND SIDE: Code Tasks Frame (Placed Beneath Minimap) ΓöÇΓöÇ */}
-      <div className="absolute top-[230px] sm:top-[245px] right-3 sm:right-4 z-30 pointer-events-auto w-60 sm:w-68 bg-black/85 border-2 border-panelBorder p-2.5 shadow-2xl backdrop-blur-xs flex flex-col gap-1.5 animate-in fade-in slide-in-from-right-4 duration-300 rounded-xs">
-        <div className="flex justify-between items-center pb-1 border-b border-panelBorder/70">
-          <span className={`font-tech text-xs tracking-wider flex items-center gap-1.5 font-bold ${isMafia ? 'text-[#FF003C]' : 'text-warning'}`}>
-            {isMafia ? (
-              <>
-                <Bug size={14} className="text-[#FF003C]" /> SABOTAGE OBJECTIVES
-              </>
-            ) : (
-              <>
-                <CheckSquare size={14} /> MY CODE TASKS
-              </>
-            )}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] text-gray-400">
-              {isMafia
-                ? `${tasks.filter((t) => t.status === 'BUGGED').length} BUGGED`
-                : `${myCompletedCount}/${tasks.length}`}
-            </span>
-            <button
-              onClick={() => setTasksCollapsed(!tasksCollapsed)}
-              className="text-gray-400 hover:text-white text-xs font-mono px-1 hover:bg-white/10 rounded cursor-pointer leading-none"
-              title={tasksCollapsed ? 'Expand Tasks' : 'Collapse Tasks'}
-            >
-              {tasksCollapsed ? '+' : 'ΓÇö'}
-            </button>
-          </div>
-        </div>
+      {/* ── 3. RIGHT HAND SIDE: Code Tasks Frame (Placed Beneath Minimap) ── */}
+      {(() => {
+        const isInCodingRoom = Boolean(interactableRoom && isCodingRoom(interactableRoom));
+        const visibleTasks = isInCodingRoom
+          ? tasks.filter((t) => t.id === roomTaskId || (roomTaskId && t.id.includes(roomTaskId.replace('task-', ''))))
+          : tasks;
 
-        {!tasksCollapsed && (
-          <div className="flex flex-col gap-1.5 max-h-[200px] sm:max-h-[250px] overflow-y-auto pr-1 custom-scrollbar text-xs">
-            {tasks.map((task) => {
-              const completed = isMafia
-                ? isTaskCompleted(task)
-                : myCompletedList.includes(task.id) || isTaskCompleted(task);
-              // Only Mafia can see which task is bugged from the global task list;
-              // Crewmates must search the facility rooms to find the defect themselves!
-              const showBuggedState = isMafia && task.status === 'BUGGED';
-
-              return (
-                <div
-                  key={task.id}
-                  className={`p-2 border rounded-xs transition-all flex items-start gap-2 ${
-                    isMafia
-                      ? completed
-                        ? 'bg-yellow-950/40 border-yellow-500 text-yellow-300 shadow-[0_0_10px_rgba(255,184,0,0.2)]'
-                        : showBuggedState
-                        ? 'bg-red-950/40 border-red-500 text-red-300'
-                        : 'bg-panel/70 border-panelBorder/70 text-gray-400'
-                      : completed
-                      ? 'bg-success/15 border-success text-success shadow-[0_0_10px_rgba(0,255,0,0.15)]'
-                      : 'bg-panel/70 border-panelBorder/70 text-gray-300 hover:border-gray-500'
-                  }`}
+        return (
+          <div className="absolute top-[230px] sm:top-[245px] right-3 sm:right-4 z-30 pointer-events-auto w-60 sm:w-68 bg-black/85 border-2 border-panelBorder p-2.5 shadow-2xl backdrop-blur-xs flex flex-col gap-1.5 animate-in fade-in slide-in-from-right-4 duration-300 rounded-xs">
+            <div className="flex justify-between items-center pb-1 border-b border-panelBorder/70">
+              <span className={`font-tech text-xs tracking-wider flex items-center gap-1.5 font-bold ${isMafia ? 'text-[#FF003C]' : 'text-warning'}`}>
+                {isMafia ? (
+                  <>
+                    <Bug size={14} className="text-[#FF003C]" /> {isInCodingRoom ? 'ROOM SABOTAGE' : 'SABOTAGE OBJECTIVES'}
+                  </>
+                ) : (
+                  <>
+                    <CheckSquare size={14} /> {isInCodingRoom ? 'ROOM CODE TASK' : 'MY CODE TASKS'}
+                  </>
+                )}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[10px] text-gray-400">
+                  {isInCodingRoom
+                    ? '1 OF 1 TASK'
+                    : isMafia
+                    ? `${tasks.filter((t) => t.status === 'BUGGED').length} BUGGED`
+                    : `${myCompletedCount}/${tasks.length}`}
+                </span>
+                <button
+                  onClick={() => setTasksCollapsed(!tasksCollapsed)}
+                  className="text-gray-400 hover:text-white text-xs font-mono px-1 hover:bg-white/10 rounded cursor-pointer leading-none"
+                  title={tasksCollapsed ? 'Expand Tasks' : 'Collapse Tasks'}
                 >
-                  <div className="mt-0.5 flex-shrink-0">
-                    {isMafia ? (
-                      completed ? (
-                        <Bug size={14} className="text-yellow-400 animate-pulse" />
-                      ) : showBuggedState ? (
-                        <AlertTriangle size={14} className="text-red-500" />
-                      ) : (
-                        <div className="w-3 h-3 rounded-full border border-gray-600 mt-0.5" />
-                      )
-                    ) : completed ? (
-                      <Check size={14} className="text-success stroke-[3]" />
-                    ) : (
-                      <div className="w-3 h-3 rounded-full border border-warning/60 bg-warning/20 mt-0.5" />
-                    )}
+                  {tasksCollapsed ? '+' : '—'}
+                </button>
+              </div>
+            </div>
+
+            {!tasksCollapsed && (
+              <div className="flex flex-col gap-1.5 max-h-[200px] sm:max-h-[250px] overflow-y-auto pr-1 custom-scrollbar text-xs">
+                {isInCodingRoom && interactableRoom && (
+                  <div className="px-2 py-1 bg-primary/10 border border-primary/40 rounded-xs flex items-center justify-between text-[9px] font-mono text-primary">
+                    <span className="font-bold truncate">📍 {interactableRoom.toUpperCase()}</span>
+                    <span className="font-pixel text-[8px] text-success">1 TASK ONLY</span>
                   </div>
-                  <div className="flex-1 min-w-0">
+                )}
+
+                {visibleTasks.length === 0 && isInCodingRoom && (
+                  <div className="p-2 text-gray-500 font-mono text-center text-xs">
+                    No coding task in this room.
+                  </div>
+                )}
+
+                {visibleTasks.map((task) => {
+                  const completed = isMafia
+                    ? isTaskCompleted(task)
+                    : myCompletedList.includes(task.id) || isTaskCompleted(task);
+                  // Only Mafia can see which task is bugged from the global task list;
+                  // Crewmates must search the facility rooms to find the defect themselves!
+                  const showBuggedState = isMafia && task.status === 'BUGGED';
+
+                  return (
                     <div
-                      className={`font-tech font-bold text-[11px] leading-tight ${
+                      key={task.id}
+                      className={`p-2 border rounded-xs transition-all flex items-start gap-2 ${
                         isMafia
                           ? completed
-                            ? 'text-yellow-300'
+                            ? 'bg-yellow-950/40 border-yellow-500 text-yellow-300 shadow-[0_0_10px_rgba(255,184,0,0.2)]'
                             : showBuggedState
-                            ? 'text-red-400'
-                            : 'text-gray-400'
+                            ? 'bg-red-950/40 border-red-500 text-red-300'
+                            : 'bg-panel/70 border-panelBorder/70 text-gray-400'
                           : completed
-                          ? 'text-success'
-                          : 'text-white'
+                          ? 'bg-success/15 border-success text-success shadow-[0_0_10px_rgba(0,255,0,0.15)]'
+                          : 'bg-panel/70 border-panelBorder/70 text-gray-300 hover:border-gray-500'
                       }`}
                     >
-                      {task.title}
+                      <div className="mt-0.5 flex-shrink-0">
+                        {isMafia ? (
+                          completed ? (
+                            <Bug size={14} className="text-yellow-400 animate-pulse" />
+                          ) : showBuggedState ? (
+                            <AlertTriangle size={14} className="text-red-500" />
+                          ) : (
+                            <div className="w-3 h-3 rounded-full border border-gray-600 mt-0.5" />
+                          )
+                        ) : completed ? (
+                          <Check size={14} className="text-success stroke-[3]" />
+                        ) : (
+                          <div className="w-3 h-3 rounded-full border border-warning/60 bg-warning/20 mt-0.5" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`font-tech font-bold text-[11px] leading-tight ${
+                            isMafia
+                              ? completed
+                                ? 'text-yellow-300'
+                                : showBuggedState
+                                ? 'text-red-400'
+                                : 'text-gray-400'
+                              : completed
+                              ? 'text-success'
+                              : 'text-white'
+                          }`}
+                        >
+                          {task.title}
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="font-mono text-[9px] text-gray-400 truncate">
+                            {task.fileName}
+                          </span>
+                          {isMafia && completed && (
+                            <span className="font-pixel text-[9px] text-yellow-400 bg-yellow-950/80 px-1 py-0.5 border border-yellow-500">
+                              READY TO BUG ⚠️
+                            </span>
+                          )}
+                          {showBuggedState && (
+                            <span className="font-pixel text-[9px] text-red-400 bg-red-950/80 px-1 py-0.5 border border-red-500">
+                              BUGGED 🚨
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="font-mono text-[9px] text-gray-400 truncate">
-                        {task.fileName}
-                      </span>
-                      {isMafia && completed && (
-                        <span className="font-pixel text-[9px] text-yellow-400 bg-yellow-950/80 px-1 py-0.5 border border-yellow-500">
-                          READY TO BUG ⚠️
-                        </span>
-                      )}
-                      {showBuggedState && (
-                        <span className="font-pixel text-[9px] text-red-400 bg-red-950/80 px-1 py-0.5 border border-red-500">
-                          BUGGED 🚨
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* ── 4. Center Area (Clean & clear for player gameplay) ── */}
       <div className="flex-1" />

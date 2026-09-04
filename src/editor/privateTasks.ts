@@ -10,6 +10,7 @@
  */
 
 import { sanitizeSource, TestResult } from './testRunner';
+import { getRoomMapping } from './roomMapping';
 
 export type TaskLifecycleStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'COMPROMISED';
 
@@ -526,21 +527,26 @@ export function assignPrivateTasksToPlayers(
   existingMap: Record<string, PrivatePlayerTask[]> = {}
 ): Record<string, PrivatePlayerTask[]> {
   const result: Record<string, PrivatePlayerTask[]> = { ...existingMap };
-  const allSections = [...TASK_SECTIONS];
+
+  // 5 distinct room task groups (Auth/Library, Utils/Storage, Database/Medbay, Payment/DevLab, App/Command)
+  const roomGroups: TaskSectionDefinition[][] = [
+    TASK_SECTIONS.filter((t) => t.fileId === 'file-auth'),
+    TASK_SECTIONS.filter((t) => t.fileId === 'file-utils'),
+    TASK_SECTIONS.filter((t) => t.fileId === 'file-database'),
+    TASK_SECTIONS.filter((t) => t.fileId === 'file-payment'),
+    TASK_SECTIONS.filter((t) => t.fileId === 'file-app'),
+  ];
 
   playerIds.forEach((playerId, index) => {
     if (!result[playerId]) {
       result[playerId] = [];
     }
 
-    const assignedIndices = [
-      index % allSections.length,
-      (index + Math.floor(allSections.length / 2)) % allSections.length,
-    ];
-
-    assignedIndices.forEach(idx => {
-      const section = allSections[idx];
-      if (!result[playerId].some(t => t.taskId === section.id)) {
+    // Assign exactly 1 task per room to each player (alternating variants across players)
+    roomGroups.forEach((group) => {
+      if (group.length === 0) return;
+      const section = group[index % group.length];
+      if (!result[playerId].some((t) => t.fileId === section.fileId)) {
         result[playerId].push({
           taskId: section.id,
           assignedPlayerId: playerId,
@@ -613,7 +619,8 @@ export function validateTaskModification(
 
 /**
  * Safely retrieves ONLY the private task assigned to the specified player for a room.
- * Returns NULL if the player has no task in this room (zero leakage of other players' tasks).
+ * Resolves both MapData room IDs, room display names, and file mappings.
+ * Returns NULL if the player has no task in this room.
  */
 export function getPlayerTaskInRoom(
   playerTasks: PrivatePlayerTask[] | undefined,
@@ -622,10 +629,21 @@ export function getPlayerTaskInRoom(
 ): PrivatePlayerTask | null {
   if (!playerTasks || playerTasks.length === 0) return null;
 
+  const mapping = getRoomMapping(roomId);
+  const targetFileId = mapping?.fileId;
+  const targetTaskId = mapping?.taskId;
   const norm = roomId.toLowerCase().replace(/\s+/g, '_');
-  const task = playerTasks.find(
-    t => t.assignedPlayerId === playerId && (t.roomId === norm || t.roomLabel.toLowerCase() === roomId.toLowerCase())
-  );
+
+  const task = playerTasks.find((t) => {
+    if (t.assignedPlayerId !== playerId) return false;
+    // 1. Direct file match via roomMapping (e.g. 'file-auth' for Library)
+    if (targetFileId && t.fileId === targetFileId) return true;
+    // 2. Task ID match
+    if (targetTaskId && (t.taskId === targetTaskId || t.taskId.startsWith(targetTaskId))) return true;
+    // 3. Direct room ID or display name match
+    if (t.roomId === norm || t.roomLabel.toLowerCase() === roomId.toLowerCase()) return true;
+    return false;
+  });
 
   return task || null;
 }
