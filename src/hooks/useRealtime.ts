@@ -132,6 +132,7 @@ export function useGameState(roomId: string) {
             alive: p.alive ?? true,
             connected: true,
             is_host: p.is_host ?? false,
+            role: p.role,
           };
           useMockStore.getState().addPlayer(newPlayer);
         }
@@ -151,7 +152,7 @@ export function useGameState(roomId: string) {
           }
         }
       )
-      // ── Player updated (e.g. alive → false after elimination) ──
+      // ── Player updated (e.g. alive → false after elimination, role assignment) ──
       .on(
         'postgres_changes',
         {
@@ -171,6 +172,7 @@ export function useGameState(roomId: string) {
                 ...p,
                 alive: updated.alive ?? p.alive,
                 is_host: updated.is_host ?? p.is_host,
+                role: (updated.role as any) ?? p.role,
               };
             }
             return p;
@@ -194,7 +196,16 @@ export function useGameState(roomId: string) {
               store.triggerEmergencyMeeting(store.meetingCallerName || 'A Player', true);
             }
           } else if (payload.new?.phase) {
-            useMockStore.getState().setGamePhase(payload.new.phase);
+            const nextPhase = payload.new.phase;
+            const store = useMockStore.getState();
+            if (nextPhase === 'LOBBY') {
+              store.handlePlayAgainRemote();
+            } else {
+              store.setGamePhase(nextPhase);
+              if ((nextPhase === 'ROLE_REVEAL' || nextPhase === 'PLAYING') && (!store.myPrivateTasks || store.myPrivateTasks.length === 0)) {
+                store.assignTasks();
+              }
+            }
           }
         }
       )
@@ -332,6 +343,24 @@ export function useMeetingEvents(roomId: string, playerId: string) {
             totalGameTime: merged.gameDurationSeconds ?? 900,
           });
         }
+      })
+      .on('broadcast', { event: 'game_start_roles' }, ({ payload }) => {
+        if (payload?.assignedPlayers) {
+          useMockStore.getState().handleGameStartRoles(
+            payload.assignedPlayers,
+            payload.totalGameTasks,
+            payload.gameDurationSeconds,
+            payload.codeProject
+          );
+        }
+      })
+      .on('broadcast', { event: 'game_over_event' }, ({ payload }) => {
+        if (payload?.winner) {
+          useMockStore.getState().triggerGameOver(payload.winner, payload.reason, true);
+        }
+      })
+      .on('broadcast', { event: 'play_again_event' }, () => {
+        useMockStore.getState().handlePlayAgainRemote();
       })
       .subscribe();
 

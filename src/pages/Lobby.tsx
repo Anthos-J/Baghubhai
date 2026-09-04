@@ -57,6 +57,7 @@ export default function Lobby() {
         alive: p.alive,
         connected: true, // we assume everyone online until Presence says otherwise
         is_host: p.is_host,
+        role: p.role,
       }));
 
       setRoomPlayers(mapped);
