@@ -694,7 +694,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       }
       // Note: checking `updatedMyTasks` requires it to be defined here, we will just pass updatedPrivateTasks.
       const updatedPrivateTasks = state.myPrivateTasks.map(t =>
-        t.id === legacyTaskId ? { ...t, status: 'COMPLETED' as const } : t
+        t.taskId === legacyTaskId ? { ...t, status: 'COMPLETED' as const } : t
       );
       if (winResult.winner === 'DEVELOPERS' && isDev && survived && updatedPrivateTasks.every((t) => t.status === 'COMPLETED')) {
         triggerTrophyEvent('PERFECT_DEV');
