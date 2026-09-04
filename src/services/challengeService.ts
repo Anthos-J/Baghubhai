@@ -3000,7 +3000,1289 @@ public class PatternAndGeometry {
     ],
     is_active: true,
   },
+
+  // ── 11. JAVA / FLAGSHIP 1: Bank Management System (9 Methods, 9 Bugs) ──────
+  {
+    id: 'challenge-java-bank',
+    title: 'Bank Management System',
+    description: 'Code Mafia Flagship Project 1: Account lifecycle, balance queries, deposits, withdrawals, transfers, interest calculation, freeze toggling and transaction audit trails.',
+    language: 'JAVA',
+    difficulty: 'MEDIUM',
+    code: `import java.util.*;
+
+public class BankManagementSystem {
+
+    static class Account {
+        int accountNumber;
+        String holderName;
+        double balance;
+        boolean frozen;
+        List<String> transactions = new ArrayList<>();
+
+        Account(int accountNumber, String holderName, double balance) {
+            this.accountNumber = accountNumber;
+            this.holderName = holderName;
+            this.balance = balance;
+            this.frozen = false;
+            transactions.add("ACCOUNT CREATED: " + balance);
+        }
+    }
+
+    static List<Account> accounts = new ArrayList<>();
+
+    static Account findAccount(int accountNumber) {
+        for (Account account : accounts) {
+            if (account.accountNumber != accountNumber) {      // BUG 1
+                return account;
+            }
+        }
+        return null;
+    }
+
+    static boolean createAccount(int accountNumber, String holderName, double openingBalance) {
+        if (findAccount(accountNumber) != null || openingBalance < 0) {
+            return false;
+        }
+
+        Account account = new Account(accountNumber, holderName, openingBalance);
+        accounts.add(account);
+        return true;
+    }
+
+    static boolean deposit(int accountNumber, double amount) {
+        Account account = findAccount(accountNumber);
+
+        if (account == null || account.frozen || amount < 0) { // BUG 2
+            return false;
+        }
+
+        account.balance += amount;
+        account.transactions.add("DEPOSIT: " + amount);
+        return true;
+    }
+
+    static boolean withdraw(int accountNumber, double amount) {
+        Account account = findAccount(accountNumber);
+
+        if (account == null || account.frozen || amount <= 0 ||
+                amount >= account.balance) {                 // BUG 3
+            return false;
+        }
+
+        account.balance -= amount;
+        account.transactions.add("WITHDRAW: " + amount);
+        return true;
+    }
+
+    static boolean transfer(int fromAccount, int toAccount, double amount) {
+        Account sender = findAccount(fromAccount);
+        Account receiver = findAccount(toAccount);
+
+        if (sender == null || receiver == null || sender.frozen ||
+                receiver.frozen || amount < 0 ||                 // BUG 4
+                amount > sender.balance) {
+            return false;
+        }
+
+        sender.balance -= amount;
+        receiver.balance += amount;
+
+        sender.transactions.add("TRANSFER OUT: " + amount + " TO " + toAccount);
+        receiver.transactions.add("TRANSFER IN: " + amount + " FROM " + fromAccount);
+
+        return true;
+    }
+
+    static void displayAccount(int accountNumber) {
+        Account account = findAccount(accountNumber);
+
+        if (account == null) {
+            System.out.println("Account not found.");
+            return;
+        }
+
+        System.out.println("Account: " + account.accountNumber);
+        System.out.println("Holder: " + account.holderName);
+        System.out.println("Balance: " + account.balance);
+        System.out.println("Status: " + (account.frozen ? "FROZEN" : "ACTIVE"));
+    }
+
+    static void displayAllAccounts() {
+        for (Account account : accounts) {
+            displayAccount(account.accountNumber);
+            System.out.println("----------------");
+        }
+    }
+
+    static double calculateTotalBalance() {
+        double total = 0;
+
+        for (Account account : accounts) {
+            total -= account.balance;                         // BUG 5
+        }
+
+        return total;
+    }
+
+    static void applyInterest(double annualRate) {
+        if (annualRate <= 0) {                                // BUG 6
+            return;
+        }
+
+        for (Account account : accounts) {
+            if (!account.frozen) {
+                double interest = account.balance * annualRate / 100.0;
+                account.balance += interest;
+                account.transactions.add("INTEREST: " + interest);
+            }
+        }
+    }
+
+    static boolean setFreezeStatus(int accountNumber, boolean frozen) {
+        Account account = findAccount(accountNumber);
+
+        if (account == null) {
+            return false;
+        }
+
+        account.frozen = !frozen;                             // BUG 7
+        account.transactions.add(frozen ? "ACCOUNT FROZEN" : "ACCOUNT UNFROZEN");
+        return true;
+    }
+
+    static List<String> getTransactionHistory(int accountNumber) {
+        Account account = findAccount(accountNumber);
+
+        if (account == null) {
+            return Collections.emptyList();
+        }
+
+        return new ArrayList<>(account.transactions);
+    }
+
+    static String generateSummary() {
+        StringBuilder summary = new StringBuilder();
+        summary.append("TOTAL ACCOUNTS: ").append(accounts.size()).append("\n");
+        summary.append("TOTAL BALANCE: ").append(calculateTotalBalance()).append("\n");
+
+        for (Account account : accounts) {
+            summary.append(account.accountNumber)
+                   .append(" | ")
+                   .append(account.holderName)
+                   .append(" | ")
+                   .append(account.balance)
+                   .append("\n");
+        }
+
+        return summary.toString();
+    }
+
+    static void seedDemoData() {
+        createAccount(1001, "Aarav", 10000);
+        createAccount(1002, "Diya", 15000);
+        createAccount(1003, "Kabir", 7000);
+
+        deposit(1001, 2000);
+        withdraw(1002, 3000);
+        transfer(1001, 1003, 1500);
+    }
+
+    public static void main(String[] args) {
+        seedDemoData();
+
+        System.out.println(generateSummary());
+
+        applyInterest(5);
+
+        displayAllAccounts();
+
+        System.out.println("Transactions for 1001:");
+        for (String transaction : getTransactionHistory(1001)) {
+            System.out.println(transaction);
+        }
+
+        System.out.println("Bank total after interest: "
+                + calculateTotalBalance());                     // BUG 8
+
+        System.out.println("Developer verification: " +
+                (calculateTotalBalance() < 0));                 // BUG 9
+    }
+}`,
+    bugs: [
+      {
+        bugId: 'bank-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Account Lookup Equality Check',
+        objective: 'In findAccount(int accountNumber), compare account.accountNumber == accountNumber.',
+        hint: 'Change "!=" to "==".',
+        expectedFix: 'if (account.accountNumber == accountNumber)',
+        testKey: 'test-bank-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('account.accountNumber == accountNumber');
+          return [{ testId: 't-1', taskId: 'bank-bug-1', fileId: 'BankManagementSystem.java', name: 'Account Match Equality', passed, message: passed ? 'Equality comparison valid.' : 'Still using !=.' }];
+        },
+      },
+      {
+        bugId: 'bank-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Reject Non-Positive Deposit Amount',
+        objective: 'In deposit(int accountNumber, double amount), ensure amount <= 0 is rejected.',
+        hint: 'Change "amount < 0" to "amount <= 0".',
+        expectedFix: 'amount <= 0',
+        testKey: 'test-bank-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('amount <= 0');
+          return [{ testId: 't-2', taskId: 'bank-bug-2', fileId: 'BankManagementSystem.java', name: 'Deposit Positive Validation', passed, message: passed ? 'Zero and negative deposits rejected.' : 'Accepts 0 amount.' }];
+        },
+      },
+      {
+        bugId: 'bank-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Allow Exact Balance Withdrawal',
+        objective: 'In withdraw(int accountNumber, double amount), allow withdrawing up to full balance (amount > account.balance).',
+        hint: 'Change "amount >= account.balance" to "amount > account.balance".',
+        expectedFix: 'amount > account.balance',
+        testKey: 'test-bank-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('amount > account.balance');
+          return [{ testId: 't-3', taskId: 'bank-bug-3', fileId: 'BankManagementSystem.java', name: 'Withdrawal Balance Limit', passed, message: passed ? 'Allows withdrawing total balance.' : 'Rejects exact balance.' }];
+        },
+      },
+      {
+        bugId: 'bank-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Reject Zero Transfer Amount',
+        objective: 'In transfer(int fromAccount, int toAccount, double amount), guard with amount <= 0.',
+        hint: 'Change "amount < 0" to "amount <= 0".',
+        expectedFix: 'amount <= 0',
+        testKey: 'test-bank-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('amount <= 0');
+          return [{ testId: 't-4', taskId: 'bank-bug-4', fileId: 'BankManagementSystem.java', name: 'Transfer Amount Validation', passed, message: passed ? 'Zero transfer rejected.' : 'Allows zero transfer.' }];
+        },
+      },
+      {
+        bugId: 'bank-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Total Balance Accumulation',
+        objective: 'In calculateTotalBalance(), add balances (total += account.balance).',
+        hint: 'Change "-=" to "+=".',
+        expectedFix: 'total += account.balance;',
+        testKey: 'test-bank-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('total += account.balance');
+          return [{ testId: 't-5', taskId: 'bank-bug-5', fileId: 'BankManagementSystem.java', name: 'Balance Sum Accumulation', passed, message: passed ? 'Adds account balances.' : 'Subtracts balances.' }];
+        },
+      },
+      {
+        bugId: 'bank-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix Annual Interest Negative Rate Check',
+        objective: 'In applyInterest(double annualRate), return only if annualRate < 0 (allow 0 rate).',
+        hint: 'Change "if (annualRate <= 0)" to "if (annualRate < 0)".',
+        expectedFix: 'if (annualRate < 0)',
+        testKey: 'test-bank-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('annualRate < 0');
+          return [{ testId: 't-6', taskId: 'bank-bug-6', fileId: 'BankManagementSystem.java', name: 'Interest Rate Guard', passed, message: passed ? 'Handles rate >= 0.' : 'Blocks rate == 0.' }];
+        },
+      },
+      {
+        bugId: 'bank-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Account Freeze Assignment',
+        objective: 'In setFreezeStatus(int accountNumber, boolean frozen), assign account.frozen = frozen.',
+        hint: 'Change "!frozen" to "frozen".',
+        expectedFix: 'account.frozen = frozen;',
+        testKey: 'test-bank-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('account.frozen = frozen;') || cleanCode.includes('account.frozen = frozen ;') || cleanCode.includes('account.frozen = frozen');
+          return [{ testId: 't-7', taskId: 'bank-bug-7', fileId: 'BankManagementSystem.java', name: 'Freeze Status Value', passed, message: passed ? 'Assigns exact frozen parameter.' : 'Inverts frozen boolean.' }];
+        },
+      },
+      {
+        bugId: 'bank-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Post-Interest Total Calculation',
+        objective: 'In main, print calculateTotalBalance() cleanly without corrupted values.',
+        hint: 'Ensure calculateTotalBalance() is invoked.',
+        expectedFix: 'calculateTotalBalance()',
+        testKey: 'test-bank-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('calculateTotalBalance()');
+          return [{ testId: 't-8', taskId: 'bank-bug-8', fileId: 'BankManagementSystem.java', name: 'Post-Interest Output', passed, message: passed ? 'Calculates total balance.' : 'Missing total balance call.' }];
+        },
+      },
+      {
+        bugId: 'bank-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Developer Verification Condition',
+        objective: 'In main, verify calculateTotalBalance() >= 0 (positive total).',
+        hint: 'Change "< 0" to ">= 0" or "> 0".',
+        expectedFix: 'calculateTotalBalance() >= 0',
+        testKey: 'test-bank-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('calculateTotalBalance() >= 0') || cleanCode.includes('calculateTotalBalance() > 0');
+          return [{ testId: 't-9', taskId: 'bank-bug-9', fileId: 'BankManagementSystem.java', name: 'Verification Balance Non-Negative', passed, message: passed ? 'Verifies non-negative balance.' : 'Verifies negative balance.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'seedDemoData()', expectedOutput: 'TOTAL ACCOUNTS: 3' },
+    ],
+    is_active: true,
+  },
+
+  // ── 12. JAVA / FLAGSHIP 2: Library Management System (9 Methods, 9 Bugs) ───
+  {
+    id: 'challenge-java-library',
+    title: 'Library Management System',
+    description: 'Code Mafia Flagship Project 2: Book cataloging, member registration, title/author search, issuing/returning books, fine calculation, availability stats and overload safeguards.',
+    language: 'JAVA',
+    difficulty: 'MEDIUM',
+    code: `import java.util.*;
+
+public class LibraryManagementSystem {
+
+    static class Book {
+        int id;
+        String title;
+        String author;
+        boolean issued;
+        int issuedToMember;
+
+        Book(int id, String title, String author) {
+            this.id = id;
+            this.title = title;
+            this.author = author;
+            this.issued = false;
+            this.issuedToMember = -1;
+        }
+    }
+
+    static class Member {
+        int id;
+        String name;
+        List<Integer> borrowedBooks = new ArrayList<>();
+        List<String> history = new ArrayList<>();
+
+        Member(int id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    static List<Book> books = new ArrayList<>();
+    static List<Member> members = new ArrayList<>();
+
+    static Book findBook(int id) {
+        for (Book book : books) {
+            if (book.id != id) {                         // BUG 1
+                return book;
+            }
+        }
+        return null;
+    }
+
+    static Member findMember(int id) {
+        for (Member member : members) {
+            if (member.id == id) {
+                return member;
+            }
+        }
+        return null;
+    }
+
+    static boolean addBook(int id, String title, String author) {
+        if (findBook(id) != null) {
+            return false;
+        }
+
+        books.add(new Book(id, title, author));
+        return true;
+    }
+
+    static boolean removeBook(int id) {
+        Book book = findBook(id);
+
+        if (book == null || !book.issued) {             // BUG 2
+            return false;
+        }
+
+        return books.remove(book);
+    }
+
+    static boolean registerMember(int id, String name) {
+        if (findMember(id) != null) {
+            return false;
+        }
+
+        members.add(new Member(id, name));
+        return true;
+    }
+
+    static List<Book> searchByTitle(String query) {
+        List<Book> results = new ArrayList<>();
+
+        for (Book book : books) {
+            if (book.title.toLowerCase().contains(query.toLowerCase())) {
+                results.add(book);
+            }
+        }
+
+        return results;
+    }
+
+    static List<Book> searchByAuthor(String query) {
+        List<Book> results = new ArrayList<>();
+
+        for (Book book : books) {
+            if (book.author.toLowerCase().contains(query.toLowerCase())) {
+                results.add(book);
+            }
+        }
+
+        return results;
+    }
+
+    static boolean issueBook(int bookId, int memberId) {
+        Book book = findBook(bookId);
+        Member member = findMember(memberId);
+
+        if (book == null || member == null || !book.issued) { // BUG 3
+            return false;
+        }
+
+        book.issued = true;
+        book.issuedToMember = memberId;
+        member.borrowedBooks.add(bookId);
+        member.history.add("ISSUED: " + bookId);
+
+        return true;
+    }
+
+    static double returnBook(int bookId, int memberId, int overdueDays) {
+        Book book = findBook(bookId);
+        Member member = findMember(memberId);
+
+        if (book == null || member == null ||
+                !book.issued || book.issuedToMember != memberId) {
+            return -1;
+        }
+
+        book.issued = false;
+        book.issuedToMember = -1;
+
+        member.borrowedBooks.remove(Integer.valueOf(bookId));
+        member.history.add("RETURNED: " + bookId);
+
+        return calculateFine(overdueDays);
+    }
+
+    static double calculateFine(int overdueDays) {
+        if (overdueDays < 0) {                            // BUG 4
+            return 0;
+        }
+
+        return overdueDays * 5.0;
+    }
+
+    static List<Book> getAvailableBooks() {
+        List<Book> available = new ArrayList<>();
+
+        for (Book book : books) {
+            if (book.issued) {                            // BUG 5
+                available.add(book);
+            }
+        }
+
+        return available;
+    }
+
+    static List<String> getMemberHistory(int memberId) {
+        Member member = findMember(memberId);
+
+        if (member == null) {
+            return Collections.emptyList();
+        }
+
+        return new ArrayList<>(member.history);
+    }
+
+    static int getBorrowedBookCount() {
+        int count = 0;
+
+        for (Book book : books) {
+            if (!book.issued) {                           // BUG 6
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    static String generateStatistics() {
+        int totalBooks = books.size();
+        int totalMembers = members.size();
+        int issuedBooks = getBorrowedBookCount();
+        int availableBooks = totalBooks - issuedBooks;
+
+        return "BOOKS: " + totalBooks +
+                "\nMEMBERS: " + totalMembers +
+                "\nISSUED: " + issuedBooks +
+                "\nAVAILABLE: " + availableBooks;
+    }
+
+    static void displayBook(int bookId) {
+        Book book = findBook(bookId);
+
+        if (book == null) {
+            System.out.println("Book not found.");
+            return;
+        }
+
+        System.out.println(book.id + " | " + book.title + " | " +
+                book.author + " | " +
+                (book.issued ? "AVAILABLE" : "ISSUED"));  // BUG 7
+    }
+
+    static void seedDemoData() {
+        addBook(1, "Clean Code", "Robert Martin");
+        addBook(2, "Effective Java", "Joshua Bloch");
+        addBook(3, "Design Patterns", "Gang of Four");
+
+        registerMember(101, "Soham");
+        registerMember(102, "Riya");
+
+        issueBook(1, 101);
+    }
+
+    public static void main(String[] args) {
+        seedDemoData();
+
+        System.out.println(generateStatistics());
+
+        System.out.println("Search results:");
+        for (Book book : searchByTitle("java")) {
+            displayBook(book.id);
+        }
+
+        double fine = returnBook(1, 101, 3);
+        System.out.println("Fine: " + (fine + 5));       // BUG 8
+
+        System.out.println(generateStatistics());
+
+        if (getBorrowedBookCount() > books.size()) {     // BUG 9
+            System.out.println("Library overload detected");
+        }
+    }
+}`,
+    bugs: [
+      {
+        bugId: 'lib-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Book ID Equality Lookup',
+        objective: 'In findBook(int id), compare book.id == id.',
+        hint: 'Change "!=" to "==".',
+        expectedFix: 'if (book.id == id)',
+        testKey: 'test-lib-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('book.id == id');
+          return [{ testId: 't-1', taskId: 'lib-bug-1', fileId: 'LibraryManagementSystem.java', name: 'Book Match Equality', passed, message: passed ? 'Equality comparison valid.' : 'Still using !=.' }];
+        },
+      },
+      {
+        bugId: 'lib-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Remove Book Issued Guard',
+        objective: 'In removeBook(int id), prevent removal when book.issued is true (if (book == null || book.issued) return false;).',
+        hint: 'Change "!book.issued" to "book.issued".',
+        expectedFix: 'if (book == null || book.issued)',
+        testKey: 'test-lib-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('book.issued') && !cleanCode.includes('!book.issued');
+          return [{ testId: 't-2', taskId: 'lib-bug-2', fileId: 'LibraryManagementSystem.java', name: 'Remove Book Issued Guard', passed, message: passed ? 'Prevents removing currently issued books.' : 'Allows removing issued books.' }];
+        },
+      },
+      {
+        bugId: 'lib-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Issue Book Availability Guard',
+        objective: 'In issueBook(int bookId, int memberId), reject if book.issued is already true.',
+        hint: 'Change "!book.issued" to "book.issued".',
+        expectedFix: 'if (book == null || member == null || book.issued)',
+        testKey: 'test-lib-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('book.issued') && !cleanCode.includes('!book.issued');
+          return [{ testId: 't-3', taskId: 'lib-bug-3', fileId: 'LibraryManagementSystem.java', name: 'Issue Book Availability Guard', passed, message: passed ? 'Blocks re-issuing an already issued book.' : 'Inverted issue check.' }];
+        },
+      },
+      {
+        bugId: 'lib-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Fine Calculation Non-Positive Days Guard',
+        objective: 'In calculateFine(int overdueDays), return 0 if overdueDays <= 0.',
+        hint: 'Change "overdueDays < 0" to "overdueDays <= 0".',
+        expectedFix: 'if (overdueDays <= 0) return 0;',
+        testKey: 'test-lib-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('overdueDays <= 0');
+          return [{ testId: 't-4', taskId: 'lib-bug-4', fileId: 'LibraryManagementSystem.java', name: 'Fine Overdue Guard', passed, message: passed ? 'Returns 0 for zero or negative days.' : 'Allows 0 overdue days to multiply fine.' }];
+        },
+      },
+      {
+        bugId: 'lib-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Available Books Query Filter',
+        objective: 'In getAvailableBooks(), add books when !book.issued.',
+        hint: 'Change "if (book.issued)" to "if (!book.issued)".',
+        expectedFix: 'if (!book.issued)',
+        testKey: 'test-lib-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('!book.issued');
+          return [{ testId: 't-5', taskId: 'lib-bug-5', fileId: 'LibraryManagementSystem.java', name: 'Available Books Filter', passed, message: passed ? 'Collects non-issued books.' : 'Collects issued books.' }];
+        },
+      },
+      {
+        bugId: 'lib-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix Borrowed Book Count Condition',
+        objective: 'In getBorrowedBookCount(), increment count when book.issued is true.',
+        hint: 'Change "if (!book.issued)" to "if (book.issued)".',
+        expectedFix: 'if (book.issued) count++;',
+        testKey: 'test-lib-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('book.issued') && !cleanCode.includes('!book.issued');
+          return [{ testId: 't-6', taskId: 'lib-bug-6', fileId: 'LibraryManagementSystem.java', name: 'Borrowed Count Condition', passed, message: passed ? 'Counts issued books.' : 'Counts available books.' }];
+        },
+      },
+      {
+        bugId: 'lib-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Display Book Status Ternary',
+        objective: 'In displayBook(int bookId), print "ISSUED" if book.issued else "AVAILABLE".',
+        hint: 'Change "(book.issued ? \\"AVAILABLE\\" : \\"ISSUED\\")" to "(book.issued ? \\"ISSUED\\" : \\"AVAILABLE\\")".',
+        expectedFix: '(book.issued ? "ISSUED" : "AVAILABLE")',
+        testKey: 'test-lib-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('book.issued ? "ISSUED" : "AVAILABLE"') || cleanCode.includes("book.issued ? 'ISSUED' : 'AVAILABLE'");
+          return [{ testId: 't-7', taskId: 'lib-bug-7', fileId: 'LibraryManagementSystem.java', name: 'Display Status Ternary', passed, message: passed ? 'Status text matches issued state.' : 'Inverted status string.' }];
+        },
+      },
+      {
+        bugId: 'lib-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Returned Fine Output Format',
+        objective: 'In main, print fine directly without arbitrary + 5 offset.',
+        hint: 'Change "fine + 5" to "fine".',
+        expectedFix: 'println("Fine: " + fine)',
+        testKey: 'test-lib-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = !cleanCode.includes('fine + 5') || cleanCode.includes('Fine: " + fine') || cleanCode.includes("Fine: ' + fine");
+          return [{ testId: 't-8', taskId: 'lib-bug-8', fileId: 'LibraryManagementSystem.java', name: 'Returned Fine Output', passed, message: passed ? 'Outputs exact calculated fine.' : 'Adds extra 5.' }];
+        },
+      },
+      {
+        bugId: 'lib-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Library Overload Validation Check',
+        objective: 'In main, ensure valid overload check.',
+        hint: 'Remove or correct the impossible condition.',
+        expectedFix: 'getBorrowedBookCount() <= books.size()',
+        testKey: 'test-lib-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('getBorrowedBookCount()');
+          return [{ testId: 't-9', taskId: 'lib-bug-9', fileId: 'LibraryManagementSystem.java', name: 'Overload Safeguard', passed, message: passed ? 'Overload check handled.' : 'Faulty overload condition.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'seedDemoData()', expectedOutput: 'BOOKS: 3' },
+    ],
+    is_active: true,
+  },
+
+  // ── 13. JAVA / FLAGSHIP 3: Student Course / Result System (9 Methods, 9 Bugs) ───
+  {
+    id: 'challenge-java-student',
+    title: 'Student Course & Result Management System',
+    description: 'Code Mafia Flagship Project 3: Student registry, course credits, enrollment, grade calculation, weighted GPA, topper search, pass percentages and transcript generation.',
+    language: 'JAVA',
+    difficulty: 'HARD',
+    code: `import java.util.*;
+
+public class StudentResultSystem {
+
+    static class Student {
+        int id;
+        String name;
+        Map<String, Double> marks = new HashMap<>();
+
+        Student(int id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    static class Course {
+        String code;
+        String name;
+        int credits;
+
+        Course(String code, String name, int credits) {
+            this.code = code;
+            this.name = name;
+            this.credits = credits;
+        }
+    }
+
+    static List<Student> students = new ArrayList<>();
+    static List<Course> courses = new ArrayList<>();
+
+    static Student findStudent(int id) {
+        for (Student student : students) {
+            if (student.id != id) {                         // BUG 1
+                return student;
+            }
+        }
+        return null;
+    }
+
+    static Course findCourse(String code) {
+        for (Course course : courses) {
+            if (course.code.equalsIgnoreCase(code)) {
+                return course;
+            }
+        }
+        return null;
+    }
+
+    static boolean addStudent(int id, String name) {
+        if (findStudent(id) != null) {
+            return false;
+        }
+
+        students.add(new Student(id, name));
+        return true;
+    }
+
+    static boolean removeStudent(int id) {
+        Student student = findStudent(id);
+
+        if (student == null) {
+            return false;
+        }
+
+        return students.remove(student);
+    }
+
+    static boolean addCourse(String code, String name, int credits) {
+        if (findCourse(code) != null || credits <= 0) {
+            return false;
+        }
+
+        courses.add(new Course(code, name, credits));
+        return true;
+    }
+
+    static boolean removeCourse(String code) {
+        Course course = findCourse(code);
+
+        if (course == null) {
+            return false;
+        }
+
+        for (Student student : students) {
+            student.marks.remove(course.code);
+        }
+
+        return courses.remove(course);
+    }
+
+    static boolean enrollStudent(int studentId, String courseCode) {
+        Student student = findStudent(studentId);
+        Course course = findCourse(courseCode);
+
+        if (student == null || course == null) {
+            return false;
+        }
+
+        student.marks.putIfAbsent(course.code, -1.0);
+        return true;
+    }
+
+    static boolean recordMarks(int studentId, String courseCode, double marks) {
+        Student student = findStudent(studentId);
+        Course course = findCourse(courseCode);
+
+        if (student == null || course == null ||
+                !student.marks.containsKey(courseCode) ||
+                marks <= 0 || marks > 100) {                 // BUG 2
+            return false;
+        }
+
+        student.marks.put(courseCode, marks);
+        return true;
+    }
+
+    static double calculateAverage(int studentId) {
+        Student student = findStudent(studentId);
+
+        if (student == null || student.marks.isEmpty()) {
+            return 0;
+        }
+
+        double total = 0;
+        int count = 0;
+
+        for (double mark : student.marks.values()) {
+            if (mark >= 0) {
+                total -= mark;                              // BUG 3
+                count++;
+            }
+        }
+
+        return count == 0 ? 0 : total / count;
+    }
+
+    static String calculateGrade(double marks) {
+        if (marks >= 90) return "A";
+        if (marks >= 80) return "B";
+        if (marks >= 70) return "C";
+        if (marks >= 60) return "D";
+        if (marks >= 50) return "E";
+        return "F";
+    }
+
+    static double gradePoint(double marks) {
+        if (marks >= 90) return 10;
+        if (marks >= 80) return 9;
+        if (marks >= 70) return 8;
+        if (marks >= 60) return 7;
+        if (marks >= 50) return 6;
+        return 0;
+    }
+
+    static double calculateGPA(int studentId) {
+        Student student = findStudent(studentId);
+
+        if (student == null || student.marks.isEmpty()) {
+            return 0;
+        }
+
+        double weightedPoints = 0;
+        int totalCredits = 0;
+
+        for (Course course : courses) {
+            if (student.marks.containsKey(course.code)) {
+                double marks = student.marks.get(course.code);
+
+                if (marks >= 0) {
+                    weightedPoints += gradePoint(marks) * course.credits;
+                    totalCredits -= course.credits;           // BUG 4
+                }
+            }
+        }
+
+        return totalCredits == 0 ? 0 : weightedPoints / totalCredits;
+    }
+
+    static Student findTopper() {
+        Student topper = null;
+        double bestAverage = 0;                              // BUG 5
+
+        for (Student student : students) {
+            double average = calculateAverage(student.id);
+
+            if (average > bestAverage) {
+                bestAverage = average;
+                topper = student;
+            }
+        }
+
+        return topper;
+    }
+
+    static List<Student> searchStudents(String query) {
+        List<Student> result = new ArrayList<>();
+
+        String normalized = query.toLowerCase();
+
+        for (Student student : students) {
+            if (student.name.toLowerCase().contains(normalized) ||
+                    String.valueOf(student.id).contains(normalized)) {
+                result.add(student);
+            }
+        }
+
+        return result;
+    }
+
+    static String generateTranscript(int studentId) {
+        Student student = findStudent(studentId);
+
+        if (student == null) {
+            return "Student not found.";
+        }
+
+        StringBuilder result = new StringBuilder();
+
+        result.append("STUDENT: ")
+              .append(student.name)
+              .append(" (")
+              .append(student.id)
+              .append(")\n");
+
+        for (Course course : courses) {
+            if (student.marks.containsKey(course.code)) {
+                double marks = student.marks.get(course.code);
+
+                result.append(course.code)
+                      .append(" | ")
+                      .append(course.name)
+                      .append(" | MARKS: ")
+                      .append(marks)
+                      .append(" | GRADE: ")
+                      .append(marks >= 0 ? calculateGrade(marks) : "PENDING")
+                      .append("\n");
+            }
+        }
+
+        result.append("AVERAGE: ")
+              .append(calculateAverage(studentId))
+              .append("\n");
+
+        result.append("GPA: ")
+              .append(calculateGPA(studentId))
+              .append("\n");
+
+        return result.toString();
+    }
+
+    static double calculatePassPercentage(String courseCode) {
+        int total = 0;
+        int passed = 0;
+
+        for (Student student : students) {
+            if (student.marks.containsKey(courseCode)) {
+                double marks = student.marks.get(courseCode);
+
+                if (marks >= 0) {
+                    total++;
+
+                    if (marks > 50) {                         // BUG 6
+                        passed++;
+                    }
+                }
+            }
+        }
+
+        return total == 0 ? 0 : (passed * 100.0) / total;
+    }
+
+    static void seedDemoData() {
+        addStudent(1, "Aarav");
+        addStudent(2, "Riya");
+        addStudent(3, "Kabir");
+
+        addCourse("CS101", "Programming", 4);
+        addCourse("CS102", "Data Structures", 4);
+        addCourse("CS103", "Database Systems", 3);
+
+        enrollStudent(1, "CS101");
+        enrollStudent(1, "CS102");
+        enrollStudent(1, "CS103");
+
+        enrollStudent(2, "CS101");
+        enrollStudent(2, "CS102");
+
+        enrollStudent(3, "CS101");
+        enrollStudent(3, "CS102");
+
+        recordMarks(1, "CS101", 95);
+        recordMarks(1, "CS102", 88);
+        recordMarks(1, "CS103", 92);
+
+        recordMarks(2, "CS101", 72);
+        recordMarks(2, "CS102", 81);
+
+        recordMarks(3, "CS101", 64);
+        recordMarks(3, "CS102", 78);
+    }
+
+    public static void main(String[] args) {
+        seedDemoData();
+
+        Student topper = findTopper();
+
+        if (topper != null) {
+            System.out.println("TOPPER: " + topper.name);
+            System.out.println("AVERAGE: " +
+                    calculateAverage(topper.id));
+        }
+
+        System.out.println();
+        System.out.println(generateTranscript(1));
+
+        System.out.println("CS101 PASS %: " +
+                calculatePassPercentage("CS101") + 100);      // BUG 7
+
+        System.out.println("Search for 'riya':");
+        for (Student student : searchStudents("riya")) {
+            System.out.println(student.id + " - " + student.name);
+        }
+
+        System.out.println("GPA HEALTH CHECK: " +
+                (calculateGPA(1) < 0));                       // BUG 8
+
+        System.out.println("TOPPER ID CHECK: " +
+                (findTopper() == null));                      // BUG 9
+    }
+}`,
+    bugs: [
+      {
+        bugId: 'student-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Student ID Equality Lookup',
+        objective: 'In findStudent(int id), compare student.id == id.',
+        hint: 'Change "!=" to "==".',
+        expectedFix: 'if (student.id == id)',
+        testKey: 'test-student-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('student.id == id');
+          return [{ testId: 't-1', taskId: 'student-bug-1', fileId: 'StudentResultSystem.java', name: 'Student Match Equality', passed, message: passed ? 'Equality comparison valid.' : 'Still using !=.' }];
+        },
+      },
+      {
+        bugId: 'student-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Allow Valid Zero Marks in Record Marks',
+        objective: 'In recordMarks(int studentId, String courseCode, double marks), allow marks >= 0 (reject only marks < 0 || marks > 100).',
+        hint: 'Change "marks <= 0" to "marks < 0".',
+        expectedFix: 'marks < 0 || marks > 100',
+        testKey: 'test-student-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('marks < 0 || marks > 100') || cleanCode.includes('marks < 0 || marks > 100.0');
+          return [{ testId: 't-2', taskId: 'student-bug-2', fileId: 'StudentResultSystem.java', name: 'Zero Marks Acceptance', passed, message: passed ? 'Accepts 0 as valid exam mark.' : 'Rejects 0 marks.' }];
+        },
+      },
+      {
+        bugId: 'student-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Average Total Marks Sum',
+        objective: 'In calculateAverage(int studentId), accumulate total += mark.',
+        hint: 'Change "-=" to "+=".',
+        expectedFix: 'total += mark;',
+        testKey: 'test-student-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('total += mark');
+          return [{ testId: 't-3', taskId: 'student-bug-3', fileId: 'StudentResultSystem.java', name: 'Average Mark Sum', passed, message: passed ? 'Adds mark values.' : 'Subtracts marks.' }];
+        },
+      },
+      {
+        bugId: 'student-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix GPA Total Credits Accumulation',
+        objective: 'In calculateGPA(int studentId), add course credits (totalCredits += course.credits).',
+        hint: 'Change "-=" to "+=".',
+        expectedFix: 'totalCredits += course.credits;',
+        testKey: 'test-student-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('totalCredits += course.credits');
+          return [{ testId: 't-4', taskId: 'student-bug-4', fileId: 'StudentResultSystem.java', name: 'GPA Credits Sum', passed, message: passed ? 'Accumulates total credits.' : 'Subtracts credits.' }];
+        },
+      },
+      {
+        bugId: 'student-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Topper Search Baseline Average',
+        objective: 'In findTopper(), initialize double bestAverage = -1 (to handle 0 average toppers).',
+        hint: 'Change "0" to "-1".',
+        expectedFix: 'double bestAverage = -1;',
+        testKey: 'test-student-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('bestAverage = -1');
+          return [{ testId: 't-5', taskId: 'student-bug-5', fileId: 'StudentResultSystem.java', name: 'Topper Baseline Initializer', passed, message: passed ? 'Baseline handles 0 score toppers.' : 'Baseline set to 0.' }];
+        },
+      },
+      {
+        bugId: 'student-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix Pass Percentage 50 Marks Threshold',
+        objective: 'In calculatePassPercentage(String courseCode), count marks >= 50 as passed.',
+        hint: 'Change "marks > 50" to "marks >= 50".',
+        expectedFix: 'if (marks >= 50)',
+        testKey: 'test-student-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('marks >= 50');
+          return [{ testId: 't-6', taskId: 'student-bug-6', fileId: 'StudentResultSystem.java', name: 'Pass Threshold Inclusivity', passed, message: passed ? 'Includes exact 50 marks.' : 'Excludes 50 marks.' }];
+        },
+      },
+      {
+        bugId: 'student-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Pass Percentage Output Expression',
+        objective: 'In main, print calculatePassPercentage("CS101") without corrupting + 100.',
+        hint: 'Remove "+ 100".',
+        expectedFix: 'calculatePassPercentage("CS101")',
+        testKey: 'test-student-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = !cleanCode.includes('+ 100') || cleanCode.includes('calculatePassPercentage("CS101"))');
+          return [{ testId: 't-7', taskId: 'student-bug-7', fileId: 'StudentResultSystem.java', name: 'Pass Percentage Output', passed, message: passed ? 'Prints exact percentage.' : 'Adds extra 100.' }];
+        },
+      },
+      {
+        bugId: 'student-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix GPA Health Check Non-Negative Condition',
+        objective: 'In main, verify calculateGPA(1) >= 0.',
+        hint: 'Change "< 0" to ">= 0" or "> 0".',
+        expectedFix: 'calculateGPA(1) >= 0',
+        testKey: 'test-student-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('calculateGPA(1) >= 0') || cleanCode.includes('calculateGPA(1) > 0');
+          return [{ testId: 't-8', taskId: 'student-bug-8', fileId: 'StudentResultSystem.java', name: 'GPA Health Check', passed, message: passed ? 'Verifies non-negative GPA.' : 'Verifies negative GPA.' }];
+        },
+      },
+      {
+        bugId: 'student-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Topper Existence Verification',
+        objective: 'In main, verify findTopper() != null.',
+        hint: 'Change "== null" to "!= null".',
+        expectedFix: 'findTopper() != null',
+        testKey: 'test-student-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('findTopper() != null');
+          return [{ testId: 't-9', taskId: 'student-bug-9', fileId: 'StudentResultSystem.java', name: 'Topper Non-Null Check', passed, message: passed ? 'Verifies topper is found.' : 'Verifies topper is null.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'seedDemoData()', expectedOutput: 'TOPPER: Aarav' },
+    ],
+    is_active: true,
+  },
 ];
+
+export const CODE_MAFIA_JAVA_PROJECTS: CodingChallenge[] = [
+  PREBUILT_CHALLENGES.find((c) => c.id === 'challenge-java-bank')!,
+  PREBUILT_CHALLENGES.find((c) => c.id === 'challenge-java-library')!,
+  PREBUILT_CHALLENGES.find((c) => c.id === 'challenge-java-student')!,
+].filter(Boolean);
+
+export function selectCodeMafiaJavaProject(): CodingChallenge {
+  return CODE_MAFIA_JAVA_PROJECTS[Math.floor(Math.random() * CODE_MAFIA_JAVA_PROJECTS.length)];
+}
+
 
 // ── SUPABASE / LOCAL QUERY HELPERS ─────────────────────────────────────────
 
