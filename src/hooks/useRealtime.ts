@@ -2,7 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useMockStore } from '../store/mockStore';
-import { Player } from '../types/game';
+import { Player, AVATAR_COLORS } from '../types/game';
+import { resolvePlayerColor } from '../map/SpriteManager';
 
 // ──────────────────────────────────────────────
 // PRESENCE — track who is online in a room
@@ -120,20 +121,41 @@ export function useGameState(roomId: string) {
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
-          const p = payload.new;
+          const p = payload.new as any;
+          const store = useMockStore.getState();
+          const currentPlayers = store.players;
+          const takenColors = new Set(currentPlayers.map((cp) => resolvePlayerColor(cp.color)));
+
+          let playerColor = p.color;
+          const requestedName = resolvePlayerColor(playerColor);
+
+          // If someone having the same color joins, assign random available avatar color
+          if (takenColors.has(requestedName)) {
+            const available = AVATAR_COLORS.filter((c) => !takenColors.has(c.name));
+            if (available.length > 0) {
+              const pick = available[Math.floor(Math.random() * available.length)];
+              playerColor = pick.hex;
+              // If local client is host, persist the assigned color to Supabase
+              if (store.session?.isHost) {
+                supabase.from('players').update({ color: playerColor }).eq('id', p.id).then();
+              }
+            }
+          }
+
           const newPlayer: Player = {
             id: p.id,
             room_id: p.room_id,
             username: p.username,
-            color: p.color,
-            x: 1000,
-            y: 750,
+            color: playerColor,
+            x: 1420,
+            y: 960,
             direction: 'down',
             alive: p.alive ?? true,
             connected: true,
             is_host: p.is_host ?? false,
+            role: p.role,
           };
-          useMockStore.getState().addPlayer(newPlayer);
+          store.addPlayer(newPlayer);
         }
       )
       // ── Player leaves / deleted ──
@@ -151,7 +173,7 @@ export function useGameState(roomId: string) {
           }
         }
       )
-      // ── Player updated (e.g. alive → false after elimination) ──
+      // ── Player updated (e.g. color changed, role assignment, or alive → false) ──
       .on(
         'postgres_changes',
         {
@@ -162,20 +184,26 @@ export function useGameState(roomId: string) {
         },
         (payload) => {
           console.log('Player update received:', payload);
-          // Update the player's alive / role status in the store
-          const updated = payload.new;
+          const updated = payload.new as any;
           const store = useMockStore.getState();
           const existingPlayers = store.players.map((p) => {
             if (p.id === updated.id) {
               return {
                 ...p,
+                color: updated.color ?? p.color,
                 alive: updated.alive ?? p.alive,
                 is_host: updated.is_host ?? p.is_host,
+                role: (updated.role as any) ?? p.role,
               };
             }
             return p;
           });
           store.setRoomPlayers(existingPlayers);
+
+          // If local player's color was updated
+          if (store.session && updated.id === store.session.playerId && updated.color && store.session.color !== updated.color) {
+            store.setSession({ ...store.session, color: updated.color });
+          }
         }
       )
       // ── Room phase change (LOBBY → ROLE_REVEAL → PLAYING → etc.) ──
@@ -194,7 +222,16 @@ export function useGameState(roomId: string) {
               store.triggerEmergencyMeeting(store.meetingCallerName || 'A Player', true);
             }
           } else if (payload.new?.phase) {
-            useMockStore.getState().setGamePhase(payload.new.phase);
+            const nextPhase = payload.new.phase;
+            const store = useMockStore.getState();
+            if (nextPhase === 'LOBBY') {
+              store.handlePlayAgainRemote();
+            } else {
+              store.setGamePhase(nextPhase);
+              if ((nextPhase === 'ROLE_REVEAL' || nextPhase === 'PLAYING') && (!store.myPrivateTasks || store.myPrivateTasks.length === 0)) {
+                store.assignTasks();
+              }
+            }
           }
         }
       )
@@ -266,7 +303,7 @@ export function useMeetingEvents(roomId: string, playerId: string) {
     channel
       .on('broadcast', { event: 'emergency_meeting' }, ({ payload }) => {
         const store = useMockStore.getState();
-        store.triggerEmergencyMeeting(payload?.callerName || 'A Crewmate', true);
+        store.triggerEmergencyMeeting(payload?.callerName || 'A Crewmate', true, payload?.callerColor);
       })
       .on('broadcast', { event: 'meeting_chat' }, ({ payload }) => {
         if (payload?.message && payload.message.playerId !== playerId) {
@@ -332,6 +369,25 @@ export function useMeetingEvents(roomId: string, playerId: string) {
             totalGameTime: merged.gameDurationSeconds ?? 900,
           });
         }
+      })
+      .on('broadcast', { event: 'game_start_roles' }, ({ payload }) => {
+        if (payload?.assignedPlayers) {
+          useMockStore.getState().handleGameStartRoles(
+            payload.assignedPlayers,
+            payload.totalGameTasks,
+            payload.gameDurationSeconds,
+            payload.codeProject,
+            payload.challengeSession
+          );
+        }
+      })
+      .on('broadcast', { event: 'game_over_event' }, ({ payload }) => {
+        if (payload?.winner) {
+          useMockStore.getState().triggerGameOver(payload.winner, payload.reason, true);
+        }
+      })
+      .on('broadcast', { event: 'play_again_event' }, () => {
+        useMockStore.getState().handlePlayAgainRemote();
       })
       .subscribe();
 

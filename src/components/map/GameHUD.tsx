@@ -15,10 +15,13 @@ import {
   Bug,
   Flame,
   Radio,
+  HelpCircle,
+  Terminal,
 } from 'lucide-react';
 import { RoomEditorModal, isCodingRoom, getTaskIdForRoom, getPlayerTaskInRoom } from '../../editor';
 import AdminMapModal from './AdminMapModal';
 import Minimap from './Minimap';
+import { CodeBriefModal } from './CodeBriefModal';
 
 export default function GameHUD() {
   const navigate = useNavigate();
@@ -34,9 +37,11 @@ export default function GameHUD() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showCodeBriefModal, setShowCodeBriefModal] = useState(false);
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-  const [showInteractionPrompt, setShowInteractionPrompt] = useState(false);
+
+  const assignedCodeProject = useMockStore((s) => s.assignedCodeProject);
 
   const clearRoom = useMockStore((s) => s.clearRoom);
   const assignTasks = useMockStore((s) => s.assignTasks);
@@ -146,19 +151,6 @@ export default function GameHUD() {
     }
   }, [interactableRoom]);
 
-  // Handle interaction prompt blinking (show for 2 seconds then hide)
-  useEffect(() => {
-    if (interactableRoom && isCodingRoom(interactableRoom)) {
-      setShowInteractionPrompt(true);
-      const timer = setTimeout(() => {
-        setShowInteractionPrompt(false);
-      }, 2000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowInteractionPrompt(false);
-    }
-  }, [interactableRoom]);
-
   // Handle exiting room and navigating home
   const handleConfirmExit = async () => {
     setIsExiting(true);
@@ -192,6 +184,10 @@ export default function GameHUD() {
 
       // Escape closes open modals
       if (e.key === 'Escape') {
+        if (showCodeBriefModal) {
+          setShowCodeBriefModal(false);
+          return;
+        }
         if (showExitModal) {
           setShowExitModal(false);
           return;
@@ -204,6 +200,13 @@ export default function GameHUD() {
           setEditorOpen(false);
           return;
         }
+      }
+
+      // 'H' toggles Code Brief window
+      if (e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setShowCodeBriefModal((prev) => !prev);
+        return;
       }
 
       // 'M' toggles the map
@@ -253,6 +256,13 @@ export default function GameHUD() {
     interactableRoom && localPlayer
       ? getPlayerTaskInRoom(myPrivateTasks, localPlayer.id, interactableRoom)
       : null;
+
+  const targetProjectModule = assignedCodeProject?.modules?.find(
+    (m) =>
+      interactableRoom &&
+      (m.room.toLowerCase() === interactableRoom.toLowerCase() ||
+        m.room.toLowerCase().replace(/\s+/g, '_') === interactableRoom.toLowerCase().replace(/\s+/g, '_'))
+  );
 
   const otherPlayersCount = interactableRoom
     ? players.filter((p) => p.id !== localPlayer?.id && p.connected).length
@@ -306,6 +316,16 @@ export default function GameHUD() {
             </span>
           </div>
         </div>
+
+        {/* Small Question Mark (?) Icon Button on Right Hand Side of Task Bar */}
+        <button
+          onClick={() => setShowCodeBriefModal(true)}
+          className="px-2 sm:px-2.5 py-2 bg-black/90 hover:bg-primary/20 border-2 border-panelBorder hover:border-primary text-primary hover:text-white text-xs font-tech flex items-center gap-1.5 shadow-[0_4px_15px_rgba(0,0,0,0.8)] transition-all hover:scale-105 active:scale-95 cursor-pointer rounded-xs mt-0.5 group"
+          title="Code Information & Brief [H]"
+        >
+          <HelpCircle size={15} className="text-primary group-hover:rotate-12 transition-transform" />
+          <span className="font-bold hidden sm:inline text-[11px]">CODE INFO</span>
+        </button>
       </div>
 
       {/* ΓöÇΓöÇ 2. TOP RIGHT: Role Badge & Live HUD Minimap ΓöÇΓöÇ */}
@@ -373,7 +393,9 @@ export default function GameHUD() {
               const completed = isMafia
                 ? isTaskCompleted(task)
                 : myCompletedList.includes(task.id) || isTaskCompleted(task);
-              const isBugged = task.status === 'BUGGED';
+              // Only Mafia can see which task is bugged from the global task list;
+              // Crewmates must search the facility rooms to find the defect themselves!
+              const showBuggedState = isMafia && task.status === 'BUGGED';
 
               return (
                 <div
@@ -382,13 +404,11 @@ export default function GameHUD() {
                     isMafia
                       ? completed
                         ? 'bg-yellow-950/40 border-yellow-500 text-yellow-300 shadow-[0_0_10px_rgba(255,184,0,0.2)]'
-                        : isBugged
+                        : showBuggedState
                         ? 'bg-red-950/40 border-red-500 text-red-300'
                         : 'bg-panel/70 border-panelBorder/70 text-gray-400'
                       : completed
                       ? 'bg-success/15 border-success text-success shadow-[0_0_10px_rgba(0,255,0,0.15)]'
-                      : isBugged
-                      ? 'bg-red-950/40 border-red-500 text-red-300'
                       : 'bg-panel/70 border-panelBorder/70 text-gray-300 hover:border-gray-500'
                   }`}
                 >
@@ -396,15 +416,13 @@ export default function GameHUD() {
                     {isMafia ? (
                       completed ? (
                         <Bug size={14} className="text-yellow-400 animate-pulse" />
-                      ) : isBugged ? (
+                      ) : showBuggedState ? (
                         <AlertTriangle size={14} className="text-red-500" />
                       ) : (
                         <div className="w-3 h-3 rounded-full border border-gray-600 mt-0.5" />
                       )
                     ) : completed ? (
                       <Check size={14} className="text-success stroke-[3]" />
-                    ) : isBugged ? (
-                      <AlertTriangle size={14} className="text-red-500 animate-pulse" />
                     ) : (
                       <div className="w-3 h-3 rounded-full border border-warning/60 bg-warning/20 mt-0.5" />
                     )}
@@ -415,13 +433,11 @@ export default function GameHUD() {
                         isMafia
                           ? completed
                             ? 'text-yellow-300'
-                            : isBugged
+                            : showBuggedState
                             ? 'text-red-400'
                             : 'text-gray-400'
                           : completed
                           ? 'text-success'
-                          : isBugged
-                          ? 'text-red-400'
                           : 'text-white'
                       }`}
                     >
@@ -433,12 +449,12 @@ export default function GameHUD() {
                       </span>
                       {isMafia && completed && (
                         <span className="font-pixel text-[9px] text-yellow-400 bg-yellow-950/80 px-1 py-0.5 border border-yellow-500">
-                          READY TO BUG ΓÜá∩╕Å
+                          READY TO BUG ⚠️
                         </span>
                       )}
-                      {isBugged && (
+                      {showBuggedState && (
                         <span className="font-pixel text-[9px] text-red-400 bg-red-950/80 px-1 py-0.5 border border-red-500">
-                          BUGGED ≡ƒÜ¿
+                          BUGGED 🚨
                         </span>
                       )}
                     </div>
@@ -450,52 +466,10 @@ export default function GameHUD() {
         )}
       </div>
 
-      {/* ΓöÇΓöÇ 4. Center Terminal Interaction / Bug Prompt ΓöÇΓöÇ */}
-      <div className="flex flex-col items-center justify-center flex-1">
-        {isAlive && interactableRoom && !editorOpen && isCodingRoom(interactableRoom) && showInteractionPrompt && (
-          <div
-            className="bg-panel/95 border-4 border-primary p-6 text-center shadow-[0_0_30px_rgba(0,240,255,0.3)] pointer-events-auto cursor-pointer hover:border-warning transition-colors"
-            style={{ animation: 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) 2' }}
-          >
-            <div className="font-pixel text-xl text-primary mb-2">[{interactableRoom}]</div>
-            
-            {/* If Mafia is in a room with a solved task, show prominent BUG button */}
-            {canBugThisRoom && roomTask ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="bg-yellow-950/60 border border-yellow-500 p-2 text-xs font-tech text-yellow-300">
-                  Target module is currently solved by crew. You can bug it now!
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => triggerBugTaskAction(roomTask.id, interactableRoom)}
-                    className="px-5 py-2.5 bg-[#FF003C] hover:bg-[#FF003C]/80 border-2 border-white text-white font-pixel text-xs tracking-wider shadow-[0_0_25px_#FF003C] flex items-center gap-2 cursor-pointer animate-bounce hover:scale-105 transition-transform"
-                  >
-                    <Bug size={18} /> BUG TASK [B]
-                  </button>
-                  <button
-                    onClick={() => setEditorOpen(true)}
-                    className="px-4 py-2 bg-panel hover:bg-panel/80 border border-gray-400 text-gray-200 font-tech text-xs cursor-pointer"
-                  >
-                    Open Editor [E]
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div onClick={() => setEditorOpen(true)} className="font-tech text-white">
-                Press <span className="text-warning font-bold">[E]</span> to Access Terminal
-                {isGhost && <span className="ml-2 text-mafia text-xs font-bold">[GHOST / READ-ONLY]</span>}
-                {currentPrivateTask && (
-                  <div className="mt-1 font-mono text-xs text-primary">
-                    Assigned: {currentPrivateTask.title}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* ── 4. Center Area (Clean & clear for player gameplay) ── */}
+      <div className="flex-1" />
 
-      {/* ΓöÇΓöÇ 5. Mafia Escape Buffer Countdown (Top Center Banner) ΓöÇΓöÇ */}
+      {/* ── 5. Mafia Escape Buffer Countdown (Top Center Banner) ── */}
       {isMafia && escapeBufferSeconds !== null && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto bg-[#FF003C] border-4 border-white px-6 py-3 shadow-[0_0_50px_#FF003C] animate-pulse flex items-center gap-4">
           <AlertTriangle size={32} className="text-yellow-300 animate-bounce" />
@@ -510,29 +484,7 @@ export default function GameHUD() {
         </div>
       )}
 
-      {/* ΓöÇΓöÇ 6. Mafia Live Notifications Tray (Bottom Left) ΓöÇΓöÇ */}
-      {isMafia && mafiaNotifications.length > 0 && (
-        <div className="fixed bottom-24 left-4 z-40 max-w-xs flex flex-col gap-2 pointer-events-auto">
-          {mafiaNotifications.slice(0, 2).map((n) => (
-            <div
-              key={n.id}
-              className="bg-black/95 border-2 border-yellow-500 p-3 shadow-[0_0_20px_rgba(255,184,0,0.4)] flex items-start gap-2.5 animate-in slide-in-from-left-4 duration-300 rounded-xs"
-            >
-              <Radio size={18} className="text-yellow-400 flex-shrink-0 mt-0.5 animate-pulse" />
-              <div>
-                <div className="font-pixel text-[10px] text-yellow-400 uppercase tracking-wider">
-                  CREW ACTIVITY DETECTED
-                </div>
-                <div className="font-tech text-xs text-white mt-0.5 leading-tight">
-                  {n.message}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── 6.5. Emergency Cooldown Active Banner (Top Center) ── */}
+      {/* ── 6. Emergency Cooldown Active Banner (Top Center) ── */}
       {isEmergencyCooldownActive && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto bg-amber-950/95 border-2 border-amber-500 px-6 py-2.5 shadow-[0_0_30px_rgba(245,158,11,0.5)] flex items-center gap-3 rounded-lg animate-pulse">
           <AlertTriangle size={24} className="text-amber-400" />
@@ -544,41 +496,153 @@ export default function GameHUD() {
         </div>
       )}
 
-      {/* ── 7. Bottom Left HUD: Emergency Call button ── */}
-      <div className="flex justify-between items-end">
-        <div className="pointer-events-auto">
-          {isAlive && interactableRoom === 'EMERGENCY_TERMINAL' && (
-            <div className="bg-black/90 border-4 border-[#FF003C] p-4 flex flex-col gap-2 shadow-[0_0_30px_rgba(255,0,60,0.6)] animate-in fade-in slide-in-from-bottom-4 duration-200">
-              <div className="flex items-center justify-between gap-4 text-[#FF003C] font-tech text-xs tracking-wider uppercase font-bold">
-                <span className="flex items-center gap-1.5">
-                  <AlertTriangle size={16} className="animate-pulse text-[#FFB800]" />
-                  EMERGENCY TERMINAL DETECTED
-                </span>
-                <span className="text-[10px] text-gray-400 font-mono">
-                  {meetingLimit === null
-                    ? 'UNLIMITED'
-                    : `LIMIT: ${meetingsCalled}/${meetingLimit}`}
+      {/* ── 7. Bottom Left HUD: Mafia Notifications, Room Task Prompt & Emergency Terminal ── */}
+      <div className="fixed bottom-3 sm:bottom-4 left-3 sm:left-4 z-40 max-w-sm sm:max-w-md flex flex-col gap-2.5 pointer-events-auto select-none">
+        {/* Mafia Live Notifications Tray (Stacked above room card) */}
+        {isMafia && mafiaNotifications.length > 0 && (
+          <div className="flex flex-col gap-1.5 max-w-xs mb-0.5">
+            {mafiaNotifications.slice(0, 2).map((n) => (
+              <div
+                key={n.id}
+                className="bg-black/95 border-2 border-yellow-500 p-2.5 shadow-[0_0_20px_rgba(255,184,0,0.4)] flex items-start gap-2.5 animate-in slide-in-from-left-4 duration-300 rounded-xs"
+              >
+                <Radio size={16} className="text-yellow-400 flex-shrink-0 mt-0.5 animate-pulse" />
+                <div>
+                  <div className="font-pixel text-[9px] text-yellow-400 uppercase tracking-wider">
+                    CREW ACTIVITY DETECTED
+                  </div>
+                  <div className="font-tech text-xs text-white mt-0.5 leading-tight">
+                    {n.message}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Room Task Prompt (Bottom-Left Side of Screen) */}
+        {isAlive && interactableRoom && !editorOpen && isCodingRoom(interactableRoom) && (
+          <div
+            className={`p-3 sm:p-3.5 text-left backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300 rounded-xs ${
+              roomTask?.status === 'BUGGED'
+                ? 'bg-black/95 border-2 border-[#FF003C] shadow-[0_0_30px_rgba(255,0,60,0.5)]'
+                : 'bg-black/90 border-2 border-[#00F0FF] shadow-[0_0_25px_rgba(0,240,255,0.3)]'
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 mb-1.5 pb-1.5 border-b border-primary/30">
+              <div className="flex items-center gap-1.5">
+                <Terminal size={15} className={`animate-pulse ${roomTask?.status === 'BUGGED' ? 'text-[#FF003C]' : 'text-primary'}`} />
+                <span className={`font-pixel text-xs tracking-wider ${roomTask?.status === 'BUGGED' ? 'text-[#FF003C]' : 'text-primary'}`}>
+                  [{interactableRoom.toUpperCase()}]
                 </span>
               </div>
-              <GameButton
-                variant="danger"
-                icon={<AlertTriangle size={20} />}
-                onClick={callMeeting}
-                disabled={!canCallEmergency}
-                className="text-base px-6 py-3 font-pixel tracking-wider shadow-[0_0_20px_#FF003C] hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isEmergencyCooldownActive
-                  ? `🚨 COOLDOWN: ${cooldownSecondsLeft}s`
-                  : hasExceededMeetingLimit
-                  ? `LIMIT REACHED (${meetingsCalled}/${meetingLimit})`
-                  : 'CALL FOR MEET [SPACE]'}
-              </GameButton>
+
+              {/* Task Status Badge */}
+              {currentPrivateTask?.status === 'COMPLETED' || roomTask?.status === 'COMPLETED' ? (
+                <span className="font-pixel text-[9px] text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 border border-emerald-500 flex items-center gap-1">
+                  <Check size={10} /> SOLVED
+                </span>
+              ) : currentPrivateTask?.status === 'COMPROMISED' || roomTask?.status === 'BUGGED' ? (
+                <span className="font-pixel text-[9px] text-red-400 bg-red-950/80 px-1.5 py-0.5 border border-red-500 flex items-center gap-1 animate-pulse">
+                  <Bug size={10} /> DEFECT DETECTED 🚨
+                </span>
+              ) : canBugThisRoom ? (
+                <span className="font-pixel text-[9px] text-yellow-400 bg-yellow-950/80 px-1.5 py-0.5 border border-yellow-500 flex items-center gap-1">
+                  <AlertTriangle size={10} /> READY TO BUG
+                </span>
+              ) : (
+                <span className="font-pixel text-[9px] text-cyan-300 bg-cyan-950/80 px-1.5 py-0.5 border border-cyan-500">
+                  ASSIGNED TASK
+                </span>
+              )}
             </div>
-          )}
-        </div>
 
+            {/* Task Info Body */}
+            <div className="flex flex-col gap-0.5">
+              <div className="font-pixel text-xs text-white leading-snug">
+                {currentPrivateTask?.title || roomTask?.title || targetProjectModule?.role || 'Module Terminal Workstation'}
+              </div>
 
-        <div className="pointer-events-auto" />
+              <div className="font-mono text-[11px] text-cyan-300/90 flex items-center gap-2">
+                <span>File: <span className="text-white font-bold">{currentPrivateTask?.fileName || roomTask?.fileId || targetProjectModule?.file || 'terminal.js'}</span></span>
+              </div>
+
+              {(currentPrivateTask?.description || targetProjectModule?.description) && (
+                <div className="font-tech text-xs text-gray-300 line-clamp-2 mt-0.5">
+                  {currentPrivateTask?.description || targetProjectModule?.description}
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            {canBugThisRoom && roomTask ? (
+              <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-yellow-500/30">
+                <button
+                  onClick={() => triggerBugTaskAction(roomTask.id, interactableRoom)}
+                  className="flex-1 px-3 py-1.5 bg-[#FF003C] hover:bg-[#FF003C]/80 border border-white text-white font-pixel text-xs tracking-wider shadow-[0_0_15px_#FF003C] flex items-center justify-center gap-1.5 cursor-pointer animate-pulse hover:scale-[1.02] transition-transform rounded-xs"
+                >
+                  <Bug size={13} /> BUG TASK [B]
+                </button>
+                <button
+                  onClick={() => setEditorOpen(true)}
+                  className="px-3 py-1.5 bg-panel hover:bg-panel/80 border border-gray-400 text-gray-200 font-tech text-xs cursor-pointer rounded-xs"
+                >
+                  Editor [E]
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-primary/20">
+                <button
+                  onClick={() => setEditorOpen(true)}
+                  className={`flex-1 py-1.5 px-3 font-pixel text-xs tracking-wider flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.02] active:scale-95 transition-all cursor-pointer rounded-xs ${
+                    roomTask?.status === 'BUGGED'
+                      ? 'bg-[#FF003C]/30 hover:bg-[#FF003C]/40 border-2 border-[#FF003C] text-white shadow-[0_0_15px_#FF003C]'
+                      : 'bg-primary/20 hover:bg-primary/30 border border-primary text-primary hover:text-white shadow-[0_0_15px_rgba(0,240,255,0.3)]'
+                  }`}
+                >
+                  <Terminal size={13} />
+                  {roomTask?.status === 'BUGGED' ? 'REPAIR DEFECT [E]' : 'ACCESS TERMINAL [E]'}
+                </button>
+                {isGhost && (
+                  <span className="text-[9px] font-pixel text-mafia px-1.5 py-0.5 border border-mafia bg-mafia/10">
+                    SPECTATOR
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Emergency Terminal Call Button */}
+        {isAlive && interactableRoom === 'EMERGENCY_TERMINAL' && (
+          <div className="bg-black/90 border-4 border-[#FF003C] p-4 flex flex-col gap-2 shadow-[0_0_30px_rgba(255,0,60,0.6)] animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-center justify-between gap-4 text-[#FF003C] font-tech text-xs tracking-wider uppercase font-bold">
+              <span className="flex items-center gap-1.5">
+                <AlertTriangle size={16} className="animate-pulse text-[#FFB800]" />
+                EMERGENCY TERMINAL DETECTED
+              </span>
+              <span className="text-[10px] text-gray-400 font-mono">
+                {meetingLimit === null
+                  ? 'UNLIMITED'
+                  : `LIMIT: ${meetingsCalled}/${meetingLimit}`}
+              </span>
+            </div>
+            <GameButton
+              variant="danger"
+              icon={<AlertTriangle size={20} />}
+              onClick={callMeeting}
+              disabled={!canCallEmergency}
+              className="text-base px-6 py-3 font-pixel tracking-wider shadow-[0_0_20px_#FF003C] hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isEmergencyCooldownActive
+                ? `🚨 COOLDOWN: ${cooldownSecondsLeft}s`
+                : hasExceededMeetingLimit
+                ? `LIMIT REACHED (${meetingsCalled}/${meetingLimit})`
+                : 'CALL FOR MEET [SPACE]'}
+            </GameButton>
+          </div>
+        )}
       </div>
 
       {/* ΓöÇΓöÇ 8. Room Editor Modal Overlay ΓöÇΓöÇ */}
@@ -639,6 +703,13 @@ export default function GameHUD() {
           </div>
         </div>
       )}
+
+      {/* ── 11. Code Brief & Specification Modal Overlay ── */}
+      <CodeBriefModal
+        isOpen={showCodeBriefModal}
+        onClose={() => setShowCodeBriefModal(false)}
+        project={assignedCodeProject}
+      />
     </div>
   );
 }

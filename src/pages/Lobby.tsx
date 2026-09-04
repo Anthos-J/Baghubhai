@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { PixelCard } from '../components/ui/PixelCard';
 import { GameButton } from '../components/ui/GameButton';
 import { StatusBadge } from '../components/ui/StatusBadge';
-import { Settings, Play, Users, LogOut, Copy, Check, Loader2 } from 'lucide-react';
+import { Settings, Play, Users, LogOut, Copy, Check, Loader2, Palette, X } from 'lucide-react';
 import { useMockStore } from '../store/mockStore';
-import { fetchRoomPlayers, fetchRoomSettings, leaveRoom } from '../lib/roomService';
-import { Player } from '../types/game';
-import { getPlayerAvatarUrl } from '../map/SpriteManager';
+import { fetchRoomPlayers, fetchRoomSettings, leaveRoom, updatePlayerColor } from '../lib/roomService';
+import { Player, AVATAR_COLORS } from '../types/game';
+import { getPlayerAvatarUrl, resolvePlayerColor } from '../map/SpriteManager';
 import { LobbySettingsModal } from '../components/lobby/LobbySettingsModal';
 
 export default function Lobby() {
@@ -26,6 +26,7 @@ export default function Lobby() {
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
   const [codeCopied, setCodeCopied] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
   const isHost = session?.isHost ?? false;
   const localPlayerId = session?.playerId;
@@ -46,18 +47,61 @@ export default function Lobby() {
         setRoomSettings(persistedSettings);
       }
 
-      const mapped: Player[] = dbPlayers.map((p: any) => ({
-        id: p.id,
-        room_id: p.room_id,
-        username: p.username,
-        color: p.color,
-        x: 1420,
-        y: 960,
-        direction: 'down' as const,
-        alive: p.alive,
-        connected: true, // we assume everyone online until Presence says otherwise
-        is_host: p.is_host,
-      }));
+      // Sort: host first, then chronological join order (created_at)
+      const sortedDbPlayers = [...dbPlayers].sort((a: any, b: any) => {
+        if (a.is_host && !b.is_host) return -1;
+        if (!a.is_host && b.is_host) return 1;
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeA - timeB;
+      });
+
+      const usedColors = new Set<string>();
+      const mapped: Player[] = [];
+
+      for (const p of sortedDbPlayers) {
+        let playerColor = p.color;
+        const colorName = resolvePlayerColor(playerColor);
+
+        // If duplicate color detected, person who came afterwards is assigned random available color
+        if (usedColors.has(colorName)) {
+          const available = AVATAR_COLORS.filter((c) => !usedColors.has(c.name));
+          if (available.length > 0) {
+            const pick = available[Math.floor(Math.random() * available.length)];
+            playerColor = pick.hex;
+            usedColors.add(pick.name);
+
+            // Synchronize reassignment to Supabase if local player or host
+            if (p.id === localPlayerId || isHost) {
+              updatePlayerColor(p.id, playerColor).catch(() => {});
+            }
+            if (p.id === localPlayerId && session) {
+              useMockStore.getState().setSession({
+                ...session,
+                color: playerColor,
+              });
+            }
+          } else {
+            usedColors.add(colorName);
+          }
+        } else {
+          usedColors.add(colorName);
+        }
+
+        mapped.push({
+          id: p.id,
+          room_id: p.room_id,
+          username: p.username,
+          color: playerColor,
+          x: 1420,
+          y: 960,
+          direction: 'down' as const,
+          alive: p.alive,
+          connected: true, // we assume everyone online until Presence says otherwise
+          is_host: p.is_host,
+          role: p.role,
+        });
+      }
 
       setRoomPlayers(mapped);
       setIsLoadingPlayers(false);
@@ -79,6 +123,20 @@ export default function Lobby() {
       navigator.clipboard.writeText(roomCode);
       setCodeCopied(true);
       setTimeout(() => setCodeCopied(false), 2000);
+    }
+  };
+
+  // ── Change Avatar ──
+  const handleSelectAvatar = async (colorHex: string) => {
+    if (!localPlayerId || !session) return;
+    try {
+      const finalHex = await updatePlayerColor(localPlayerId, colorHex);
+      useMockStore.getState().setSession({ ...session, color: finalHex });
+      const updated = players.map((p) => (p.id === localPlayerId ? { ...p, color: finalHex } : p));
+      setRoomPlayers(updated);
+      setIsAvatarPickerOpen(false);
+    } catch (err) {
+      console.error('Failed to update avatar color:', err);
     }
   };
 
@@ -175,6 +233,15 @@ export default function Lobby() {
                         label={p.connected ? 'online' : 'offline'}
                         className="mt-2 mx-auto"
                       />
+                      {isLocal && (
+                        <button
+                          onClick={() => setIsAvatarPickerOpen(true)}
+                          className="mt-3 text-[10px] font-tech text-primary hover:text-white border border-primary/40 hover:border-primary px-2 py-1 bg-primary/10 hover:bg-primary/20 transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto rounded"
+                          title="Change your avatar"
+                        >
+                          <Palette size={12} /> CHANGE AVATAR
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -217,6 +284,86 @@ export default function Lobby() {
         isHost={isHost}
         onSaveSettings={(newSettings) => updateSettings(newSettings)}
       />
+
+      {/* Avatar Picker Modal */}
+      {isAvatarPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-panel border-4 border-panelBorder p-6 relative flex flex-col gap-4 shadow-2xl">
+            <button
+              onClick={() => setIsAvatarPickerOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="font-pixel text-xl text-white flex items-center gap-2">
+              <Palette className="text-primary" size={20} /> CHOOSE YOUR AVATAR
+            </h2>
+            <div className="text-xs font-tech text-gray-400">
+              Select an available avatar. No two players can share the same color.
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 my-2 max-h-[60vh] overflow-y-auto p-1">
+              {AVATAR_COLORS.map((item) => {
+                const otherPlayerTaken = players.some(
+                  (p) => p.id !== localPlayerId && resolvePlayerColor(p.color) === item.name
+                );
+                const isSelected = resolvePlayerColor(session?.color || '') === item.name;
+
+                return (
+                  <button
+                    key={item.name}
+                    disabled={otherPlayerTaken}
+                    onClick={() => handleSelectAvatar(item.hex)}
+                    className={`flex flex-col items-center p-3 border-2 transition-all rounded bg-black/70 relative ${
+                      isSelected
+                        ? 'border-white scale-105 shadow-[0_0_12px_rgba(255,255,255,0.6)] bg-white/10'
+                        : otherPlayerTaken
+                        ? 'border-red-900/50 opacity-40 cursor-not-allowed'
+                        : 'border-[#2a2a2a] hover:border-primary hover:bg-white/5 cursor-pointer'
+                    }`}
+                  >
+                    {otherPlayerTaken && (
+                      <div className="absolute top-1 right-1 bg-red-900/90 text-white font-pixel text-[7px] px-1 py-0.5 rounded">
+                        TAKEN
+                      </div>
+                    )}
+                    {isSelected && (
+                      <div className="absolute top-1 left-1 bg-primary text-black font-pixel text-[7px] px-1 py-0.5 rounded">
+                        CURRENT
+                      </div>
+                    )}
+                    <div
+                      className="w-14 h-14 border-2 flex items-center justify-center bg-black/80 overflow-hidden mb-2 shadow"
+                      style={{ borderColor: item.hex }}
+                    >
+                      <img
+                        src={`/assets/${item.name}.png`}
+                        alt={item.label}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <span className="font-pixel text-[10px] text-white uppercase tracking-wider">
+                      {item.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setIsAvatarPickerOpen(false)}
+                className="px-4 py-2 bg-panel border-2 border-panelBorder hover:border-white text-xs font-tech text-white transition-colors"
+              >
+                CLOSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

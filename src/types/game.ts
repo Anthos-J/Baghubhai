@@ -62,19 +62,26 @@ export type Task = {
   completed: boolean;
 };
 
-// Preset neon colors for players
-export const PLAYER_COLORS = [
-  '#00F0FF', // Cyan
-  '#FF003C', // Red
-  '#00FF00', // Green
-  '#8A2BE2', // Purple
-  '#FFA500', // Orange
-  '#FFD700', // Gold
-  '#FF69B4', // Pink
-  '#00FFAB', // Mint
-  '#FF6600', // Tangerine
-  '#ADFF2F', // Lime
+// Preset avatar colors matching actual sprite assets
+export interface AvatarColorOption {
+  name: 'Blue' | 'Cyan' | 'Green' | 'Magenta' | 'Orange' | 'Red' | 'Violet' | 'White' | 'Yellow';
+  hex: string;
+  label: string;
+}
+
+export const AVATAR_COLORS: AvatarColorOption[] = [
+  { name: 'Cyan', hex: '#00F0FF', label: 'Cyan' },
+  { name: 'Red', hex: '#FF003C', label: 'Red' },
+  { name: 'Green', hex: '#00FF66', label: 'Green' },
+  { name: 'Blue', hex: '#0066FF', label: 'Blue' },
+  { name: 'Orange', hex: '#FFA500', label: 'Orange' },
+  { name: 'Yellow', hex: '#FFD700', label: 'Yellow' },
+  { name: 'Magenta', hex: '#FF00FF', label: 'Magenta' },
+  { name: 'Violet', hex: '#8A2BE2', label: 'Violet' },
+  { name: 'White', hex: '#FFFFFF', label: 'White' },
 ];
+
+export const PLAYER_COLORS = AVATAR_COLORS.map((c) => c.hex);
 
 export type GameFile = {
   id: string;

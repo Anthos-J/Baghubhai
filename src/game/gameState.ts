@@ -1,5 +1,5 @@
-export type { GameState, GameSettings, Player, TaskItem, GameAction } from '../types/game';
 import type { GameState, GameSettings, Player, TaskItem, GameAction } from '../types/game';
+export type { GameState, GameSettings, Player, TaskItem, GameAction };
 import { getDefaultTasks, solveTask } from './tasks';
 import { triggerBugInjection, triggerSyntaxBlackout, triggerServerOverload, resolveServerOverload, clearAlarm } from './sabotage';
 import { startEmergencyMeeting, castVote } from './voting';
@@ -103,6 +103,7 @@ export function createInitialGameState(
     lastUpdatedAt: Date.now(),
   };
 }
+
 
 /**
  * Central pure reducer managing all GameState transitions.
