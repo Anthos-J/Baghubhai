@@ -38,6 +38,20 @@ CREATE TABLE IF NOT EXISTS votes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS coding_challenges (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    language VARCHAR(20) NOT NULL, -- 'JAVA', 'PYTHON', 'C'
+    difficulty VARCHAR(20) NOT NULL, -- 'EASY', 'MEDIUM', 'HARD'
+    code TEXT NOT NULL,
+    bugs JSONB NOT NULL,
+    test_cases JSONB DEFAULT '[]'::jsonb,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- 2. Row Level Security (RLS) Setup
 -- We want to secure the 'role' column so only the player themselves can see it unless they are dead or the game is over.
 
@@ -45,6 +59,7 @@ ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coding_challenges ENABLE ROW LEVEL SECURITY;
 
 -- Rooms: Anyone can read, only anon can insert/update for now (in a real app you might lock this down more)
 CREATE POLICY "Enable read access for all users" ON rooms FOR SELECT USING (true);
@@ -62,8 +77,12 @@ CREATE POLICY "Enable update access for all users" ON players FOR UPDATE USING (
 CREATE POLICY "Enable all access" ON tasks FOR ALL USING (true);
 CREATE POLICY "Enable all access" ON votes FOR ALL USING (true);
 
+-- Coding Challenges: Anyone can read active challenges
+CREATE POLICY "Enable read access for active challenges" ON coding_challenges FOR SELECT USING (is_active = true);
+
 -- 3. Enable Realtime on tables
 ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
 ALTER PUBLICATION supabase_realtime ADD TABLE players;
 ALTER PUBLICATION supabase_realtime ADD TABLE tasks;
 ALTER PUBLICATION supabase_realtime ADD TABLE votes;
+ALTER PUBLICATION supabase_realtime ADD TABLE coding_challenges;

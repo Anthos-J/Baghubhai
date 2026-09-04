@@ -184,11 +184,13 @@ export interface WinResult {
 }
 
 export type CodeDifficulty = 'SMALL' | 'MEDIUM' | 'DIFFICULT';
+export type ProgrammingLanguage = 'JAVA' | 'PYTHON' | 'C';
 export type EmergencyMeetingLimit = 1 | 2 | null;
 
 export interface GameSettings {
   maxPlayers?: number;
   mafiaCount?: number;
+  language?: ProgrammingLanguage;
   difficulty?: CodeDifficulty;
   gameDurationSeconds: number;
   discussionDurationSeconds?: number;
@@ -224,6 +226,7 @@ export interface GameState {
   serverOverloadDeadline: number | null;
   winner: WinResult | null;
   settings: GameSettings;
+  challengeSession?: any; // ChallengeMatchSession from challengeService
   createdAt: number;
   lastUpdatedAt: number;
 }

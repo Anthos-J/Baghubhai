@@ -376,7 +376,8 @@ export function useMeetingEvents(roomId: string, playerId: string) {
             payload.assignedPlayers,
             payload.totalGameTasks,
             payload.gameDurationSeconds,
-            payload.codeProject
+            payload.codeProject,
+            payload.challengeSession
           );
         }
       })

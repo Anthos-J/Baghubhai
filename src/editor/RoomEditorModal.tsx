@@ -390,7 +390,15 @@ export function RoomEditorModal({
           <CodeEditor
             key={`${roomId}-${taskId}`}
             value={code}
-            language="javascript"
+            language={
+              fileName.endsWith('.java')
+                ? 'java'
+                : fileName.endsWith('.py')
+                ? 'python'
+                : fileName.endsWith('.c') || fileName.endsWith('.cpp')
+                ? 'cpp'
+                : 'javascript'
+            }
             readOnly={readOnly}
             onChange={handleCodeChange}
             height="100%"
