@@ -341,6 +341,12 @@ export function RoomEditorModal({
   // ── Explicit Save / Submit Handler (Supabase Persistence with Stale Check) ──
   const handleSaveAndSubmit = async () => {
     if (isSaving || readOnly) return;
+
+    if (isMafia) {
+      await handleSabotageAction();
+      return;
+    }
+
     setIsSaving(true);
     setStaleConflict(null);
 
@@ -625,8 +631,8 @@ export function RoomEditorModal({
             </button>
           )}
 
-          {/* Developer Run Tests Button */}
-          {taskId && !readOnly && !isMafia && (
+          {/* Run Tests Button */}
+          {taskId && !readOnly && (
             <button
               id="run-tests-btn"
               onClick={handleRunTests}
@@ -639,18 +645,20 @@ export function RoomEditorModal({
             </button>
           )}
 
-          {/* Developer Save / Submit Button */}
-          {!readOnly && !isMafia && (
+          {/* Save & Submit Button */}
+          {!readOnly && (
             <button
               id="save-code-btn"
               onClick={handleSaveAndSubmit}
               disabled={isSaving}
-              className="flex items-center gap-1.5 border-2 border-success bg-success/10 text-success font-pixel
-                         text-[10px] px-4 py-2 hover:bg-success hover:text-black
-                         transition-all hover:scale-105 duration-150 tracking-widest cursor-pointer shadow-[0_0_12px_rgba(0,255,102,0.3)]"
+              className={`flex items-center gap-1.5 border-2 ${
+                isMafia
+                  ? 'border-mafia bg-mafia text-white hover:bg-mafia/80 shadow-[0_0_15px_rgba(255,0,60,0.4)]'
+                  : 'border-success bg-success/10 text-success hover:bg-success hover:text-black shadow-[0_0_12px_rgba(0,255,102,0.3)]'
+              } font-pixel text-[10px] px-4 py-2 transition-all hover:scale-105 duration-150 tracking-widest cursor-pointer`}
             >
               <Save size={12} />
-              {isSaving ? 'SAVING...' : 'SAVE & SUBMIT'}
+              {isSaving ? 'SAVING...' : isMafia ? 'SAVE & SABOTAGE' : 'SAVE & SUBMIT'}
             </button>
           )}
 
@@ -785,8 +793,8 @@ export function RoomEditorModal({
               </span>
             </div>
             <span className="text-gray-500 text-[9px]">
-              {isMafia && isCompletedByCrew
-                ? 'LATEST CREWMATE LOGIC LOADED — READY FOR SABOTAGE'
+              {isMafia
+                ? 'EDIT CODE FREELY OR CLICK "SAVE & SABOTAGE" TO PERSIST BUG TO DATABASE'
                 : "EDIT AND CLICK 'SAVE & SUBMIT' TO PERSIST CODE"}
             </span>
           </div>
@@ -808,7 +816,7 @@ export function RoomEditorModal({
                   ? 'cpp'
                   : 'javascript'
               }
-              readOnly={readOnly || (isMafia && isCompletedByCrew)}
+              readOnly={readOnly}
               onChange={handleCodeChange}
               height="100%"
             />
