@@ -3,8 +3,8 @@ import { usePlayers } from '../hooks/usePlayers';
 
 
 export default function RoleReveal() {
-  const { localPlayerState } = usePlayers();
-  const role = localPlayerState?.role === 'MAFIA' ? 'mafia' : 'developer';
+  const { localPlayer, localPlayerState } = usePlayers();
+  const role = (localPlayer?.role || localPlayerState?.role) === 'MAFIA' ? 'mafia' : 'developer';
   const [countdown, setCountdown] = useState(4);
 
   useEffect(() => {

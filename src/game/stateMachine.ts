@@ -15,7 +15,10 @@ export function transitionToRoleReveal(state: GameState): GameState {
   if (state.phase !== 'LOBBY') return state;
   if (state.players.length < 4) return state;
 
-  const playersWithRoles = assignRoles(state.players, state.settings.mafiaCount);
+  const maxAllowed = state.players.length >= 7 ? 2 : 1;
+  const configuredMafia = state.settings?.mafiaCount ?? 1;
+  const finalMafia = Math.max(1, Math.min(configuredMafia, maxAllowed));
+  const playersWithRoles = assignRoles(state.players, finalMafia);
   const tasks = getDefaultTasks();
   const progress = calculateProgress(tasks);
 
