@@ -58,6 +58,7 @@ export default function GameHUD() {
 
   // ΓöÇΓöÇ Sabotage & Mafia Hookup ΓöÇΓöÇ
   const escapeBufferSeconds = useMockStore((s) => s.escapeBufferSeconds);
+  const activeSabotageTriggers = useMockStore((s) => s.activeSabotageTriggers);
   const mafiaNotifications = useMockStore((s) => s.mafiaNotifications);
   const triggerBugTaskAction = useMockStore((s) => s.triggerBugTaskAction);
   const codeIntegrityAlert = useMockStore((s) => s.codeIntegrityAlert);
@@ -534,6 +535,34 @@ export default function GameHUD() {
             <p className="font-tech text-xs text-yellow-200 mt-0.5">
               You have <span className="font-bold text-white text-sm underline">{escapeBufferSeconds}s</span> to evacuate the room before the alarm triggers!
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5.1 Secret Mafia Sabotage Available Card (Top Right) ── */}
+      {isMafia && activeSabotageTriggers && activeSabotageTriggers.length > 0 && (
+        <div className="fixed top-20 right-4 z-40 max-w-xs pointer-events-auto animate-in slide-in-from-right-4 duration-300">
+          <div className="bg-[#18080C] border-2 border-mafia p-3 shadow-[0_0_30px_rgba(255,0,60,0.5)] rounded-xs flex flex-col gap-2">
+            <div className="flex items-center justify-between border-b border-mafia/40 pb-1.5">
+              <div className="flex items-center gap-1.5 font-pixel text-[10px] text-mafia tracking-wider animate-pulse">
+                <Bug size={13} className="text-mafia" />
+                <span>⚠ SABOTAGE AVAILABLE</span>
+              </div>
+              <span className="font-mono text-[9px] text-yellow-400 bg-yellow-950/80 px-1.5 py-0.5 border border-yellow-500 font-bold">
+                SECRET
+              </span>
+            </div>
+            <div className="font-mono text-[11px] text-gray-200 space-y-0.5">
+              <div>
+                TARGET: <strong className="text-white">{activeSabotageTriggers[0].targetRoomLabel}</strong>
+              </div>
+              <div>
+                FILE: <span className="text-primary font-bold">{activeSabotageTriggers[0].targetFileName}</span>
+              </div>
+            </div>
+            <div className="text-[10px] font-tech text-yellow-300/80 bg-black/60 p-1.5 rounded border border-mafia/30">
+              Travel to {activeSabotageTriggers[0].targetRoomLabel} and press [E] at the terminal to bug the module.
+            </div>
           </div>
         </div>
       )}

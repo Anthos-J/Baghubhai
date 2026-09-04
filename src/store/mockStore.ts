@@ -23,6 +23,11 @@ import {
   ChallengeMatchSession,
 } from '../services/challengeService';
 import { CodeProject, DEFAULT_CODE_PROJECT, getRandomCodeProject } from '../editor/codeProjects';
+import {
+  SabotageTrigger,
+  createSabotageTrigger,
+  consumeSabotageTrigger,
+} from '../services/sabotageTriggerService';
 
 /**
  * Calculates total cumulative tasks across all active developers/players in the room.
@@ -145,6 +150,9 @@ interface GameStateStore {
   alarmMessage: string;
   alarmRoomName: string;
   escapeBufferSeconds: number | null;
+  activeSabotageTriggers: SabotageTrigger[];
+  addSabotageTrigger: (trigger: SabotageTrigger) => void;
+  removeSabotageTrigger: (triggerId: string) => void;
   mafiaNotifications: { id: string; message: string; roomName: string; timestamp: number }[];
   codeIntegrityAlert: CodeIntegrityAlert | null;
   lastMafiaTaskAlteredEvent: MafiaTaskAlteredEvent | null;
@@ -213,6 +221,17 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   alarmMessage: '',
   alarmRoomName: '',
   escapeBufferSeconds: null,
+  activeSabotageTriggers: [],
+  addSabotageTrigger: (trigger) =>
+    set((s) => ({
+      activeSabotageTriggers: s.activeSabotageTriggers.some((t) => t.id === trigger.id)
+        ? s.activeSabotageTriggers
+        : [...s.activeSabotageTriggers, trigger],
+    })),
+  removeSabotageTrigger: (triggerId) =>
+    set((s) => ({
+      activeSabotageTriggers: s.activeSabotageTriggers.filter((t) => t.id !== triggerId),
+    })),
   mafiaNotifications: [],
   codeIntegrityAlert: null,
   lastMafiaTaskAlteredEvent: null,
@@ -1049,6 +1068,19 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
         : 'COMMAND & TECH';
 
     const completedTaskTitle = nextTasks.find((t) => t.id === legacyTaskId)?.title || 'Code Task';
+    const targetFileName = nextTasks.find((t) => t.id === legacyTaskId)?.fileName || 'auth.js';
+
+    // Generate private sabotage trigger for Mafia
+    createSabotageTrigger({
+      gameId: state.roomId || 'local-game',
+      targetRoomId: taskRoomName,
+      targetFileName,
+      targetRoomLabel: taskRoomName,
+    })
+      .then((trigger) => {
+        get().addSabotageTrigger(trigger);
+      })
+      .catch(console.warn);
 
     // Broadcast task completion event with cumulative player progress
     if (state.roomId) {
@@ -1214,6 +1246,18 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     const cumulativeProgress = totalGameTasks > 0
       ? Math.min(100, Math.round((newTotalCompleted / totalGameTasks) * 100))
       : 0;
+
+    // Consume any active matching sabotage trigger for this room
+    const matchingTrigger = state.activeSabotageTriggers.find(
+      (t) => t.active && (t.targetRoomLabel === _roomName || t.targetRoomId === _roomName || t.targetFileId.includes(legacyTaskId.replace('task-', '')))
+    );
+    if (matchingTrigger) {
+      consumeSabotageTrigger(state.roomId || 'local-game', matchingTrigger.id, localPlayer?.id || 'mafia-1')
+        .then(() => {
+          get().removeSabotageTrigger(matchingTrigger.id);
+        })
+        .catch(console.warn);
+    }
 
     // 3. Prepare MafiaTaskAlteredEvent if the task was previously completed
     let alteredEvent: MafiaTaskAlteredEvent | null = null;

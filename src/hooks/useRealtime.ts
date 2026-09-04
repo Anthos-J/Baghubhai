@@ -363,6 +363,18 @@ export function useMeetingEvents(roomId: string, playerId: string) {
         }
         store.triggerAlarm(payload.roomName, payload.message);
       })
+      .on('broadcast', { event: 'sabotage_trigger_created' }, ({ payload }) => {
+        const store = useMockStore.getState();
+        const me = store.players.find((p) => p.id === playerId);
+        if (me?.role === 'MAFIA' && payload?.trigger) {
+          store.addSabotageTrigger(payload.trigger);
+        }
+      })
+      .on('broadcast', { event: 'sabotage_trigger_consumed' }, ({ payload }) => {
+        if (payload?.triggerId) {
+          useMockStore.getState().removeSabotageTrigger(payload.triggerId);
+        }
+      })
       .on('broadcast', { event: 'alarm_cleared' }, () => {
         useMockStore.getState().clearAlarm();
       })

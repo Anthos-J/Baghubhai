@@ -1,22 +1,15 @@
 /**
- * RoomEditorModal.tsx — Strict Room Task Segregation Editor with Imposter Sabotage Integration
+ * RoomEditorModal.tsx — Strict Room Task Segregation Editor with Supabase Shared Code & Imposter Sabotage
  *
- * Self-contained modal overlay opened when a player presses [E] inside a coding room.
- *
- * Strict Room Task Segregation:
- *  - Each room has EXACTLY ONE task and ONE module file assigned.
- *  - Players in a room can ONLY view and edit the code for THAT specific room.
- *  - Multi-file browsing across rooms is strictly eliminated (no FileTree leakage).
- *  - Deterministic lexical validation (zero eval / zero arbitrary execution).
- *  - Read-only enforcement for eliminated ghosts.
- *
- * Imposter Sabotage Integration:
- *  - Imposter sees the COMPLETED code solved by crewmates.
- *  - Imposter has a prominent "BUG THIS CODE [B]" action.
- *  - Sabotaging starts a 3-second escape window before the hazard alarm triggers globally.
+ * Architecture:
+ * - Supabase is the persistent source of truth for the shared code in this room.
+ * - Monotonically increasing versioning (v1, v2, v3... v10 -> v11).
+ * - Crewmate save with optimistic stale-save protection (rejects overwrite if expectedVersion < latestVersion).
+ * - Mafia sabotage: ALWAYS fetches the latest authoritative version from Supabase before mutating.
+ * - Realtime notification: updates active clients with loop guard (applyingRemoteChange).
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   X,
   Play,
@@ -33,6 +26,8 @@ import {
   ShieldCheck,
   FileCode,
   Bug,
+  Save,
+  RefreshCw,
 } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
 import { INITIAL_PROJECT_FILES } from './predefinedProject';
@@ -45,6 +40,14 @@ import {
   PUBLIC_PROJECT_CONTEXT,
   validatePrivateTaskCode,
 } from './privateTasks';
+import { useMockStore } from '../store/mockStore';
+import {
+  fetchLatestSharedFile,
+  saveCrewmateCode,
+  sabotageSharedCode,
+} from '../services/sharedCodeService';
+import { logGameEvent } from '../services/eventLogger';
+import { supabase } from '../lib/supabase';
 
 // ---------------------------------------------------------------------------
 // Public Props
@@ -104,6 +107,10 @@ export function RoomEditorModal({
   canBug = false,
   onBugTask,
 }: RoomEditorModalProps) {
+  const store = useMockStore();
+  const gameId = store.roomId || store.session?.roomId || 'local-game';
+  const playerId = store.session?.playerId || (store.players[0]?.id ?? 'player-1');
+
   // ── Resolve mapping & fallback room definitions ────────────────────────────
   const mapping = getRoomMapping(roomId);
   const fallbackTask = DEFAULT_TASKS.find((t) => t.id === mapping?.taskId);
@@ -128,8 +135,8 @@ export function RoomEditorModal({
 
   const isCompletedByCrew = roomTaskStatus === 'COMPLETED';
 
-  // ── Code State: When crew has completed it or when Imposter inspects, show the completed code! ──
-  const getInitialCode = useCallback(() => {
+  // ── Code & Version State ──────────────────────────────────────────────────
+  const [code, setCode] = useState<string>(() => {
     if (completedCode && (isMafia || isCompletedByCrew || privateTask?.status === 'COMPLETED')) {
       return completedCode;
     }
@@ -139,25 +146,100 @@ export function RoomEditorModal({
       fallbackTask?.initialCode ??
       ''
     );
-  }, [completedCode, isMafia, isCompletedByCrew, privateTask, fallbackFile, fallbackTask]);
+  });
 
-  const [code, setCode] = useState<string>(getInitialCode);
+  const [version, setVersion] = useState<number>(1);
+  const [isLoadingFile, setIsLoadingFile] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [staleConflict, setStaleConflict] = useState<{ currentVersion: number; serverCode: string } | null>(null);
+  const [remoteUpdateNotice, setRemoteUpdateNotice] = useState<{ newVersion: number } | null>(null);
 
   // ── Test result state ────────────────────────────────────────────────────
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [hasRun, setHasRun] = useState(false);
 
-  // Synchronize strictly to this room's code when privateTask, roomId, or completedCode changes
+  // Guard refs
+  const applyingRemoteChangeRef = useRef<boolean>(false);
+  const lastLoadedCodeRef = useRef<string>(code);
+
+  // ── 1. Fetch Latest Authoritative Code & Version on Open ──────────────────
   useEffect(() => {
-    setCode(getInitialCode());
-    setTestResults([]);
-    setHasRun(false);
-  }, [roomId, privateTask, completedCode, roomTaskStatus, getInitialCode]);
+    let isMounted = true;
+    setIsLoadingFile(true);
+    setStaleConflict(null);
+    setRemoteUpdateNotice(null);
+
+    fetchLatestSharedFile(gameId, roomId)
+      .then((file) => {
+        if (!isMounted) return;
+        applyingRemoteChangeRef.current = true;
+        setCode(file.content);
+        setVersion(file.version);
+        lastLoadedCodeRef.current = file.content;
+        setIsLoadingFile(false);
+        applyingRemoteChangeRef.current = false;
+
+        // Log FILE_OPENED event
+        logGameEvent({
+          gameId,
+          type: 'FILE_OPENED',
+          playerId,
+          roomId,
+          fileId: file.id,
+          fileName: file.file_name,
+          newVersion: file.version,
+        });
+      })
+      .catch((err) => {
+        console.warn('Could not fetch latest shared file from Supabase, using local fallback:', err);
+        if (isMounted) {
+          setIsLoadingFile(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [gameId, roomId, playerId]);
+
+  // ── 2. Realtime Notification for Live File Changes ────────────────────────
+  useEffect(() => {
+    if (!gameId) return;
+
+    const channel = supabase.channel(`room:${gameId}:events`);
+
+    channel.on('broadcast', { event: 'file_code_updated' }, ({ payload }) => {
+      if (!payload) return;
+      const targetRoom = payload.roomId?.toLowerCase();
+      const currentRoomNorm = (mapping?.fileId.replace('file-', '') || roomId).toLowerCase();
+
+      if (targetRoom === currentRoomNorm || payload.fileName === fileName) {
+        const newVer = Number(payload.version || 1);
+
+        // If local user has NO unsaved modifications, automatically update editor
+        if (code === lastLoadedCodeRef.current) {
+          fetchLatestSharedFile(gameId, roomId).then((file) => {
+            applyingRemoteChangeRef.current = true;
+            setCode(file.content);
+            setVersion(file.version);
+            lastLoadedCodeRef.current = file.content;
+            applyingRemoteChangeRef.current = false;
+          });
+        } else {
+          // If local user has pending unsaved changes, display warning notification banner
+          setRemoteUpdateNotice({ newVersion: newVer });
+        }
+      }
+    });
+
+    return () => {
+      // Channel lifecycle managed in useRealtime / store
+    };
+  }, [gameId, roomId, fileName, mapping, code]);
 
   // Keyboard shortcut: 'B' to bug code inside terminal if Imposter
   useEffect(() => {
     const handleModalKey = (e: KeyboardEvent) => {
-      // Ignore if typing inside editor
       const target = e.target as HTMLElement | null;
       if (
         target &&
@@ -167,14 +249,14 @@ export function RoomEditorModal({
       ) {
         return;
       }
-      if (e.key.toLowerCase() === 'b' && canBug && onBugTask) {
+      if (e.key.toLowerCase() === 'b' && canBug) {
         e.preventDefault();
-        onBugTask();
+        handleSabotageAction();
       }
     };
     window.addEventListener('keydown', handleModalKey);
     return () => window.removeEventListener('keydown', handleModalKey);
-  }, [canBug, onBugTask]);
+  }, [canBug]);
 
   // ── Derived status values ────────────────────────────────────────────────
   const allPassed = hasRun && testResults.length > 0 && testResults.every((r) => r.passed);
@@ -192,6 +274,7 @@ export function RoomEditorModal({
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleCodeChange = useCallback((newValue: string) => {
+    if (applyingRemoteChangeRef.current) return;
     setCode(newValue);
     setHasRun(false);
     setTestResults([]);
@@ -218,6 +301,133 @@ export function RoomEditorModal({
       onTaskPassed?.(taskId, code);
     }
   }, [taskId, privateTask, code, mapping, fileName, onTaskPassed]);
+
+  // ── Explicit Save / Submit Handler (Supabase Persistence with Stale Check) ──
+  const handleSaveAndSubmit = async () => {
+    if (isSaving || readOnly) return;
+    setIsSaving(true);
+    setStaleConflict(null);
+
+    // 1. Run deterministic test validation first
+    let passed = false;
+    if (taskId) {
+      const results = privateTask
+        ? validatePrivateTaskCode(taskId, code)
+        : runTaskTests(
+            [{ id: mapping?.fileId ?? 'file-auth', name: fileName, language: 'javascript', content: code }],
+            taskId
+          );
+      setTestResults(results);
+      setHasRun(true);
+      passed = results.length > 0 && results.every((r) => r.passed);
+    }
+
+    // 2. Persist code to Supabase with optimistic version check
+    const res = await saveCrewmateCode({
+      gameId,
+      roomIdOrFileId: roomId,
+      content: code,
+      expectedVersion: version,
+      playerId,
+    });
+
+    setIsSaving(false);
+
+    if (res.stale) {
+      // Stale Save Rejected: Show warning & let user load latest
+      setStaleConflict({
+        currentVersion: res.currentVersion || version + 1,
+        serverCode: res.file?.content || '',
+      });
+      logGameEvent({
+        gameId,
+        type: 'STALE_CODE_SUBMITTED',
+        playerId,
+        roomId,
+        previousVersion: version,
+        newVersion: res.currentVersion,
+      });
+      return;
+    }
+
+    if (res.success && res.file) {
+      setVersion(res.file.version);
+      lastLoadedCodeRef.current = res.file.content;
+      setRemoteUpdateNotice(null);
+
+      // Log successful file update & task completion
+      logGameEvent({
+        gameId,
+        type: passed ? 'TASK_COMPLETED' : 'FILE_CODE_UPDATED',
+        playerId,
+        roomId,
+        fileId: res.file.id,
+        fileName: res.file.file_name,
+        previousVersion: version,
+        newVersion: res.file.version,
+      });
+
+      if (passed && taskId) {
+        onTaskPassed?.(taskId, code);
+      }
+    }
+  };
+
+  // ── Imposter Sabotage Handler (Always Mutates Latest Supabase Code) ────────
+  const handleSabotageAction = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+
+    // If Mafia manually typed changes, use custom code, otherwise controlled mutation
+    const hasCustomEdits = code !== lastLoadedCodeRef.current;
+
+    const res = await sabotageSharedCode({
+      gameId,
+      roomIdOrFileId: roomId,
+      playerId,
+      customMutatedCode: hasCustomEdits ? code : undefined,
+    });
+
+    setIsSaving(false);
+
+    if (res.success && res.file) {
+      applyingRemoteChangeRef.current = true;
+      setCode(res.file.content);
+      setVersion(res.file.version);
+      lastLoadedCodeRef.current = res.file.content;
+      applyingRemoteChangeRef.current = false;
+
+      // Log BUG_INJECTED event
+      logGameEvent({
+        gameId,
+        type: 'BUG_INJECTED',
+        playerId,
+        roomId,
+        fileId: res.file.id,
+        fileName: res.file.file_name,
+        previousVersion: res.previousVersion,
+        newVersion: res.newVersion,
+        mutationType: res.mutationType,
+      });
+
+      if (onBugTask) {
+        onBugTask();
+      }
+    }
+  };
+
+  const handleLoadLatest = async () => {
+    setIsLoadingFile(true);
+    const latest = await fetchLatestSharedFile(gameId, roomId);
+    applyingRemoteChangeRef.current = true;
+    setCode(latest.content);
+    setVersion(latest.version);
+    lastLoadedCodeRef.current = latest.content;
+    setStaleConflict(null);
+    setRemoteUpdateNotice(null);
+    setIsLoadingFile(false);
+    applyingRemoteChangeRef.current = false;
+  };
 
   const handleClose = useCallback(() => {
     onClose();
@@ -252,12 +462,50 @@ export function RoomEditorModal({
       className="absolute inset-0 z-50 flex flex-col bg-[#070B16] border-4 border-primary
                  shadow-[0_0_60px_rgba(0,240,255,0.25)] overflow-hidden"
     >
+      {/* ── Stale Save Warning Alert Banner ────────────────────────────── */}
+      {staleConflict && (
+        <div className="bg-mafia/90 text-white border-b-2 border-white px-4 py-2 flex items-center justify-between z-50 animate-bounce">
+          <div className="flex items-center gap-2 font-mono text-xs">
+            <AlertTriangle size={16} className="text-yellow-300" />
+            <span>
+              <strong>⚠ NEWER VERSION EXISTS!</strong> Another player has already saved a newer version (Your version: v{version}, Latest: v{staleConflict.currentVersion}).
+            </span>
+          </div>
+          <button
+            onClick={handleLoadLatest}
+            className="flex items-center gap-1.5 px-3 py-1 bg-black border border-white text-white font-pixel text-[10px] hover:bg-white hover:text-black transition-colors cursor-pointer"
+          >
+            <RefreshCw size={12} />
+            LOAD LATEST (v{staleConflict.currentVersion})
+          </button>
+        </div>
+      )}
+
+      {/* ── Remote Update Notification Banner ──────────────────────────── */}
+      {remoteUpdateNotice && !staleConflict && (
+        <div className="bg-yellow-950/90 text-yellow-300 border-b-2 border-yellow-500 px-4 py-2 flex items-center justify-between z-50">
+          <div className="flex items-center gap-2 font-mono text-xs">
+            <AlertTriangle size={16} className="text-yellow-400 animate-pulse" />
+            <span>
+              <strong>⚠ FILE UPDATED!</strong> Another player has saved changes to this file (Latest: v{remoteUpdateNotice.newVersion}).
+            </span>
+          </div>
+          <button
+            onClick={handleLoadLatest}
+            className="flex items-center gap-1.5 px-3 py-1 bg-yellow-500 text-black font-pixel text-[10px] hover:bg-yellow-400 transition-colors cursor-pointer font-bold"
+          >
+            <RefreshCw size={12} />
+            LOAD LATEST (v{remoteUpdateNotice.newVersion})
+          </button>
+        </div>
+      )}
+
       {/* ── Header bar ─────────────────────────────────────────────────── */}
       <header
         className="flex-shrink-0 flex items-center justify-between
                    bg-[#0D1426] border-b-4 border-[#1A233A] px-4 py-2"
       >
-        {/* Left: room name + file name + presence */}
+        {/* Left: room name + file name + version + presence */}
         <div className="flex items-center gap-4 min-w-0">
           <Terminal size={18} className="text-primary flex-shrink-0" />
           <div className="min-w-0">
@@ -266,6 +514,9 @@ export function RoomEditorModal({
             </div>
             <div className="font-mono text-[11px] text-gray-400 truncate flex items-center gap-2">
               <span className="text-white font-bold">{fileName}</span>
+              <span className="text-[10px] text-primary border border-primary/40 bg-primary/10 px-1.5 py-0.2 rounded font-pixel font-bold">
+                v{version}
+              </span>
               <span className="text-[10px] text-primary/80 font-pixel">
                 [1 TASK ASSIGNED]
               </span>
@@ -292,8 +543,8 @@ export function RoomEditorModal({
           )}
         </div>
 
-        {/* Right: Task status badge + Imposter Bug Button / Run Tests + Exit */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Right: Task status badge + Imposter Bug Button / Save & Run Tests + Exit */}
+        <div className="flex items-center gap-2.5 flex-shrink-0">
           {/* Status Badge */}
           <div className="font-mono text-xs px-2.5 py-1 border rounded border-[#1A233A]">
             {canBug ? (
@@ -320,17 +571,18 @@ export function RoomEditorModal({
           </div>
 
           {/* Imposter Bug Action Button */}
-          {canBug && onBugTask && (
+          {canBug && (
             <button
               id="bug-task-modal-btn"
-              onClick={onBugTask}
+              onClick={handleSabotageAction}
+              disabled={isSaving}
               className="flex items-center gap-2 border-2 border-mafia bg-mafia text-white font-pixel
                          text-[10px] px-4 py-2 hover:bg-mafia/80 shadow-[0_0_20px_#FF003C]
                          transition-all hover:scale-105 duration-150 tracking-widest cursor-pointer animate-pulse"
               title="Bug this code and trigger 3-second escape window [B]"
             >
               <Bug size={13} />
-              BUG THIS CODE [B]
+              {isSaving ? 'SABOTAGING...' : 'BUG THIS CODE [B]'}
             </button>
           )}
 
@@ -339,12 +591,27 @@ export function RoomEditorModal({
             <button
               id="run-tests-btn"
               onClick={handleRunTests}
-              className="flex items-center gap-2 border-2 border-success text-success font-pixel
-                         text-[10px] px-4 py-2 hover:bg-success hover:text-black
-                         transition-colors duration-150 tracking-widest cursor-pointer"
+              className="flex items-center gap-1.5 border border-panelBorder bg-panel text-gray-200 font-pixel
+                         text-[10px] px-3 py-2 hover:border-primary hover:text-primary
+                         transition-colors duration-150 tracking-wider cursor-pointer"
             >
-              <Play size={12} />
+              <Play size={12} className="text-success" />
               RUN TESTS
+            </button>
+          )}
+
+          {/* Developer Save / Submit Button */}
+          {!readOnly && !isMafia && (
+            <button
+              id="save-code-btn"
+              onClick={handleSaveAndSubmit}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 border-2 border-success bg-success/10 text-success font-pixel
+                         text-[10px] px-4 py-2 hover:bg-success hover:text-black
+                         transition-all hover:scale-105 duration-150 tracking-widest cursor-pointer shadow-[0_0_12px_rgba(0,255,102,0.3)]"
+            >
+              <Save size={12} />
+              {isSaving ? 'SAVING...' : 'SAVE & SUBMIT'}
             </button>
           )}
 
@@ -352,7 +619,7 @@ export function RoomEditorModal({
             id="exit-terminal-btn"
             onClick={handleClose}
             className="flex items-center gap-2 border-2 border-mafia text-mafia font-pixel
-                       text-[10px] px-4 py-2 hover:bg-mafia hover:text-black
+                       text-[10px] px-3.5 py-2 hover:bg-mafia hover:text-black
                        transition-colors duration-150 tracking-widest cursor-pointer"
           >
             <LogOut size={12} />
@@ -368,9 +635,9 @@ export function RoomEditorModal({
         </div>
       </header>
 
-      {/* ── Body: Task Workspace (Strictly Scoped to THIS Room Only) ──────── */}
+      {/* ── Body: Task Workspace ────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden min-h-0">
-        {/* Left Side: Room Task Specification Sidebar (NO FileTree) */}
+        {/* Left Side: Room Task Specification Sidebar */}
         <aside className="flex-shrink-0 w-80 bg-[#0A0F1D] border-r-4 border-[#1A233A] p-3.5 flex flex-col justify-between overflow-y-auto">
           <div className="space-y-3.5">
             {/* ── 1. PUBLIC PROJECT CONTEXT ── */}
@@ -387,7 +654,7 @@ export function RoomEditorModal({
               </p>
             </div>
 
-            {/* ── 2. 🔒 SCOPED ROOM TASK OR MAFIA SABOTAGE SPECIFICATION ── */}
+            {/* ── 2. SCOPED ROOM TASK OR MAFIA SABOTAGE SPECIFICATION ── */}
             {isMafia && isCompletedByCrew ? (
               <div className="bg-[#18080C] border-2 border-mafia p-3 rounded space-y-2.5 shadow-[0_0_25px_rgba(255,0,60,0.25)]">
                 <div className="flex items-center justify-between border-b border-mafia/40 pb-1.5">
@@ -405,7 +672,7 @@ export function RoomEditorModal({
                     {taskTitle}
                   </div>
                   <p className="font-mono text-[11px] text-gray-300 leading-relaxed mt-1">
-                    Crewmates have completed and deployed this module! The working completed code is displayed in the editor.
+                    Crewmates have completed and deployed this module! The latest working code is displayed in the editor.
                   </p>
                 </div>
 
@@ -456,10 +723,10 @@ export function RoomEditorModal({
           <div className="mt-3 pt-2.5 border-t border-[#1A233A] text-[9px] font-mono text-gray-400 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <ShieldCheck size={13} className="text-success" />
-              <span>ROOM TASK SEGREGATION</span>
+              <span>SUPABASE PERSISTENCE ACTIVE</span>
             </div>
             <span className="text-success font-bold font-pixel text-[9px]">
-              1 TASK ACTIVE
+              VERSION {version}
             </span>
           </div>
         </aside>
@@ -470,6 +737,9 @@ export function RoomEditorModal({
             <div className="flex items-center gap-1.5">
               <Code2 size={13} className="text-primary" />
               <span className="text-white font-bold">{fileName}</span>
+              <span className="text-primary font-pixel text-[9px]">
+                [VERSION {version}]
+              </span>
               <span className="text-gray-500">//</span>
               <span className="text-primary font-pixel text-[9px]">
                 {roomLabel} WORKSPACE
@@ -477,27 +747,33 @@ export function RoomEditorModal({
             </div>
             <span className="text-gray-500 text-[9px]">
               {isMafia && isCompletedByCrew
-                ? 'COMPLETED CREWMATE LOGIC LOADED — READY FOR SABOTAGE'
-                : "SOLVE THIS ROOM'S TASK TO RESTORE INTEGRITY"}
+                ? 'LATEST CREWMATE LOGIC LOADED — READY FOR SABOTAGE'
+                : "EDIT AND CLICK 'SAVE & SUBMIT' TO PERSIST CODE"}
             </span>
           </div>
 
-          <CodeEditor
-            key={`${roomId}-${taskId}-${isCompletedByCrew ? 'completed' : 'active'}`}
-            value={code}
-            language={
-              fileName.endsWith('.java')
-                ? 'java'
-                : fileName.endsWith('.py')
-                ? 'python'
-                : fileName.endsWith('.c') || fileName.endsWith('.cpp')
-                ? 'cpp'
-                : 'javascript'
-            }
-            readOnly={readOnly || (isMafia && isCompletedByCrew)}
-            onChange={handleCodeChange}
-            height="100%"
-          />
+          {isLoadingFile ? (
+            <div className="flex items-center justify-center flex-1 bg-[#070B16] text-primary font-tech animate-pulse text-sm">
+              &gt; FETCHING LATEST CODE FROM SUPABASE (ROOM: {roomLabel})...
+            </div>
+          ) : (
+            <CodeEditor
+              key={`${roomId}-${taskId}-${version}`}
+              value={code}
+              language={
+                fileName.endsWith('.java')
+                  ? 'java'
+                  : fileName.endsWith('.py')
+                  ? 'python'
+                  : fileName.endsWith('.c') || fileName.endsWith('.cpp')
+                  ? 'cpp'
+                  : 'javascript'
+              }
+              readOnly={readOnly || (isMafia && isCompletedByCrew)}
+              onChange={handleCodeChange}
+              height="100%"
+            />
+          )}
         </div>
       </div>
 
@@ -513,7 +789,7 @@ export function RoomEditorModal({
               <span className="text-yellow-400 font-mono text-xs flex items-center gap-2 animate-pulse">
                 <Bug size={14} className="text-yellow-400 flex-shrink-0" />
                 <span>
-                  Crewmate solved code detected in <strong className="text-white">{fileName}</strong>. Click <strong className="text-white underline">BUG THIS CODE [B]</strong> to sabotage the module (3s escape window before hazard alarm triggers)!
+                  Crewmate solved code loaded in <strong className="text-white">{fileName} (v{version})</strong>. Click <strong className="text-white underline">BUG THIS CODE [B]</strong> to sabotage the module (3s escape window before hazard alarm triggers)!
                 </span>
               </span>
             ) : taskStatus === 'COMPROMISED' ? (
@@ -524,11 +800,11 @@ export function RoomEditorModal({
             ) : taskStatus === 'COMPLETED' ? (
               <span className="text-success font-bold flex items-center gap-1.5">
                 <CheckCircle size={14} />
-                ✓ ROOM TASK COMPLETED — System stability restored in {roomLabel}.
+                ✓ ROOM TASK COMPLETED — System stability restored in {roomLabel} (v{version}).
               </span>
             ) : taskId ? (
               <span>
-                Edit the logic in <span className="text-primary font-bold">{fileName}</span> above, then click <span className="text-success font-bold">RUN TESTS</span>.
+                Edit the logic in <span className="text-primary font-bold">{fileName}</span> above, then click <span className="text-success font-bold">SAVE & SUBMIT</span> or <span className="text-gray-300 font-bold">RUN TESTS</span>.
               </span>
             ) : (
               'This room has no task associated.'
@@ -578,7 +854,7 @@ export function RoomEditorModal({
                            inline-block px-3 py-1 shadow-[0_0_12px_rgba(0,255,0,0.4)]
                            animate-pulse"
               >
-                ✓ TASK COMPLETED — AUTHORITATIVE PROGRESS UPDATED
+                ✓ TASK COMPLETED — AUTHORITATIVE PROGRESS UPDATED (v{version})
               </div>
             )}
           </div>
