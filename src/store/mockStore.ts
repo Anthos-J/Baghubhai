@@ -83,6 +83,7 @@ interface GameStateStore {
   isGameTimerPaused: boolean;
   meetingAlertActive: boolean;
   meetingCallerName: string;
+  meetingCallerColor: string;
   meetingSubPhase: MeetingSubPhase;
   meetingDiscussionTimer: number; // dynamically driven by settings
   meetingVotingTimer: number; // dynamically driven by settings
@@ -109,7 +110,7 @@ interface GameStateStore {
   setGameTimerPaused: (paused: boolean) => void;
 
   // ── Emergency & Meeting flow ──
-  triggerEmergencyMeeting: (callerName?: string, isRemote?: boolean) => void;
+  triggerEmergencyMeeting: (callerName?: string, isRemote?: boolean, callerColor?: string) => void;
   dismissMeetingAlert: () => void;
   setMeetingSubPhase: (subPhase: MeetingSubPhase) => void;
   tickMeetingTimer: () => void;
@@ -177,6 +178,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   isGameTimerPaused: false,
   meetingAlertActive: false,
   meetingCallerName: '',
+  meetingCallerColor: '',
   meetingSubPhase: 'DISCUSSION',
   meetingDiscussionTimer: 180, // 3 min
   meetingVotingTimer: 60, // 1 min
@@ -341,13 +343,14 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   },
 
   callMeeting: () => {
-    const { session } = get();
+    const { session, players } = get();
     const callerName = session?.username || 'Crewmate';
-    get().triggerEmergencyMeeting(callerName);
+    const callerColor = session?.color || players.find((p) => p.id === session?.playerId)?.color;
+    get().triggerEmergencyMeeting(callerName, false, callerColor);
   },
 
   // ── Emergency & Meeting flow ──
-  triggerEmergencyMeeting: (callerName?: string, isRemote: boolean = false) => {
+  triggerEmergencyMeeting: (callerName?: string, isRemote: boolean = false, callerColor?: string) => {
     const { roomId, session, meetingAlertActive, gamePhase, engineState, players } = get();
     if (meetingAlertActive || gamePhase === 'MEETING' || gamePhase === 'VOTING') {
       return;
@@ -362,6 +365,10 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
     }
 
     const name = callerName || session?.username || 'Crewmate';
+    const matchedPlayer = players.find(
+      (p) => p.username.toLowerCase() === name.toLowerCase() || p.id === session?.playerId
+    );
+    const color = callerColor || matchedPlayer?.color || localPlayer?.color || session?.color || '#00F0FF';
     const discTime = engineState.settings?.discussionDurationSeconds ?? 180;
     const voteTime = engineState.settings?.votingDurationSeconds ?? 60;
 
@@ -378,6 +385,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       players: nextPlayers,
       meetingAlertActive: true,
       meetingCallerName: name,
+      meetingCallerColor: color,
       isGameTimerPaused: true,
       meetingSubPhase: 'DISCUSSION',
       meetingDiscussionTimer: discTime,
@@ -394,7 +402,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       supabase.channel(`room:${roomId}:events`).send({
         type: 'broadcast',
         event: 'emergency_meeting',
-        payload: { callerName: name },
+        payload: { callerName: name, callerColor: color },
       });
     }
   },
@@ -693,7 +701,11 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
           triggerTrophyEvent('MAFIA_UNDETECTED');
         }
       }
-      if (winResult.winner === 'DEVELOPERS' && isDev && survived && updatedMyTasks.every((t) => t.status === 'COMPLETED')) {
+      // Note: checking `updatedMyTasks` requires it to be defined here, we will just pass updatedPrivateTasks.
+      const updatedPrivateTasks = state.myPrivateTasks.map(t =>
+        t.taskId === legacyTaskId ? { ...t, status: 'COMPLETED' as const } : t
+      );
+      if (winResult.winner === 'DEVELOPERS' && isDev && survived && updatedPrivateTasks.every((t) => t.status === 'COMPLETED')) {
         triggerTrophyEvent('PERFECT_DEV');
       }
     }
@@ -1071,6 +1083,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
       isGameTimerPaused: false,
       meetingAlertActive: false,
       meetingCallerName: '',
+      meetingCallerColor: '',
       meetingSubPhase: 'DISCUSSION',
       meetingDiscussionTimer: 180,
       meetingVotingTimer: 60,
