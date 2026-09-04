@@ -2,12 +2,13 @@
  * challengeService.ts — Supabase Bugged Code Challenge Subsystem
  *
  * Implements:
- * 1. 10 Prebuilt bugged coding challenges across Java, Python, and C.
- * 2. Host Settings language & difficulty filtering with Supabase query & safe fallback.
- * 3. Random selection of ONE shared codebase for the match.
- * 4. Random assignment of UNIQUE bug objectives across developers and the 6 rooms.
- * 5. Strict player isolation & server-side authorization (zero leakage of solutions or other players' objectives).
- * 6. Deterministic validation for each bug fix.
+ * 1. 10 Comprehensive B.Tech Prebuilt Coding Challenges across Java, Python, and C.
+ * 2. At least 10 unique, realistic bugs per problem statement (100+ total bugs across challenges).
+ * 3. Equal distribution of bug objectives across all active developers (Fair Fisher-Yates Round Robin).
+ * 4. Sabotage/Destruction mechanics for Imposters against developers (Syntax Blackout, Server Overload, Re-mutation).
+ * 5. Start of each match: Randomly selects ONE problem statement for the match session.
+ * 6. Strict player isolation & server-side authorization guard.
+ * 7. Deterministic validation for all 100+ bug fixes.
  */
 
 import { supabase } from '../lib/supabase';
@@ -77,23 +78,1718 @@ export const ROOM_IDS_BY_INDEX: Record<number, { id: string; label: string }> = 
   6: { id: 'mafia_lair', label: 'DARK LAIR' },
 };
 
-// ── 10 PREBUILT CODING CHALLENGES ──────────────────────────────────────────
+// ── 10 B.TECH PREBUILT CODING CHALLENGES (WITH 10+ BUGS EACH) ──────────────────
 
 export const PREBUILT_CHALLENGES: CodingChallenge[] = [
-  // ── 1. JAVA / EASY: Array Operations & Second Largest ────────────────────
+  // ── 1. C / EASY: #2 Arithmetic, #3/#4 Swap, #5 Calculator, #8/#9 Max ─────
+  {
+    id: 'challenge-c-001',
+    title: 'Basic Calculator, Arithmetic Operations & Variable Swap',
+    description: 'B.Tech Program #2, #3, #4, #5, #8 & #9: Menu-driven arithmetic calculation, division safeguards, modular arithmetic, variable swapping and number comparisons.',
+    language: 'C',
+    difficulty: 'EASY',
+    code: `#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+// Function 1: Basic addition
+double add(double a, double b) {
+    // BUG-1: Subtracts instead of adding
+    return a - b;
+}
+
+// Function 2: Basic subtraction
+double subtract(double a, double b) {
+    // BUG-2: Swapped operand order (b - a)
+    return b - a;
+}
+
+// Function 3: Multiplication
+double multiply(double a, double b) {
+    // BUG-3: Returns 0.0 unconditionally
+    return 0.0;
+}
+
+// Function 4: Safe Division
+double safe_divide(double a, double b) {
+    // BUG-4: Checks a == 0 instead of divisor b == 0
+    if (a == 0.0) {
+        printf("Error: Division by zero!\\n");
+        return 0.0;
+    }
+    return a / b;
+}
+
+// Function 5: Modulus of two integers
+int safe_modulus(int a, int b) {
+    // BUG-5: Inverted division by zero check
+    if (b != 0) {
+        return 0;
+    }
+    return a % b;
+}
+
+// Function 6: Swap two numbers without temporary variable
+void swap_numbers(int *a, int *b) {
+    if (a == NULL || b == NULL) return;
+    // BUG-6: Incorrect XOR swap logic (overwriting a with addition)
+    *a = *a + *b;
+    *b = *a + *b;
+    *a = *b - *a;
+}
+
+// Function 7: Find largest of two numbers
+int largest_of_two(int a, int b) {
+    // BUG-7: Returns smallest instead of largest
+    return (a < b) ? a : b;
+}
+
+// Function 8: Find largest of three numbers
+int largest_of_three(int a, int b, int c) {
+    // BUG-8: Missing comparison with c in first branch
+    if (a >= b) {
+        return a;
+    } else if (b >= c) {
+        return b;
+    }
+    return c;
+}
+
+// Function 9: Check if number is positive, negative or zero
+int check_sign(int n) {
+    // BUG-9: Treats 0 as positive (n >= 0)
+    if (n >= 0) return 1;
+    return -1;
+}
+
+// Function 10: Calculate integer power a^b (b >= 0)
+long long integer_power(int base, int exp) {
+    if (exp < 0) return 0;
+    long long result = 1;
+    // BUG-10: Loop terminates 1 iteration early (i < exp instead of i <= exp or i < exp with base 1)
+    for (int i = 1; i < exp; i++) {
+        result *= base;
+    }
+    return result;
+}`,
+    bugs: [
+      {
+        bugId: 'c-calc-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Add Operation Operator',
+        objective: 'In add(double a, double b), perform proper addition (a + b) instead of subtraction.',
+        hint: 'Replace "a - b" with "a + b".',
+        expectedFix: 'return a + b;',
+        testKey: 'test-c-calc-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('return a + b;') || cleanCode.includes('return a+b;');
+          return [{ testId: 't-1', taskId: 'c-calc-bug-1', fileId: 'Calculator.c', name: 'Addition Operator', passed, message: passed ? 'Addition formula valid.' : 'Still subtracting operands.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Subtraction Operand Order',
+        objective: 'In subtract(double a, double b), return (a - b) in correct order.',
+        hint: 'Change "b - a" to "a - b".',
+        expectedFix: 'return a - b;',
+        testKey: 'test-c-calc-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('return a - b;') || cleanCode.includes('return a-b;');
+          return [{ testId: 't-2', taskId: 'c-calc-bug-2', fileId: 'Calculator.c', name: 'Subtraction Order', passed, message: passed ? 'Subtraction order valid.' : 'Operands inverted.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Implement Multiplication Formula',
+        objective: 'In multiply(double a, double b), compute and return the product a * b.',
+        hint: 'Replace "return 0.0;" with "return a * b;".',
+        expectedFix: 'return a * b;',
+        testKey: 'test-c-calc-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('return a * b;') || cleanCode.includes('return a*b;');
+          return [{ testId: 't-3', taskId: 'c-calc-bug-3', fileId: 'Calculator.c', name: 'Multiply Product', passed, message: passed ? 'Multiply product valid.' : 'Returns constant zero.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Safe Division Divisor Check',
+        objective: 'In safe_divide, verify divisor b == 0.0 (or b == 0) instead of dividend a == 0.',
+        hint: 'Change "if (a == 0.0)" to "if (b == 0.0 || b == 0)".',
+        expectedFix: 'if (b == 0.0) or if (b == 0)',
+        testKey: 'test-c-calc-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('if (b == 0.0') || cleanCode.includes('if (b == 0') || cleanCode.includes('if (!b)');
+          return [{ testId: 't-4', taskId: 'c-calc-bug-4', fileId: 'Calculator.c', name: 'Divisor Zero Guard', passed, message: passed ? 'Divisor zero check valid.' : 'Checks dividend instead of divisor.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Modulus Divisor Guard',
+        objective: 'In safe_modulus, guard against zero divisor (if b == 0 return 0).',
+        hint: 'Change "if (b != 0)" to "if (b == 0)".',
+        expectedFix: 'if (b == 0) return 0;',
+        testKey: 'test-c-calc-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('if (b == 0)') || cleanCode.includes('if (b == 0 )') || cleanCode.includes('if (!b)');
+          return [{ testId: 't-5', taskId: 'c-calc-bug-5', fileId: 'Calculator.c', name: 'Modulus Divisor Guard', passed, message: passed ? 'Modulus zero guard valid.' : 'Inverted zero check.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix Swap Numbers Logic',
+        objective: 'Fix the swap_numbers function arithmetic/temp swapping so *a and *b are swapped accurately.',
+        hint: 'Use *a = *a + *b; *b = *a - *b; *a = *a - *b; or a temp variable.',
+        expectedFix: '*b = *a - *b; *a = *a - *b;',
+        testKey: 'test-c-calc-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = (cleanCode.includes('*b = *a - *b') && cleanCode.includes('*a = *a - *b')) || cleanCode.includes('int temp = *a');
+          return [{ testId: 't-6', taskId: 'c-calc-bug-6', fileId: 'Calculator.c', name: 'Swap Values Logic', passed, message: passed ? 'Variable swap valid.' : 'Swap computation overwrites values.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Largest of Two Numbers Comparator',
+        objective: 'In largest_of_two, return the larger value (a > b ? a : b).',
+        hint: 'Change "a < b" to "a > b" or "a >= b".',
+        expectedFix: '(a > b) ? a : b',
+        testKey: 'test-c-calc-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('a > b') || cleanCode.includes('a >= b') || cleanCode.includes('b > a ? b : a');
+          return [{ testId: 't-7', taskId: 'c-calc-bug-7', fileId: 'Calculator.c', name: 'Largest Of Two', passed, message: passed ? 'Comparator returns max value.' : 'Returns smaller value.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Largest of Three Conditional Branching',
+        objective: 'In largest_of_three, ensure a is checked against both b AND c before returning a.',
+        hint: 'Change "if (a >= b)" to "if (a >= b && a >= c)".',
+        expectedFix: 'if (a >= b && a >= c)',
+        testKey: 'test-c-calc-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('a >= b && a >= c') || cleanCode.includes('a > b && a > c');
+          return [{ testId: 't-8', taskId: 'c-calc-bug-8', fileId: 'Calculator.c', name: 'Largest of Three', passed, message: passed ? 'Checks both comparisons for a.' : 'Missing comparison with c for a.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Sign Check for Zero',
+        objective: 'In check_sign, return 0 when n == 0, 1 when n > 0, and -1 when n < 0.',
+        hint: 'Handle n == 0 with "if (n == 0) return 0; if (n > 0) return 1; return -1;".',
+        expectedFix: 'if (n == 0) return 0;',
+        testKey: 'test-c-calc-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('if (n == 0) return 0') || cleanCode.includes('if (n > 0) return 1;') || cleanCode.includes('n > 0 ? 1 : (n < 0 ? -1 : 0)');
+          return [{ testId: 't-9', taskId: 'c-calc-bug-9', fileId: 'Calculator.c', name: 'Zero Sign Check', passed, message: passed ? 'Properly discriminates 0 from positive/negative.' : 'Treats zero as positive.' }];
+        },
+      },
+      {
+        bugId: 'c-calc-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Integer Power Loop Boundary',
+        objective: 'In integer_power, ensure the multiplication loop runs exp times (e.g. for int i = 0; i < exp; i++).',
+        hint: 'Change "for (int i = 1; i < exp; i++)" to "for (int i = 0; i < exp; i++)" or "i <= exp".',
+        expectedFix: 'for (int i = 0; i < exp; i++)',
+        testKey: 'test-c-calc-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('int i = 0; i < exp;') || cleanCode.includes('int i = 1; i <= exp;');
+          return [{ testId: 't-10', taskId: 'c-calc-bug-10', fileId: 'Calculator.c', name: 'Power Loop Iterations', passed, message: passed ? 'Multiplication loop executes exp times.' : 'Power loop misses 1 iteration.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'add(12, 8)', expectedOutput: '20' },
+      { input: 'largest_of_three(5, 19, 12)', expectedOutput: '19' },
+    ],
+    is_active: true,
+  },
+
+  // ── 2. JAVA / EASY: #11 Reverse, #12 Count, #16 Palindrome, #23 Armstrong ──
   {
     id: 'challenge-java-001',
-    title: 'Array Processor & Second Largest',
-    description: 'Process telemetry arrays, calculate bounds, and find the second largest telemetry value.',
+    title: 'Number Theory: Palindrome, Armstrong & Digit Manipulations',
+    description: 'B.Tech Program #11, #12, #13, #16, #23, #25, #30, #31, #32 & #34: Digit extraction, palindrome number tests, Armstrong sum of cubes, Harshad numbers, and divisor algorithms.',
     language: 'JAVA',
     difficulty: 'EASY',
-    code: `public class ArrayProcessor {
+    code: `public class NumberTheoryProcessor {
+    // 1. Reverse an integer
+    public static int reverseNumber(int n) {
+        int reversed = 0;
+        // BUG-1: Loop condition excludes single digit when n > 0 (n > 9 skips final digit)
+        while (n > 9) {
+            reversed = reversed * 10 + (n % 10);
+            n /= 10;
+        }
+        return reversed;
+    }
+
+    // 2. Count number of digits in an integer
+    public static int countDigits(int n) {
+        // BUG-2: Returns 0 for input 0 instead of 1
+        if (n == 0) return 0;
+        int count = 0;
+        int temp = Math.abs(n);
+        while (temp > 0) {
+            count++;
+            temp /= 10;
+        }
+        return count;
+    }
+
+    // 3. Sum of digits
+    public static int sumOfDigits(int n) {
+        int sum = 0;
+        int temp = Math.abs(n);
+        while (temp > 0) {
+            // BUG-3: Adds temp instead of remainder temp % 10
+            sum += temp;
+            temp /= 10;
+        }
+        return sum;
+    }
+
+    // 4. Check if number is palindrome
+    public static boolean isPalindrome(int n) {
+        if (n < 0) return false;
+        // BUG-4: Compares reverse with original n after n is mutated to 0
+        int temp = n;
+        int rev = 0;
+        while (n > 0) {
+            rev = rev * 10 + (n % 10);
+            n /= 10;
+        }
+        return rev == n;
+    }
+
+    // 5. Armstrong number check (e.g. 153 = 1^3 + 5^3 + 3^3)
+    public static boolean isArmstrong(int n) {
+        if (n < 0) return false;
+        int temp = n;
+        int digits = String.valueOf(n).length();
+        int sum = 0;
+        while (temp > 0) {
+            int digit = temp % 10;
+            // BUG-5: Squares instead of raising to power of digits
+            sum += digit * digit;
+            temp /= 10;
+        }
+        return sum == n;
+    }
+
+    // 6. Perfect number check (sum of proper divisors == n)
+    public static boolean isPerfectNumber(int n) {
+        if (n <= 1) return false;
+        int sum = 0;
+        // BUG-6: Loop runs only up to n / 3 missing half proper divisors
+        for (int i = 1; i <= n / 3; i++) {
+            if (n % i == 0) {
+                sum += i;
+            }
+        }
+        return sum == n;
+    }
+
+    // 7. Harshad number (divisible by sum of its digits)
+    public static boolean isHarshadNumber(int n) {
+        if (n <= 0) return false;
+        int sum = sumOfDigits(n);
+        // BUG-7: Inverted condition (checks sum % n == 0 instead of n % sum == 0)
+        return sum % n == 0;
+    }
+
+    // 8. Neon number (sum of digits of square == n, e.g. 9^2 = 81 -> 8+1 = 9)
+    public static boolean isNeonNumber(int n) {
+        // BUG-8: Uses n instead of square n * n
+        int sq = n;
+        int sum = 0;
+        while (sq > 0) {
+            sum += sq % 10;
+            sq /= 10;
+        }
+        return sum == n;
+    }
+
+    // 9. Spy number (sum of digits == product of digits)
+    public static boolean isSpyNumber(int n) {
+        if (n < 0) return false;
+        int sum = 0;
+        // BUG-9: Initial product set to 0 causing product to stay 0
+        int prod = 0;
+        int temp = n;
+        while (temp > 0) {
+            int digit = temp % 10;
+            sum += digit;
+            prod *= digit;
+            temp /= 10;
+        }
+        return sum == prod;
+    }
+
+    // 10. Disarium number (sum of digits raised to their respective positions)
+    public static boolean isDisariumNumber(int n) {
+        String s = String.valueOf(n);
+        int sum = 0;
+        // BUG-10: Position starts at 0 instead of 1
+        for (int i = 0; i < s.length(); i++) {
+            int digit = s.charAt(i) - '0';
+            sum += (int) Math.pow(digit, i);
+        }
+        return sum == n;
+    }
+}`,
+    bugs: [
+      {
+        bugId: 'java-num-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Reverse Number Loop Condition',
+        objective: 'In reverseNumber, allow loop to process all digits while n > 0 (or n != 0).',
+        hint: 'Change "while (n > 9)" to "while (n > 0)".',
+        expectedFix: 'while (n > 0)',
+        testKey: 'test-java-num-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('while (n > 0)') || cleanCode.includes('while (n != 0)');
+          return [{ testId: 't-1', taskId: 'java-num-bug-1', fileId: 'NumberTheoryProcessor.java', name: 'Reverse Number Loop', passed, message: passed ? 'Processes all digits.' : 'Loop stops early at n > 9.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Zero Digit Count',
+        objective: 'In countDigits, return 1 when n == 0.',
+        hint: 'Change "if (n == 0) return 0;" to "if (n == 0) return 1;".',
+        expectedFix: 'if (n == 0) return 1;',
+        testKey: 'test-java-num-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('if (n == 0) return 1;') || cleanCode.includes('if (n == 0) return 1 ;');
+          return [{ testId: 't-2', taskId: 'java-num-bug-2', fileId: 'NumberTheoryProcessor.java', name: 'Count Digits Zero Case', passed, message: passed ? 'Zero digit count returns 1.' : 'Zero digit count returns 0.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Sum of Digits Remainder Extraction',
+        objective: 'In sumOfDigits, accumulate remainder temp % 10 instead of entire temp.',
+        hint: 'Change "sum += temp;" to "sum += temp % 10;".',
+        expectedFix: 'sum += temp % 10;',
+        testKey: 'test-java-num-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('sum += temp % 10;') || cleanCode.includes('sum += (temp % 10);');
+          return [{ testId: 't-3', taskId: 'java-num-bug-3', fileId: 'NumberTheoryProcessor.java', name: 'Sum Of Digits Remainder', passed, message: passed ? 'Accumulates digit remainders.' : 'Accumulates entire temp value.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Palindrome Original Comparison',
+        objective: 'In isPalindrome, compare reversed value rev with original temp instead of mutated n.',
+        hint: 'Change "return rev == n;" to "return rev == temp;".',
+        expectedFix: 'return rev == temp;',
+        testKey: 'test-java-num-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('return rev == temp;') || cleanCode.includes('return rev == temp ;');
+          return [{ testId: 't-4', taskId: 'java-num-bug-4', fileId: 'NumberTheoryProcessor.java', name: 'Palindrome Comparison', passed, message: passed ? 'Compares with preserved temp value.' : 'Compares with mutated n.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Armstrong Power Calculation',
+        objective: 'In isArmstrong, raise each digit to the power of total digits (Math.pow(digit, digits)).',
+        hint: 'Replace "sum += digit * digit;" with "sum += (int) Math.pow(digit, digits);".',
+        expectedFix: 'sum += (int) Math.pow(digit, digits);',
+        testKey: 'test-java-num-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('Math.pow(digit, digits)') || cleanCode.includes('Math.pow(digit, (double) digits)');
+          return [{ testId: 't-5', taskId: 'java-num-bug-5', fileId: 'NumberTheoryProcessor.java', name: 'Armstrong Power', passed, message: passed ? 'Raises digits to length exponent.' : 'Hardcoded to square.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix Perfect Number Divisor Boundary',
+        objective: 'In isPerfectNumber, check divisors up to n / 2 (i <= n / 2).',
+        hint: 'Change "i <= n / 3" to "i <= n / 2".',
+        expectedFix: 'i <= n / 2',
+        testKey: 'test-java-num-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('i <= n / 2') || cleanCode.includes('i <= n/2');
+          return [{ testId: 't-6', taskId: 'java-num-bug-6', fileId: 'NumberTheoryProcessor.java', name: 'Divisor Boundary', passed, message: passed ? 'Checks all divisors up to n/2.' : 'Divisor loop misses divisors between n/3 and n/2.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Harshad Divisibility Check',
+        objective: 'In isHarshadNumber, verify n is divisible by sum of digits (n % sum == 0).',
+        hint: 'Change "sum % n == 0" to "n % sum == 0".',
+        expectedFix: 'n % sum == 0',
+        testKey: 'test-java-num-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('n % sum == 0') || cleanCode.includes('n % sum == 0 ;');
+          return [{ testId: 't-7', taskId: 'java-num-bug-7', fileId: 'NumberTheoryProcessor.java', name: 'Harshad Divisibility', passed, message: passed ? 'Checks n divisible by sum.' : 'Checks sum divisible by n.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Neon Number Square Computation',
+        objective: 'In isNeonNumber, calculate square of number (int sq = n * n).',
+        hint: 'Change "int sq = n;" to "int sq = n * n;".',
+        expectedFix: 'int sq = n * n;',
+        testKey: 'test-java-num-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('sq = n * n') || cleanCode.includes('sq = n*n');
+          return [{ testId: 't-8', taskId: 'java-num-bug-8', fileId: 'NumberTheoryProcessor.java', name: 'Neon Square Calculation', passed, message: passed ? 'Calculates n * n.' : 'Uses n directly.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Spy Number Initial Product Identity',
+        objective: 'In isSpyNumber, initialize product to 1 (int prod = 1;).',
+        hint: 'Change "int prod = 0;" to "int prod = 1;".',
+        expectedFix: 'int prod = 1;',
+        testKey: 'test-java-num-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('int prod = 1;') || cleanCode.includes('int prod = 1 ;');
+          return [{ testId: 't-9', taskId: 'java-num-bug-9', fileId: 'NumberTheoryProcessor.java', name: 'Spy Number Product Identity', passed, message: passed ? 'Product identity initialized to 1.' : 'Product identity initialized to 0.' }];
+        },
+      },
+      {
+        bugId: 'java-num-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Disarium Digit Position Power',
+        objective: 'In isDisariumNumber, raise digit to 1-based position (i + 1).',
+        hint: 'Change "Math.pow(digit, i)" to "Math.pow(digit, i + 1)".',
+        expectedFix: 'Math.pow(digit, i + 1)',
+        testKey: 'test-java-num-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('Math.pow(digit, i + 1)') || cleanCode.includes('Math.pow(digit, i+1)');
+          return [{ testId: 't-10', taskId: 'java-num-bug-10', fileId: 'NumberTheoryProcessor.java', name: 'Disarium 1-based Position', passed, message: passed ? 'Uses 1-based position power.' : 'Uses 0-based position.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'reverseNumber(1234)', expectedOutput: '4321' },
+      { input: 'isArmstrong(153)', expectedOutput: 'true' },
+    ],
+    is_active: true,
+  },
+
+  // ── 3. PYTHON / EASY: #17 Prime, #18 Range, #27 Strong, #36/#37 GCD/LCM ──
+  {
+    id: 'challenge-py-001',
+    title: 'Prime Sieve, GCD/LCM & Advanced Number Theory',
+    description: 'B.Tech Program #17, #18, #27, #29, #33, #35, #36 & #37: Prime validation, sieve range generation, strong numbers, Euclid GCD, LCM formulas, automorphic numbers and happy number cycles.',
+    language: 'PYTHON',
+    difficulty: 'EASY',
+    code: `import math
+
+# 1. Check if a number is prime
+def is_prime(n: int) -> bool:
+    # BUG-1: Considers 1 and negatives as prime (n <= 0 instead of n <= 1)
+    if n <= 0:
+        return False
+    if n == 2:
+        return True
+    if n % 2 == 0:
+        return False
+    # BUG-2: Square root range stops 1 integer early
+    limit = int(math.isqrt(n))
+    for i in range(3, limit, 2):
+        if n % i == 0:
+            return False
+    return True
+
+# 2. Get all primes in range [low, high]
+def primes_in_range(low: int, high: int) -> list:
+    primes = []
+    # BUG-3: Iterates exclusive of high (range(low, high))
+    for num in range(low, high):
+        if is_prime(num):
+            primes.append(num)
+    return primes
+
+# 3. Factorial calculation helper
+def factorial(n: int) -> int:
+    if n < 0:
+        return 0
+    res = 1
+    # BUG-4: Range starts at 2 and stops at n - 1
+    for i in range(2, n):
+        res *= i
+    return res
+
+# 4. Strong number check (sum of factorials of digits == n)
+def is_strong_number(n: int) -> bool:
+    if n <= 0:
+        return False
+    # BUG-5: Sums digits instead of factorial of digits
+    digit_sum = sum(int(d) for d in str(n))
+    return digit_sum == n
+
+# 5. Greatest Common Divisor (Euclid's algorithm)
+def gcd_euclid(a: int, b: int) -> int:
+    a, b = abs(a), abs(b)
+    # BUG-6: Inverted loop condition (a != 0 instead of b != 0)
+    while a != 0:
+        a, b = b, a % b
+    return a
+
+# 6. Least Common Multiple (LCM)
+def lcm_two_numbers(a: int, b: int) -> int:
+    if a == 0 or b == 0:
+        return 0
+    # BUG-7: Multiplies GCD instead of dividing ( (a * b) * gcd )
+    g = gcd_euclid(a, b)
+    return (abs(a * b)) * g
+
+# 7. Automorphic number check (square ends with original number)
+def is_automorphic(n: int) -> bool:
+    if n < 0:
+        return False
+    sq = n * n
+    # BUG-8: Checks startswith instead of endswith
+    return str(sq).startswith(str(n))
+
+# 8. Duck number check (contains at least one '0', excluding leading zero)
+def is_duck_number(num_str: str) -> bool:
+    s = num_str.lstrip('0')
+    # BUG-9: Inverted check (returns True if '0' not in s)
+    return '0' not in s
+
+# 9. Happy number cycle check
+def is_happy_number(n: int) -> bool:
+    seen = set()
+    while n != 1 and n not in seen:
+        seen.add(n)
+        # BUG-10: Sums digits directly instead of squares of digits
+        n = sum(int(d) for d in str(n))
+    return n == 1
+`,
+    bugs: [
+      {
+        bugId: 'py-prime-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Prime Base Case Boundary',
+        objective: 'In is_prime, reject all integers <= 1 (if n <= 1: return False).',
+        hint: 'Change "if n <= 0:" to "if n <= 1:".',
+        expectedFix: 'if n <= 1: return False',
+        testKey: 'test-py-prime-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('n <= 1') || cleanCode.includes('n < 2');
+          return [{ testId: 't-1', taskId: 'py-prime-bug-1', fileId: 'prime_and_divisors.py', name: 'Prime Base Guard', passed, message: passed ? 'Rejects integers <= 1.' : 'Allows 1 to pass as prime.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Sqrt Loop Boundary in is_prime',
+        objective: 'In is_prime, include the square root integer (range(3, limit + 1, 2)).',
+        hint: 'Change "limit" to "limit + 1" in range(3, limit + 1, 2).',
+        expectedFix: 'range(3, limit + 1, 2)',
+        testKey: 'test-py-prime-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('limit + 1') || cleanCode.includes('limit+1') || cleanCode.includes('int(math.isqrt(n)) + 1');
+          return [{ testId: 't-2', taskId: 'py-prime-bug-2', fileId: 'prime_and_divisors.py', name: 'Sqrt Bound Check', passed, message: passed ? 'Checks square root boundary.' : 'Misses square divisor.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Range Inclusion in primes_in_range',
+        objective: 'In primes_in_range, include the upper limit high in the loop (range(low, high + 1)).',
+        hint: 'Change "range(low, high)" to "range(low, high + 1)".',
+        expectedFix: 'range(low, high + 1)',
+        testKey: 'test-py-prime-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('range(low, high + 1)') || cleanCode.includes('range(low, high+1)');
+          return [{ testId: 't-3', taskId: 'py-prime-bug-3', fileId: 'prime_and_divisors.py', name: 'Range Inclusivity', passed, message: passed ? 'Includes high in range.' : 'Upper bound high is excluded.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Factorial Helper Upper Range',
+        objective: 'In factorial, include n in the multiplication (range(2, n + 1)).',
+        hint: 'Change "range(2, n)" to "range(2, n + 1)".',
+        expectedFix: 'range(2, n + 1)',
+        testKey: 'test-py-prime-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('range(2, n + 1)') || cleanCode.includes('range(1, n + 1)') || cleanCode.includes('range(2, n+1)');
+          return [{ testId: 't-4', taskId: 'py-prime-bug-4', fileId: 'prime_and_divisors.py', name: 'Factorial Upper Bound', passed, message: passed ? 'Multiplies up to n.' : 'Stops at n - 1.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Strong Number Factorial Sum',
+        objective: 'In is_strong_number, compute sum of factorials of digits (sum(factorial(int(d)) for d in str(n))).',
+        hint: 'Wrap int(d) in factorial(int(d)).',
+        expectedFix: 'sum(factorial(int(d)) for d in str(n))',
+        testKey: 'test-py-prime-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('factorial(int(d))');
+          return [{ testId: 't-5', taskId: 'py-prime-bug-5', fileId: 'prime_and_divisors.py', name: 'Strong Number Factorials', passed, message: passed ? 'Sums factorial of digits.' : 'Sums raw digits.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix Euclid GCD Loop Condition',
+        objective: 'In gcd_euclid, iterate while divisor b != 0.',
+        hint: 'Change "while a != 0:" to "while b != 0:" or "while b:".',
+        expectedFix: 'while b != 0:',
+        testKey: 'test-py-prime-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('while b != 0:') || cleanCode.includes('while b:');
+          return [{ testId: 't-6', taskId: 'py-prime-bug-6', fileId: 'prime_and_divisors.py', name: 'Euclid Loop Divisor', passed, message: passed ? 'Iterates until b == 0.' : 'Checks a != 0.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix LCM Formula Division by GCD',
+        objective: 'In lcm_two_numbers, divide product by GCD (abs(a * b) // g).',
+        hint: 'Change "* g" to "// g" or "/ g".',
+        expectedFix: '(abs(a * b)) // g',
+        testKey: 'test-py-prime-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('// g') || cleanCode.includes('/ g') || cleanCode.includes('//g');
+          return [{ testId: 't-7', taskId: 'py-prime-7', fileId: 'prime_and_divisors.py', name: 'LCM Product Division', passed, message: passed ? 'Divides product by GCD.' : 'Multiplies product by GCD.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Automorphic Suffix Check',
+        objective: 'In is_automorphic, check str(sq).endswith(str(n)) instead of startswith.',
+        hint: 'Change "startswith" to "endswith".',
+        expectedFix: 'str(sq).endswith(str(n))',
+        testKey: 'test-py-prime-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('endswith(str(n))');
+          return [{ testId: 't-8', taskId: 'py-prime-bug-8', fileId: 'prime_and_divisors.py', name: 'Automorphic Suffix Check', passed, message: passed ? 'Checks suffix with endswith.' : 'Checks prefix with startswith.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Duck Number Zero Presence',
+        objective: 'In is_duck_number, return True if "0" is present in string after stripping leading zero.',
+        hint: 'Change "return \'0\' not in s" to "return \'0\' in s".',
+        expectedFix: "return '0' in s",
+        testKey: 'test-py-prime-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes("'0' in s") || cleanCode.includes('"0" in s');
+          return [{ testId: 't-9', taskId: 'py-prime-bug-9', fileId: 'prime_and_divisors.py', name: 'Duck Number Check', passed, message: passed ? 'Detects zero in trimmed string.' : 'Inverted zero check.' }];
+        },
+      },
+      {
+        bugId: 'py-prime-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Happy Number Digit Square Sum',
+        objective: 'In is_happy_number, square each digit (sum(int(d) ** 2 for d in str(n))).',
+        hint: 'Change "int(d)" to "int(d) ** 2".',
+        expectedFix: 'sum(int(d) ** 2 for d in str(n))',
+        testKey: 'test-py-prime-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('int(d) ** 2') || cleanCode.includes('int(d)**2') || cleanCode.includes('int(d) * int(d)');
+          return [{ testId: 't-10', taskId: 'py-prime-bug-10', fileId: 'prime_and_divisors.py', name: 'Happy Number Square Sum', passed, message: passed ? 'Squares digits in iteration.' : 'Sums digits linearly.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'is_prime(29)', expectedOutput: 'True' },
+      { input: 'gcd_euclid(48, 18)', expectedOutput: '6' },
+    ],
+    is_active: true,
+  },
+
+  // ── 4. JAVA / MEDIUM: #20 Factorial, #22 Fibonacci, #46 Natural, #50 AP, #51 GP, #52 Squares ──
+  {
+    id: 'challenge-java-002',
+    title: 'Series & Recursion Engine',
+    description: 'B.Tech Program #19, #20, #21, #22, #46, #49, #50, #51, #52 & #53: Recursive & iterative factorial, Fibonacci series, Arithmetic and Geometric progressions, and sum of powers.',
+    language: 'JAVA',
+    difficulty: 'MEDIUM',
+    code: `public class SeriesAndRecursion {
+    // 1. Recursive Factorial
+    public static long factorial(int n) {
+        if (n < 0) return -1;
+        // BUG-1: Base case returns 0 for n == 0 instead of 1
+        if (n == 0 || n == 1) return 0;
+        return n * factorial(n - 1);
+    }
+
+    // 2. Iterative Fibonacci (0, 1, 1, 2, 3, 5, 8...)
+    public static int fibonacciIterative(int n) {
+        if (n <= 0) return 0;
+        if (n == 1) return 1;
+        int a = 0, b = 1;
+        // BUG-2: Loop counter starts at 1 causing extra shift
+        for (int i = 1; i <= n; i++) {
+            int c = a + b;
+            a = b;
+            b = c;
+        }
+        return b;
+    }
+
+    // 3. Recursive Fibonacci
+    public static int fibonacciRecursive(int n) {
+        if (n <= 0) return 0;
+        // BUG-3: Returns 2 for n == 1 instead of 1
+        if (n == 1) return 2;
+        return fibonacciRecursive(n - 1) + fibonacciRecursive(n - 2);
+    }
+
+    // 4. Sum of first n natural numbers
+    public static long sumNaturalNumbers(int n) {
+        if (n <= 0) return 0;
+        // BUG-4: Multiplies by (n - 1) instead of (n + 1)
+        return (long) n * (n - 1) / 2;
+    }
+
+    // 5. Harmonic series sum: 1 + 1/2 + 1/3 + ... + 1/n
+    public static double harmonicSum(int n) {
+        if (n <= 0) return 0.0;
+        double sum = 0.0;
+        for (int i = 1; i <= n; i++) {
+            // BUG-5: Integer division 1 / i truncates to 0 for i > 1
+            sum += 1 / i;
+        }
+        return sum;
+    }
+
+    // 6. Arithmetic Progression nth term: a + (n - 1) * d
+    public static double apNthTerm(double a, double d, int n) {
+        if (n <= 0) return a;
+        // BUG-6: Uses n * d instead of (n - 1) * d
+        return a + n * d;
+    }
+
+    // 7. Sum of AP series: (n / 2) * (2a + (n - 1)d)
+    public static double apSum(double a, double d, int n) {
+        if (n <= 0) return 0.0;
+        // BUG-7: Formula missing 2 * a
+        return (n / 2.0) * (a + (n - 1) * d);
+    }
+
+    // 8. Geometric Progression nth term: a * r^(n - 1)
+    public static double gpNthTerm(double a, double r, int n) {
+        if (n <= 0) return a;
+        // BUG-8: Raises to power n instead of n - 1
+        return a * Math.pow(r, n);
+    }
+
+    // 9. Sum of squares: 1^2 + 2^2 + ... + n^2 = n*(n+1)*(2n+1)/6
+    public static long sumOfSquares(int n) {
+        if (n <= 0) return 0;
+        // BUG-9: Divides by 4 instead of 6
+        return (long) n * (n + 1) * (2 * n + 1) / 4;
+    }
+
+    // 10. Sum of cubes: (n * (n + 1) / 2)^2
+    public static long sumOfCubes(int n) {
+        if (n <= 0) return 0;
+        long sum = (long) n * (n + 1) / 2;
+        // BUG-10: Multiplies by 2 instead of squaring
+        return sum * 2;
+    }
+}`,
+    bugs: [
+      {
+        bugId: 'java-rec-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Factorial Base Case Return',
+        objective: 'In factorial, return 1 for n == 0 or n == 1.',
+        hint: 'Change "return 0;" to "return 1;".',
+        expectedFix: 'if (n == 0 || n == 1) return 1;',
+        testKey: 'test-java-rec-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('return 1;') || cleanCode.includes('return 1 ;') || cleanCode.includes('return 1L;');
+          return [{ testId: 't-1', taskId: 'java-rec-bug-1', fileId: 'SeriesAndRecursion.java', name: 'Factorial Base Case', passed, message: passed ? 'Factorial base case returns 1.' : 'Factorial base case returns 0.' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Iterative Fibonacci Loop Bounds',
+        objective: 'In fibonacciIterative, start loop from i = 2 to return correct nth Fibonacci term.',
+        hint: 'Change "for (int i = 1; i <= n; i++)" to "for (int i = 2; i <= n; i++)" or adjust return.',
+        expectedFix: 'for (int i = 2; i <= n; i++)',
+        testKey: 'test-java-rec-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('int i = 2; i <= n;') || cleanCode.includes('int i = 2; i <= n ;');
+          return [{ testId: 't-2', taskId: 'java-rec-bug-2', fileId: 'SeriesAndRecursion.java', name: 'Fibonacci Iterative Loop', passed, message: passed ? 'Fibonacci step count valid.' : 'Extra loop shift.' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Recursive Fibonacci Base Case',
+        objective: 'In fibonacciRecursive, return 1 when n == 1.',
+        hint: 'Change "if (n == 1) return 2;" to "if (n == 1) return 1;".',
+        expectedFix: 'if (n == 1) return 1;',
+        testKey: 'test-java-rec-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('if (n == 1) return 1;') || cleanCode.includes('if (n <= 2) return 1;');
+          return [{ testId: 't-3', taskId: 'java-rec-bug-3', fileId: 'SeriesAndRecursion.java', name: 'Fibonacci Recursive Base', passed, message: passed ? 'Returns 1 for n == 1.' : 'Returns 2 for n == 1.' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Sum of Natural Numbers Formula',
+        objective: 'In sumNaturalNumbers, use formula n * (n + 1) / 2.',
+        hint: 'Change "(n - 1)" to "(n + 1)".',
+        expectedFix: 'n * (n + 1) / 2',
+        testKey: 'test-java-rec-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('(n + 1)') || cleanCode.includes('(n+1)');
+          return [{ testId: 't-4', taskId: 'java-rec-bug-4', fileId: 'SeriesAndRecursion.java', name: 'Natural Sum Formula', passed, message: passed ? 'Uses (n + 1) formula.' : 'Uses (n - 1).' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Harmonic Sum Double Precision Division',
+        objective: 'In harmonicSum, perform floating-point division (1.0 / i).',
+        hint: 'Change "1 / i" to "1.0 / i".',
+        expectedFix: 'sum += 1.0 / i;',
+        testKey: 'test-java-rec-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('1.0 / i') || cleanCode.includes('(double) 1 / i') || cleanCode.includes('1.0/i');
+          return [{ testId: 't-5', taskId: 'java-rec-bug-5', fileId: 'SeriesAndRecursion.java', name: 'Harmonic Float Division', passed, message: passed ? 'Uses floating-point division.' : 'Integer truncation to 0.' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix AP Nth Term Formula',
+        objective: 'In apNthTerm, calculate a + (n - 1) * d.',
+        hint: 'Change "n * d" to "(n - 1) * d".',
+        expectedFix: 'a + (n - 1) * d',
+        testKey: 'test-java-rec-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('(n - 1) * d') || cleanCode.includes('(n-1)*d');
+          return [{ testId: 't-6', taskId: 'java-rec-bug-6', fileId: 'SeriesAndRecursion.java', name: 'AP Nth Term Formula', passed, message: passed ? 'Uses (n - 1) * d.' : 'Uses n * d.' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix AP Sum Formula 2a Component',
+        objective: 'In apSum, use (n / 2.0) * (2 * a + (n - 1) * d).',
+        hint: 'Change "(a +" to "(2 * a +".',
+        expectedFix: '(2 * a + (n - 1) * d)',
+        testKey: 'test-java-rec-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('2 * a') || cleanCode.includes('2*a');
+          return [{ testId: 't-7', taskId: 'java-rec-bug-7', fileId: 'SeriesAndRecursion.java', name: 'AP Sum 2a Factor', passed, message: passed ? 'Includes 2*a term.' : 'Missing 2*a multiplier.' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix GP Nth Term Power Exponent',
+        objective: 'In gpNthTerm, raise ratio r to power (n - 1).',
+        hint: 'Change "Math.pow(r, n)" to "Math.pow(r, n - 1)".',
+        expectedFix: 'Math.pow(r, n - 1)',
+        testKey: 'test-java-rec-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('Math.pow(r, n - 1)') || cleanCode.includes('Math.pow(r, n-1)');
+          return [{ testId: 't-8', taskId: 'java-rec-bug-8', fileId: 'SeriesAndRecursion.java', name: 'GP Exponent', passed, message: passed ? 'Uses (n - 1) exponent.' : 'Uses n exponent.' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Sum of Squares Divisor',
+        objective: 'In sumOfSquares, divide product by 6 (n * (n + 1) * (2n + 1) / 6).',
+        hint: 'Change "/ 4" to "/ 6".',
+        expectedFix: '/ 6',
+        testKey: 'test-java-rec-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('/ 6') || cleanCode.includes('/6');
+          return [{ testId: 't-9', taskId: 'java-rec-bug-9', fileId: 'SeriesAndRecursion.java', name: 'Sum of Squares Divisor', passed, message: passed ? 'Divides by 6.' : 'Divides by 4.' }];
+        },
+      },
+      {
+        bugId: 'java-rec-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Sum of Cubes Squaring',
+        objective: 'In sumOfCubes, return sum * sum (square the natural sum).',
+        hint: 'Change "return sum * 2;" to "return sum * sum;".',
+        expectedFix: 'return sum * sum;',
+        testKey: 'test-java-rec-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('sum * sum') || cleanCode.includes('Math.pow(sum, 2)');
+          return [{ testId: 't-10', taskId: 'java-rec-bug-10', fileId: 'SeriesAndRecursion.java', name: 'Sum of Cubes Square', passed, message: passed ? 'Squares the sum term.' : 'Multiplies by 2.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'factorial(5)', expectedOutput: '120' },
+      { input: 'fibonacciIterative(7)', expectedOutput: '13' },
+    ],
+    is_active: true,
+  },
+
+  // ── 5. C / MEDIUM: #54 Sine, #55 Cosine, #56 Exp, #59 Quadratic, #60 Distance ──
+  {
+    id: 'challenge-c-002',
+    title: 'Taylor Series, Quadratic Solver & Euclidean Geometry',
+    description: 'B.Tech Program #54, #55, #56, #57, #59 & #60: Taylor approximations of sin(x), cos(x), e^x, quadratic root discriminant and 2D coordinate distance.',
+    language: 'C',
+    difficulty: 'MEDIUM',
+    code: `#include <stdio.h>
+#include <math.h>
+
+#define PI 3.14159265358979323846
+
+// 1. Convert degrees to radians
+double degrees_to_radians(double deg) {
+    // BUG-1: Inverted ratio (180.0 / PI instead of PI / 180.0)
+    return deg * (180.0 / PI);
+}
+
+// 2. Factorial helper
+double fact(int n) {
+    double f = 1.0;
+    // BUG-2: Stops 1 iteration early
+    for (int i = 1; i < n; i++) {
+        f *= i;
+    }
+    return f;
+}
+
+// 3. Taylor Series approximation for sin(x)
+// sin(x) = x - x^3/3! + x^5/5! - x^7/7! ...
+double taylor_sin(double x, int terms) {
+    double sum = 0.0;
+    for (int i = 0; i < terms; i++) {
+        int power = 2 * i + 1;
+        // BUG-3: Always adds instead of alternating signs (pow(-1, i))
+        double term = pow(x, power) / fact(power);
+        sum += term;
+    }
+    return sum;
+}
+
+// 4. Taylor Series approximation for cos(x)
+// cos(x) = 1 - x^2/2! + x^4/4! - x^6/6! ...
+double taylor_cos(double x, int terms) {
+    double sum = 0.0;
+    for (int i = 0; i < terms; i++) {
+        // BUG-4: Uses odd power (2*i + 1) instead of even power (2*i)
+        int power = 2 * i + 1;
+        double sign = (i % 2 == 0) ? 1.0 : -1.0;
+        sum += sign * pow(x, power) / fact(power);
+    }
+    return sum;
+}
+
+// 5. Exponential Series e^x = 1 + x + x^2/2! + x^3/3! ...
+double taylor_exp(double x, int terms) {
+    double sum = 0.0;
+    // BUG-5: Starts at i = 1 skipping the first term (1.0)
+    for (int i = 1; i < terms; i++) {
+        sum += pow(x, i) / fact(i);
+    }
+    return sum;
+}
+
+// 6. Quadratic equation roots discriminant
+double quadratic_discriminant(double a, double b, double c) {
+    // BUG-6: Inverted sign (b*b + 4*a*c instead of b*b - 4*a*c)
+    return (b * b) + (4.0 * a * c);
+}
+
+// 7. Quadratic root 1: (-b + sqrt(d)) / (2*a)
+double quadratic_root_1(double a, double b, double c) {
+    double d = quadratic_discriminant(a, b, c);
+    if (d < 0) return 0.0; // Real roots only
+    // BUG-7: Missing parentheses in denominator (2 * a evaluated as / 2 * a)
+    return (-b + sqrt(d)) / 2 * a;
+}
+
+// 8. Quadratic root 2: (-b - sqrt(d)) / (2*a)
+double quadratic_root_2(double a, double b, double c) {
+    double d = quadratic_discriminant(a, b, c);
+    if (d < 0) return 0.0;
+    // BUG-8: Adds sqrt(d) instead of subtracting
+    return (-b + sqrt(d)) / (2.0 * a);
+}
+
+// 9. Euclidean distance between (x1, y1) and (x2, y2)
+double euclidean_distance(double x1, double y1, double x2, double y2) {
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    // BUG-9: Adds un-squared dx and dy inside sqrt
+    return sqrt(dx + dy);
+}
+
+// 10. Tangent approximation: sin(x) / cos(x)
+double taylor_tan(double x, int terms) {
+    double c = taylor_cos(x, terms);
+    // BUG-10: Inverted zero check (if c != 0 return 0)
+    if (c != 0.0) {
+        return 0.0;
+    }
+    return taylor_sin(x, terms) / c;
+}`,
+    bugs: [
+      {
+        bugId: 'c-math-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Degree to Radian Constant Ratio',
+        objective: 'In degrees_to_radians, multiply by PI / 180.0.',
+        hint: 'Change "180.0 / PI" to "PI / 180.0".',
+        expectedFix: 'deg * (PI / 180.0)',
+        testKey: 'test-c-math-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('PI / 180.0') || cleanCode.includes('PI/180.0') || cleanCode.includes('PI / 180');
+          return [{ testId: 't-1', taskId: 'c-math-bug-1', fileId: 'MathSeriesAndGeometry.c', name: 'Degree to Radian', passed, message: passed ? 'Conversion ratio valid.' : 'Inverted conversion ratio.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Factorial Helper Loop Bounds',
+        objective: 'In fact, loop until i <= n.',
+        hint: 'Change "i < n" to "i <= n".',
+        expectedFix: 'for (int i = 1; i <= n; i++)',
+        testKey: 'test-c-math-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('i <= n;') || cleanCode.includes('i <= n ;');
+          return [{ testId: 't-2', taskId: 'c-math-bug-2', fileId: 'MathSeriesAndGeometry.c', name: 'Factorial Loop Bound', passed, message: passed ? 'Factorial multiplies up to n.' : 'Stops at n - 1.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Sine Series Alternating Sign',
+        objective: 'In taylor_sin, alternate signs for terms using ((i % 2 == 0) ? 1.0 : -1.0).',
+        hint: 'Multiply term by alternating sign.',
+        expectedFix: 'double sign = (i % 2 == 0) ? 1.0 : -1.0; sum += sign * term;',
+        testKey: 'test-c-math-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('i % 2 == 0') || cleanCode.includes('pow(-1, i)');
+          return [{ testId: 't-3', taskId: 'c-math-bug-3', fileId: 'MathSeriesAndGeometry.c', name: 'Sine Alternating Sign', passed, message: passed ? 'Alternates term signs.' : 'Adds all terms positively.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Cosine Series Even Exponent',
+        objective: 'In taylor_cos, use even powers (2 * i).',
+        hint: 'Change "2 * i + 1" to "2 * i".',
+        expectedFix: 'int power = 2 * i;',
+        testKey: 'test-c-math-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('power = 2 * i;') || cleanCode.includes('power = 2*i;');
+          return [{ testId: 't-4', taskId: 'c-math-bug-4', fileId: 'MathSeriesAndGeometry.c', name: 'Cosine Even Power', passed, message: passed ? 'Uses even powers for cosine.' : 'Uses odd powers.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Exponential Series First Term',
+        objective: 'In taylor_exp, start loop from i = 0 to include 1.0 (x^0 / 0!).',
+        hint: 'Change "int i = 1" to "int i = 0".',
+        expectedFix: 'for (int i = 0; i < terms; i++)',
+        testKey: 'test-c-math-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('int i = 0; i < terms;') || cleanCode.includes('sum = 1.0');
+          return [{ testId: 't-5', taskId: 'c-math-bug-5', fileId: 'MathSeriesAndGeometry.c', name: 'Exp First Term', passed, message: passed ? 'Includes base 1.0 term.' : 'Misses initial term.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix Quadratic Discriminant Formula',
+        objective: 'In quadratic_discriminant, subtract 4ac ((b * b) - (4.0 * a * c)).',
+        hint: 'Change "+" to "-".',
+        expectedFix: '(b * b) - (4.0 * a * c)',
+        testKey: 'test-c-math-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('(b * b) - (4') || cleanCode.includes('b*b - 4*a*c') || cleanCode.includes('b * b - 4.0 * a * c');
+          return [{ testId: 't-6', taskId: 'c-math-bug-6', fileId: 'MathSeriesAndGeometry.c', name: 'Discriminant Formula', passed, message: passed ? 'Subtracts 4ac.' : 'Adds 4ac.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Root 1 Denominator Parentheses',
+        objective: 'In quadratic_root_1, enclose denominator in parentheses: / (2.0 * a).',
+        hint: 'Change "/ 2 * a" to "/ (2.0 * a)".',
+        expectedFix: '/ (2.0 * a)',
+        testKey: 'test-c-math-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('/ (2.0 * a)') || cleanCode.includes('/ (2 * a)') || cleanCode.includes('/(2*a)');
+          return [{ testId: 't-7', taskId: 'c-math-bug-7', fileId: 'MathSeriesAndGeometry.c', name: 'Root Denominator Precedence', passed, message: passed ? 'Denominator grouped in parens.' : 'Operator precedence bug in division.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Root 2 Subtraction Sign',
+        objective: 'In quadratic_root_2, subtract sqrt(d) in numerator (-b - sqrt(d)).',
+        hint: 'Change "-b + sqrt(d)" to "-b - sqrt(d)".',
+        expectedFix: '(-b - sqrt(d))',
+        testKey: 'test-c-math-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('-b - sqrt(d)') || cleanCode.includes('-b - sqrt( d )');
+          return [{ testId: 't-8', taskId: 'c-math-bug-8', fileId: 'MathSeriesAndGeometry.c', name: 'Root 2 Subtraction', passed, message: passed ? 'Subtracts radical for second root.' : 'Adds radical.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Euclidean Distance Delta Squares',
+        objective: 'In euclidean_distance, square dx and dy (dx * dx + dy * dy).',
+        hint: 'Change "sqrt(dx + dy)" to "sqrt(dx * dx + dy * dy)".',
+        expectedFix: 'sqrt(dx * dx + dy * dy)',
+        testKey: 'test-c-math-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('dx * dx + dy * dy') || cleanCode.includes('dx*dx + dy*dy');
+          return [{ testId: 't-9', taskId: 'c-math-bug-9', fileId: 'MathSeriesAndGeometry.c', name: 'Euclidean Distance Squares', passed, message: passed ? 'Squares coordinate differentials.' : 'Sums differentials linearly.' }];
+        },
+      },
+      {
+        bugId: 'c-math-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Tangent Cosine Zero Divisor Guard',
+        objective: 'In taylor_tan, return 0.0 when c == 0.0 to prevent division by zero.',
+        hint: 'Change "if (c != 0.0)" to "if (c == 0.0)".',
+        expectedFix: 'if (c == 0.0) return 0.0;',
+        testKey: 'test-c-math-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('if (c == 0.0') || cleanCode.includes('if (c == 0') || cleanCode.includes('if (fabs(c)');
+          return [{ testId: 't-10', taskId: 'c-math-bug-10', fileId: 'MathSeriesAndGeometry.c', name: 'Tangent Divisor Guard', passed, message: passed ? 'Guards when cosine is zero.' : 'Inverted zero check.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'degrees_to_radians(180)', expectedOutput: '3.14159' },
+      { input: 'quadratic_discriminant(1, -5, 6)', expectedOutput: '1.0' },
+    ],
+    is_active: true,
+  },
+
+  // ── 6. PYTHON / MEDIUM: #40 Dec2Bin, #41 Bin2Dec, #42 Hex, #43 SetBits, #44 Leap, #45 Month ──
+  {
+    id: 'challenge-py-002',
+    title: 'Bitwise Computing, Radix Conversions & Calendar Rules',
+    description: 'B.Tech Program #40, #41, #42, #43, #44 & #45: Binary, octal, hexadecimal conversions, Brian Kernighan bit counting, Gregorian leap year determinations and month days calculation.',
+    language: 'PYTHON',
+    difficulty: 'MEDIUM',
+    code: `# 1. Decimal to binary string
+def decimal_to_binary(n: int) -> str:
+    if n == 0:
+        return "0"
+    bits = []
+    temp = abs(n)
+    while temp > 0:
+        # BUG-1: Uses temp // 2 instead of temp % 2 for bit
+        bits.append(str(temp // 2))
+        temp //= 2
+    return "".join(reversed(bits))
+
+# 2. Binary string to decimal integer
+def binary_to_decimal(b_str: str) -> int:
+    decimal_val = 0
+    # BUG-2: Iterates forward without reversing or adjusting power
+    for i, char in enumerate(b_str):
+        if char == '1':
+            decimal_val += 2 ** i
+    return decimal_val
+
+# 3. Decimal to hexadecimal string
+def decimal_to_hex(n: int) -> str:
+    if n == 0:
+        return "0"
+    hex_digits = "0123456789ABCDEF"
+    result = []
+    temp = abs(n)
+    while temp > 0:
+        rem = temp % 16
+        # BUG-3: Appends raw remainder int instead of mapped hex digit
+        result.append(str(rem))
+        temp //= 16
+    return "".join(reversed(result))
+
+# 4. Count number of set bits (1s) using Brian Kernighan's Algorithm
+def count_set_bits(n: int) -> int:
+    count = 0
+    temp = abs(n)
+    while temp > 0:
+        # BUG-4: Performs temp | (temp - 1) instead of temp & (temp - 1)
+        temp = temp | (temp - 1)
+        count += 1
+        if count > 64: break # infinite loop safeguard
+    return count
+
+# 5. Gregorian Leap Year checker
+def is_leap_year(year: int) -> bool:
+    # BUG-5: Inverted century rule (uses year % 100 == 0 without checking % 400 == 0)
+    if year % 4 == 0 and year % 100 == 0:
+        return True
+    return False
+
+# 6. Number of days in a month (1..12)
+def days_in_month(month: int, year: int) -> int:
+    if month < 1 or month > 12:
+        return 0
+    # BUG-6: Inverted February leap year days (28 if leap else 29)
+    if month == 2:
+        return 28 if is_leap_year(year) else 29
+    # Months with 30 days: 4, 6, 9, 11
+    # BUG-7: Lists 7 (July) instead of 6 (June)
+    if month in [4, 7, 9, 11]:
+        return 30
+    return 31
+
+# 7. Bitwise swap two variables
+def bitwise_swap(a: int, b: int) -> tuple:
+    # BUG-8: Uses bitwise OR instead of XOR
+    a = a | b
+    b = a ^ b
+    a = a ^ b
+    return a, b
+
+# 8. Check if integer is power of two
+def is_power_of_two(n: int) -> bool:
+    if n <= 0:
+        return False
+    # BUG-9: Checks (n | (n - 1)) == 0 instead of (n & (n - 1)) == 0
+    return (n | (n - 1)) == 0
+
+# 9. Reverse 8-bit integer bits
+def reverse_8bit(n: int) -> int:
+    rev = 0
+    # BUG-10: Loop runs 7 times instead of 8 times
+    for i in range(7):
+        rev = (rev << 1) | ((n >> i) & 1)
+    return rev
+`,
+    bugs: [
+      {
+        bugId: 'py-bits-bug-1',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Binary Remainder Extraction',
+        objective: 'In decimal_to_binary, extract bit using temp % 2.',
+        hint: 'Change "temp // 2" to "temp % 2".',
+        expectedFix: 'bits.append(str(temp % 2))',
+        testKey: 'test-py-bits-1',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('temp % 2') || cleanCode.includes('temp%2');
+          return [{ testId: 't-1', taskId: 'py-bits-bug-1', fileId: 'conversions_and_bits.py', name: 'Binary Remainder Extraction', passed, message: passed ? 'Extracts remainder modulo 2.' : 'Uses quotient instead of remainder.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-2',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Binary to Decimal Positional Power',
+        objective: 'In binary_to_decimal, calculate positional power from right (2 ** (len(b_str) - 1 - i)).',
+        hint: 'Or reverse string before iteration: for i, char in enumerate(reversed(b_str)).',
+        expectedFix: 'for i, char in enumerate(reversed(b_str)):',
+        testKey: 'test-py-bits-2',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('reversed(b_str)') || cleanCode.includes('len(b_str) - 1 - i');
+          return [{ testId: 't-2', taskId: 'py-bits-bug-2', fileId: 'conversions_and_bits.py', name: 'Binary Position Power', passed, message: passed ? 'Computes correct positional exponent.' : 'Power grows in wrong direction.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-3',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Hexadecimal Digit Character Mapping',
+        objective: 'In decimal_to_hex, look up digit char in hex_digits string (hex_digits[rem]).',
+        hint: 'Change "str(rem)" to "hex_digits[rem]".',
+        expectedFix: 'result.append(hex_digits[rem])',
+        testKey: 'test-py-bits-3',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('hex_digits[rem]');
+          return [{ testId: 't-3', taskId: 'py-bits-bug-3', fileId: 'conversions_and_bits.py', name: 'Hex Digit Mapping', passed, message: passed ? 'Maps remainders 10-15 to A-F.' : 'Leaves raw integers.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-4',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Brian Kernighan Bit Clearing',
+        objective: 'In count_set_bits, clear least significant bit with temp & (temp - 1).',
+        hint: 'Change "temp | (temp - 1)" to "temp & (temp - 1)".',
+        expectedFix: 'temp = temp & (temp - 1)',
+        testKey: 'test-py-bits-4',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('temp & (temp - 1)') || cleanCode.includes('temp & (temp-1)') || cleanCode.includes('temp &= (temp - 1)');
+          return [{ testId: 't-4', taskId: 'py-bits-bug-4', fileId: 'conversions_and_bits.py', name: 'Kernighan Bitwise AND', passed, message: passed ? 'Uses bitwise AND.' : 'Uses bitwise OR causing loop error.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-5',
+        roomIndex: 5,
+        roomId: 'command',
+        roomLabel: 'COMMAND & TECH',
+        title: 'Fix Gregorian Leap Year Rules',
+        objective: 'In is_leap_year, check (year % 400 == 0) or (year % 4 == 0 and year % 100 != 0).',
+        hint: 'Apply standard 400/100/4 rule.',
+        expectedFix: 'return (year % 400 == 0) or (year % 4 == 0 and year % 100 != 0)',
+        testKey: 'test-py-bits-5',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('year % 400 == 0') && (cleanCode.includes('year % 100 != 0') || cleanCode.includes('year % 100 != 0'));
+          return [{ testId: 't-5', taskId: 'py-bits-bug-5', fileId: 'conversions_and_bits.py', name: 'Gregorian Leap Rule', passed, message: passed ? 'Gregorian leap rule valid.' : 'Century rule inverted.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-6',
+        roomIndex: 6,
+        roomId: 'mafia_lair',
+        roomLabel: 'DARK LAIR',
+        title: 'Fix February Days in Leap Year',
+        objective: 'In days_in_month, return 29 if leap year, otherwise 28.',
+        hint: 'Change "28 if is_leap_year(year) else 29" to "29 if is_leap_year(year) else 28".',
+        expectedFix: 'return 29 if is_leap_year(year) else 28',
+        testKey: 'test-py-bits-6',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('29 if is_leap_year(year) else 28') || cleanCode.includes('29 if is_leap_year(year) else 28');
+          return [{ testId: 't-6', taskId: 'py-bits-bug-6', fileId: 'conversions_and_bits.py', name: 'February Days', passed, message: passed ? 'February days set correctly.' : 'Inverted February days.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix 30-Day Months List',
+        objective: 'In days_in_month, list months 4 (April), 6 (June), 9 (September), 11 (November).',
+        hint: 'Change [4, 7, 9, 11] to [4, 6, 9, 11].',
+        expectedFix: '[4, 6, 9, 11]',
+        testKey: 'test-py-bits-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('[4, 6, 9, 11]') || cleanCode.includes('(4, 6, 9, 11)');
+          return [{ testId: 't-7', taskId: 'py-bits-bug-7', fileId: 'conversions_and_bits.py', name: '30-Day Months', passed, message: passed ? 'Contains month 6 (June).' : 'Contains month 7 instead of 6.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Bitwise XOR Swap',
+        objective: 'In bitwise_swap, use XOR on the first step (a = a ^ b).',
+        hint: 'Change "a = a | b" to "a = a ^ b".',
+        expectedFix: 'a = a ^ b',
+        testKey: 'test-py-bits-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('a = a ^ b') || cleanCode.includes('a ^= b');
+          return [{ testId: 't-8', taskId: 'py-bits-bug-8', fileId: 'conversions_and_bits.py', name: 'XOR Bitwise Swap', passed, message: passed ? 'Uses bitwise XOR.' : 'Uses bitwise OR.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Power of Two Bitwise AND',
+        objective: 'In is_power_of_two, verify (n & (n - 1)) == 0.',
+        hint: 'Change "|" to "&".',
+        expectedFix: '(n & (n - 1)) == 0',
+        testKey: 'test-py-bits-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('(n & (n - 1)) == 0') || cleanCode.includes('(n & (n-1)) == 0');
+          return [{ testId: 't-9', taskId: 'py-bits-bug-9', fileId: 'conversions_and_bits.py', name: 'Power of Two Check', passed, message: passed ? 'Uses bitwise AND with predecessor.' : 'Uses bitwise OR.' }];
+        },
+      },
+      {
+        bugId: 'py-bits-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix 8-Bit Reversal Iterations',
+        objective: 'In reverse_8bit, iterate all 8 bits (range(8)).',
+        hint: 'Change "range(7)" to "range(8)".',
+        expectedFix: 'for i in range(8):',
+        testKey: 'test-py-bits-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('range(8)') || cleanCode.includes('range(0, 8)');
+          return [{ testId: 't-10', taskId: 'py-bits-bug-10', fileId: 'conversions_and_bits.py', name: '8-Bit Loop Iteration', passed, message: passed ? 'Processes all 8 bits.' : 'Processes only 7 bits.' }];
+        },
+      },
+    ],
+    test_cases: [
+      { input: 'decimal_to_binary(13)', expectedOutput: '"1101"' },
+      { input: 'is_leap_year(2000)', expectedOutput: 'True' },
+    ],
+    is_active: true,
+  },
+
+  // ── 7. JAVA / HARD: #74 Sum/Avg, #75 Min/Max, #76 2nd Largest, #81 Freq, #82 Dedup, #86 Missing ──
+  {
+    id: 'challenge-java-003',
+    title: 'Array Telemetry & Advanced Data Structures',
+    description: 'B.Tech Program #74, #75, #76, #77, #79, #81, #82, #83 & #86: Array analytics, min/max bounds, second largest extraction, in-place rotation, frequencies, deduplication and missing number discovery.',
+    language: 'JAVA',
+    difficulty: 'HARD',
+    code: `import java.util.*;
+
+public class ArrayAnalyzer {
+    // 1. Find Min and Max
+    public static int[] findMinMax(int[] arr) {
+        if (arr == null || arr.length == 0) return new int[]{0, 0};
+        // BUG-1: Initializes min to 0 and max to 0 failing on negative arrays
+        int min = 0;
+        int max = 0;
+        for (int val : arr) {
+            if (val < min) min = val;
+            if (val > max) max = val;
+        }
+        return new int[]{min, max};
+    }
+
+    // 2. Find Second Largest Distinct Element
     public static int findSecondLargest(int[] arr) {
         if (arr == null || arr.length < 2) return -1;
         int first = Integer.MIN_VALUE;
         int second = Integer.MIN_VALUE;
-        // BUG-1: Loop terminates 1 element early (i < arr.length - 1)
-        for (int i = 0; i < arr.length - 1; i++) {
+        for (int i = 0; i < arr.length; i++) {
             if (arr[i] > first) {
                 // BUG-2: Overwrites first without updating second
                 first = arr[i];
@@ -101,1708 +1797,1267 @@ export const PREBUILT_CHALLENGES: CodingChallenge[] = [
                 second = arr[i];
             }
         }
-        return second;
+        return second == Integer.MIN_VALUE ? -1 : second;
     }
 
-    public static int calculateAverage(int[] arr) {
-        if (arr == null || arr.length == 0) return 0;
+    // 3. Compute Array Average
+    public static double computeAverage(int[] arr) {
+        if (arr == null || arr.length == 0) return 0.0;
         int sum = 0;
-        // BUG-3: Starts from index 1 instead of 0
-        for (int i = 1; i < arr.length; i++) {
-            sum += arr[i];
-        }
-        // BUG-4: Integer division truncation error
+        for (int val : arr) sum += val;
+        // BUG-3: Integer division truncates decimal average
         return sum / arr.length;
     }
 
-    public static boolean containsDuplicates(int[] arr) {
-        if (arr == null) return false;
-        // BUG-5: Compares i with i instead of i+1
-        for (int i = 0; i < arr.length; i++) {
-            for (int j = i; j < arr.length; j++) {
-                if (arr[i] == arr[j]) return true;
+    // 4. Reverse array in-place
+    public static void reverseArray(int[] arr) {
+        if (arr == null) return;
+        int left = 0, right = arr.length - 1;
+        // BUG-4: Inverted loop condition left > right prevents reversal
+        while (left > right) {
+            int temp = arr[left];
+            arr[left] = arr[right];
+            arr[right] = temp;
+            left++;
+            right--;
+        }
+    }
+
+    // 5. Count Even and Odd elements
+    public static int[] countEvenOdd(int[] arr) {
+        int even = 0, odd = 0;
+        for (int val : arr) {
+            // BUG-5: Inverted condition (val % 2 == 1 considered even)
+            if (Math.abs(val) % 2 == 1) {
+                even++;
+            } else {
+                odd++;
             }
         }
-        // BUG-6: Inverted return value
-        return true;
+        return new int[]{even, odd};
+    }
+
+    // 6. Frequency of elements
+    public static Map<Integer, Integer> findFrequencies(int[] arr) {
+        Map<Integer, Integer> freq = new HashMap<>();
+        if (arr == null) return freq;
+        for (int val : arr) {
+            // BUG-6: Hardcodes frequency to 1
+            freq.put(val, 1);
+        }
+        return freq;
+    }
+
+    // 7. Remove duplicates preserving unique elements
+    public static int[] removeDuplicates(int[] arr) {
+        if (arr == null || arr.length == 0) return new int[0];
+        Set<Integer> seen = new LinkedHashSet<>();
+        for (int val : arr) seen.add(val);
+        int[] unique = new int[seen.size()];
+        int idx = 0;
+        for (int val : seen) {
+            unique[idx++] = val;
+        }
+        // BUG-7: Returns empty array instead of unique
+        return new int[0];
+    }
+
+    // 8. Rotate array right by k positions
+    public static int[] rotateRight(int[] arr, int k) {
+        if (arr == null || arr.length <= 1) return arr;
+        int n = arr.length;
+        k = k % n;
+        int[] rotated = new int[n];
+        for (int i = 0; i < n; i++) {
+            // BUG-8: Rotates left instead of right ((i - k) % n)
+            rotated[(i - k + n) % n] = arr[i];
+        }
+        return rotated;
+    }
+
+    // 9. Find missing number in array containing 1 to n with 1 missing
+    public static int findMissingNumber(int[] arr, int n) {
+        long expectedSum = (long) n * (n + 1) / 2;
+        long actualSum = 0;
+        for (int val : arr) actualSum += val;
+        // BUG-9: Adds actualSum instead of subtracting
+        return (int) (expectedSum + actualSum);
+    }
+
+    // 10. Check if array contains duplicates
+    public static boolean containsDuplicates(int[] arr) {
+        if (arr == null) return false;
+        Set<Integer> set = new HashSet<>();
+        for (int val : arr) {
+            // BUG-10: Inverted set check (!set.add(val))
+            if (set.add(val)) {
+                return true;
+            }
+        }
+        return false;
     }
 }`,
     bugs: [
       {
-        bugId: 'java-easy-bug-1',
+        bugId: 'java-arr-bug-1',
         roomIndex: 1,
         roomId: 'library',
         roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Fix Array Loop Boundary',
-        objective: 'Fix the loop boundary in findSecondLargest so all array elements including the last element are processed.',
-        hint: 'Change "i < arr.length - 1" to "i < arr.length".',
-        expectedFix: 'i < arr.length',
-        testKey: 'test-java-easy-1',
+        title: 'Fix Min/Max Initialization',
+        objective: 'In findMinMax, initialize min and max to arr[0].',
+        hint: 'Change "int min = 0; int max = 0;" to "int min = arr[0]; int max = arr[0];".',
+        expectedFix: 'int min = arr[0]; int max = arr[0];',
+        testKey: 'test-java-arr-1',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('i < arr.length;') || cleanCode.includes('i < arr.length ;');
-          return [{ testId: 't-1', taskId: 'java-easy-bug-1', fileId: 'ArrayProcessor.java', name: 'Boundary Check', passed, message: passed ? 'Loop processes all elements.' : 'Loop still misses the last element.' }];
+          const passed = cleanCode.includes('min = arr[0]') && cleanCode.includes('max = arr[0]');
+          return [{ testId: 't-1', taskId: 'java-arr-bug-1', fileId: 'ArrayAnalyzer.java', name: 'MinMax Initialization', passed, message: passed ? 'Initializes bounds with first array element.' : 'Hardcoded to zero.' }];
         },
       },
       {
-        bugId: 'java-easy-bug-2',
+        bugId: 'java-arr-bug-2',
         roomIndex: 2,
         roomId: 'medbay',
         roomLabel: 'MEDICAL BAY',
-        title: 'Preserve Second Largest Value',
-        objective: 'Update second = first before assigning a new maximum to first in findSecondLargest.',
-        hint: 'Add "second = first;" inside the "arr[i] > first" branch.',
+        title: 'Fix Second Largest Shift',
+        objective: 'In findSecondLargest, set second = first before assigning new maximum to first.',
+        hint: 'Add "second = first;" inside the if (arr[i] > first) block.',
         expectedFix: 'second = first; first = arr[i];',
-        testKey: 'test-java-easy-2',
+        testKey: 'test-java-arr-2',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
           const passed = cleanCode.includes('second = first;') && cleanCode.includes('first = arr[i];');
-          return [{ testId: 't-2', taskId: 'java-easy-bug-2', fileId: 'ArrayProcessor.java', name: 'Second Largest Shift', passed, message: passed ? 'Second largest properly preserved.' : 'First value updated without shifting to second.' }];
+          return [{ testId: 't-2', taskId: 'java-arr-bug-2', fileId: 'ArrayAnalyzer.java', name: 'Second Largest Shift', passed, message: passed ? 'Preserves previous maximum as second.' : 'Overwrites maximum directly.' }];
         },
       },
       {
-        bugId: 'java-easy-bug-3',
+        bugId: 'java-arr-bug-3',
         roomIndex: 3,
         roomId: 'storage',
         roomLabel: 'STORAGE & CARGO',
-        title: 'Include Initial Array Element in Sum',
-        objective: 'Fix calculateAverage loop to begin accumulation from index 0.',
-        hint: 'Change "int i = 1" to "int i = 0".',
-        expectedFix: 'int i = 0',
-        testKey: 'test-java-easy-3',
+        title: 'Fix Average Double Precision Division',
+        objective: 'In computeAverage, cast to double: return (double) sum / arr.length;.',
+        hint: 'Add (double) cast before division.',
+        expectedFix: '(double) sum / arr.length',
+        testKey: 'test-java-arr-3',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('int i = 0;') || cleanCode.includes('int i = 0 ;');
-          return [{ testId: 't-3', taskId: 'java-easy-bug-3', fileId: 'ArrayProcessor.java', name: 'Zero Index Accumulation', passed, message: passed ? 'Sum accumulates all indices from 0.' : 'Index 0 is skipped in sum loop.' }];
+          const passed = cleanCode.includes('(double) sum') || cleanCode.includes('(double)sum') || cleanCode.includes('sum / (double)');
+          return [{ testId: 't-3', taskId: 'java-arr-bug-3', fileId: 'ArrayAnalyzer.java', name: 'Average Floating Division', passed, message: passed ? 'Casts sum to double.' : 'Integer division truncation.' }];
         },
       },
       {
-        bugId: 'java-easy-bug-4',
+        bugId: 'java-arr-bug-4',
         roomIndex: 4,
         roomId: 'dev_lab',
         roomLabel: 'DEV WORKSTATIONS',
-        title: 'Correct Average Floating Conversion',
-        objective: 'Ensure calculateAverage handles non-zero sum correctly without returning zero prematurely.',
-        hint: 'Ensure sum / arr.length is computed accurately.',
-        expectedFix: 'return sum / arr.length;',
-        testKey: 'test-java-easy-4',
+        title: 'Fix Reverse Array Two-Pointer Condition',
+        objective: 'In reverseArray, iterate while left < right.',
+        hint: 'Change "left > right" to "left < right".',
+        expectedFix: 'while (left < right)',
+        testKey: 'test-java-arr-4',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('sum / arr.length') || cleanCode.includes('sum / (double)');
-          return [{ testId: 't-4', taskId: 'java-easy-bug-4', fileId: 'ArrayProcessor.java', name: 'Average Computation', passed, message: passed ? 'Average calculation valid.' : 'Average calculation incorrect.' }];
+          const passed = cleanCode.includes('while (left < right)') || cleanCode.includes('while (left < right )');
+          return [{ testId: 't-4', taskId: 'java-arr-bug-4', fileId: 'ArrayAnalyzer.java', name: 'Two-Pointer Reverse Condition', passed, message: passed ? 'Loop condition left < right valid.' : 'Inverted condition.' }];
         },
       },
       {
-        bugId: 'java-easy-bug-5',
+        bugId: 'java-arr-bug-5',
         roomIndex: 5,
         roomId: 'command',
         roomLabel: 'COMMAND & TECH',
-        title: 'Fix Duplicate Nested Loop Comparison',
-        objective: 'In containsDuplicates, start the inner loop at j = i + 1 to avoid self-comparison.',
-        hint: 'Change "int j = i;" to "int j = i + 1;".',
-        expectedFix: 'int j = i + 1',
-        testKey: 'test-java-easy-5',
+        title: 'Fix Even vs Odd Parity Check',
+        objective: 'In countEvenOdd, check val % 2 == 0 for even count.',
+        hint: 'Change "== 1" to "== 0".',
+        expectedFix: 'Math.abs(val) % 2 == 0',
+        testKey: 'test-java-arr-5',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('j = i + 1') || cleanCode.includes('j = i+1');
-          return [{ testId: 't-5', taskId: 'java-easy-bug-5', fileId: 'ArrayProcessor.java', name: 'Non-Self Comparison', passed, message: passed ? 'Inner loop compares unique pairs.' : 'Inner loop compares element with itself.' }];
+          const passed = cleanCode.includes('% 2 == 0') || cleanCode.includes('%2 == 0');
+          return [{ testId: 't-5', taskId: 'java-arr-bug-5', fileId: 'ArrayAnalyzer.java', name: 'Even Parity Check', passed, message: passed ? 'Checks % 2 == 0 for even.' : 'Inverted parity check.' }];
         },
       },
       {
-        bugId: 'java-easy-bug-6',
+        bugId: 'java-arr-bug-6',
         roomIndex: 6,
         roomId: 'mafia_lair',
         roomLabel: 'DARK LAIR',
-        title: 'Fix Duplicate Default Return',
-        objective: 'In containsDuplicates, return false if no duplicates are detected after checking all pairs.',
-        hint: 'Change final "return true;" to "return false;".',
-        expectedFix: 'return false;',
-        testKey: 'test-java-easy-6',
+        title: 'Fix Frequency Map Accumulation',
+        objective: 'In findFrequencies, accumulate count using freq.getOrDefault(val, 0) + 1.',
+        hint: 'Change "1" to "freq.getOrDefault(val, 0) + 1".',
+        expectedFix: 'freq.put(val, freq.getOrDefault(val, 0) + 1)',
+        testKey: 'test-java-arr-6',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.trim().endsWith('return false;\n}') || cleanCode.includes('return false;\n    }');
-          return [{ testId: 't-6', taskId: 'java-easy-bug-6', fileId: 'ArrayProcessor.java', name: 'Default Non-Duplicate Return', passed, message: passed ? 'Returns false when no duplicates found.' : 'Always returns true regardless of input.' }];
+          const passed = cleanCode.includes('freq.getOrDefault(val, 0) + 1') || cleanCode.includes('freq.get(val)');
+          return [{ testId: 't-6', taskId: 'java-arr-bug-6', fileId: 'ArrayAnalyzer.java', name: 'Frequency Accumulation', passed, message: passed ? 'Accumulates occurrence counts.' : 'Hardcoded to 1.' }];
         },
       },
-    ],
-    test_cases: [
-      { input: '[3, 7, 2, 9, 5]', expectedOutput: '7' },
-      { input: '[10, 10, 10]', expectedOutput: '-1' },
-    ],
-    is_active: true,
-  },
-
-  // ── 2. JAVA / MEDIUM: Banking Transaction Ledger ─────────────────────────
-  {
-    id: 'challenge-java-002',
-    title: 'Banking Transaction Ledger & Account Balancer',
-    description: 'Manage credit deposits, debit transfers, balance verification, and transaction rollback history.',
-    language: 'JAVA',
-    difficulty: 'MEDIUM',
-    code: `import java.util.*;
-
-public class AccountLedger {
-    private double balance = 0.0;
-    private final List<Double> history = new ArrayList<>();
-
-    public boolean deposit(double amount) {
-        // BUG-1: Accepts negative or zero deposits
-        if (amount < 0) return false;
-        balance += amount;
-        history.add(amount);
-        return true;
-    }
-
-    public boolean withdraw(double amount) {
-        // BUG-2: Allows overdraft when amount > balance
-        if (amount <= 0 || amount > balance * 2) return false;
-        // BUG-3: Adds amount instead of subtracting
-        balance += amount;
-        history.add(-amount);
-        return true;
-    }
-
-    public double getBalance() {
-        // BUG-4: Returns hardcoded 0.0 instead of actual balance
-        return 0.0;
-    }
-
-    public boolean rollbackLastTransaction() {
-        if (history.isEmpty()) return false;
-        // BUG-5: Removes index 0 instead of last index
-        double last = history.remove(0);
-        balance -= last;
-        return true;
-    }
-
-    public double calculateTotalDeposits() {
-        double total = 0.0;
-        for (double t : history) {
-            // BUG-6: Accumulates all transactions including negative withdrawals
-            total += t;
-        }
-        return total;
-    }
-}`,
-    bugs: [
       {
-        bugId: 'java-med-bug-1',
+        bugId: 'java-arr-bug-7',
         roomIndex: 1,
         roomId: 'library',
         roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Validate Positive Deposit Amount',
-        objective: 'Reject zero and negative deposits in deposit() method.',
-        hint: 'Change "amount < 0" to "amount <= 0".',
-        expectedFix: 'if (amount <= 0) return false;',
-        testKey: 'test-java-med-1',
+        title: 'Fix Deduplication Return Array',
+        objective: 'In removeDuplicates, return the populated unique array.',
+        hint: 'Change "return new int[0];" to "return unique;".',
+        expectedFix: 'return unique;',
+        testKey: 'test-java-arr-7',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('amount <= 0');
-          return [{ testId: 't-1', taskId: 'java-med-bug-1', fileId: 'AccountLedger.java', name: 'Positive Deposit Validation', passed, message: passed ? 'Zero and negative deposits blocked.' : 'Zero deposit is accepted.' }];
+          const passed = cleanCode.includes('return unique;') || cleanCode.includes('return unique ;');
+          return [{ testId: 't-7', taskId: 'java-arr-bug-7', fileId: 'ArrayAnalyzer.java', name: 'Deduplicated Return', passed, message: passed ? 'Returns unique array.' : 'Returns empty array.' }];
         },
       },
       {
-        bugId: 'java-med-bug-2',
+        bugId: 'java-arr-bug-8',
         roomIndex: 2,
         roomId: 'medbay',
         roomLabel: 'MEDICAL BAY',
-        title: 'Enforce Strict Balance Limit on Withdrawals',
-        objective: 'Prevent withdrawals that exceed current balance in withdraw().',
-        hint: 'Change "amount > balance * 2" to "amount > balance".',
-        expectedFix: 'amount > balance',
-        testKey: 'test-java-med-2',
+        title: 'Fix Right Rotation Indexing',
+        objective: 'In rotateRight, map elements to (i + k) % n.',
+        hint: 'Change "(i - k + n) % n" to "(i + k) % n".',
+        expectedFix: 'rotated[(i + k) % n] = arr[i]',
+        testKey: 'test-java-arr-8',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('amount > balance') && !cleanCode.includes('balance * 2');
-          return [{ testId: 't-2', taskId: 'java-med-bug-2', fileId: 'AccountLedger.java', name: 'Overdraft Protection', passed, message: passed ? 'Withdrawal strictly capped at balance.' : 'Overdraft allowed.' }];
+          const passed = cleanCode.includes('(i + k) % n') || cleanCode.includes('(i+k)%n');
+          return [{ testId: 't-8', taskId: 'java-arr-bug-8', fileId: 'ArrayAnalyzer.java', name: 'Right Rotation Index', passed, message: passed ? 'Rotates elements to the right.' : 'Rotates left.' }];
         },
       },
       {
-        bugId: 'java-med-bug-3',
+        bugId: 'java-arr-bug-9',
         roomIndex: 3,
         roomId: 'storage',
         roomLabel: 'STORAGE & CARGO',
-        title: 'Deduct Withdrawal Amount from Balance',
-        objective: 'Subtract the withdrawn amount from balance instead of adding it.',
-        hint: 'Change "balance += amount;" to "balance -= amount;".',
-        expectedFix: 'balance -= amount;',
-        testKey: 'test-java-med-3',
+        title: 'Fix Missing Number Subtraction Formula',
+        objective: 'In findMissingNumber, subtract actualSum from expectedSum.',
+        hint: 'Change "expectedSum + actualSum" to "expectedSum - actualSum".',
+        expectedFix: 'expectedSum - actualSum',
+        testKey: 'test-java-arr-9',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('balance -= amount;');
-          return [{ testId: 't-3', taskId: 'java-med-bug-3', fileId: 'AccountLedger.java', name: 'Balance Deduction', passed, message: passed ? 'Balance correctly reduced upon withdrawal.' : 'Balance erroneously increased.' }];
+          const passed = cleanCode.includes('expectedSum - actualSum') || cleanCode.includes('expectedSum-actualSum');
+          return [{ testId: 't-9', taskId: 'java-arr-bug-9', fileId: 'ArrayAnalyzer.java', name: 'Missing Number Subtraction', passed, message: passed ? 'Subtracts actual from expected sum.' : 'Adds actual sum.' }];
         },
       },
       {
-        bugId: 'java-med-bug-4',
+        bugId: 'java-arr-bug-10',
         roomIndex: 4,
         roomId: 'dev_lab',
         roomLabel: 'DEV WORKSTATIONS',
-        title: 'Return Authoritative Balance',
-        objective: 'In getBalance(), return the actual balance field.',
-        hint: 'Change "return 0.0;" to "return balance;" or "return this.balance;".',
-        expectedFix: 'return balance;',
-        testKey: 'test-java-med-4',
+        title: 'Fix Contains Duplicates Set Addition Guard',
+        objective: 'In containsDuplicates, return true if !set.add(val) (set.add returns false on duplicate).',
+        hint: 'Change "if (set.add(val))" to "if (!set.add(val))".',
+        expectedFix: 'if (!set.add(val)) return true;',
+        testKey: 'test-java-arr-10',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('return balance;') || cleanCode.includes('return this.balance;');
-          return [{ testId: 't-4', taskId: 'java-med-bug-4', fileId: 'AccountLedger.java', name: 'Get Balance Output', passed, message: passed ? 'Returns actual account balance.' : 'Returns hardcoded 0.0.' }];
-        },
-      },
-      {
-        bugId: 'java-med-bug-5',
-        roomIndex: 5,
-        roomId: 'command',
-        roomLabel: 'COMMAND & TECH',
-        title: 'Rollback Most Recent Transaction',
-        objective: 'Remove the last item in history (history.size() - 1) instead of index 0 during rollback.',
-        hint: 'Use "history.remove(history.size() - 1)".',
-        expectedFix: 'history.remove(history.size() - 1)',
-        testKey: 'test-java-med-5',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('history.remove(history.size() - 1)') || cleanCode.includes('history.remove(history.size()-1)');
-          return [{ testId: 't-5', taskId: 'java-med-bug-5', fileId: 'AccountLedger.java', name: 'Last Element Rollback', passed, message: passed ? 'Rollback targets latest transaction.' : 'Rollback incorrectly removes oldest transaction.' }];
-        },
-      },
-      {
-        bugId: 'java-med-bug-6',
-        roomIndex: 6,
-        roomId: 'mafia_lair',
-        roomLabel: 'DARK LAIR',
-        title: 'Filter Positive Deposits Only',
-        objective: 'In calculateTotalDeposits, filter "if (t > 0)" before adding to total.',
-        hint: 'Add "if (t > 0) total += t;".',
-        expectedFix: 'if (t > 0) total += t;',
-        testKey: 'test-java-med-6',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('t > 0') || cleanCode.includes('t > 0.0');
-          return [{ testId: 't-6', taskId: 'java-med-bug-6', fileId: 'AccountLedger.java', name: 'Deposit Filtering', passed, message: passed ? 'Only positive deposits accumulated.' : 'Withdrawals subtracted from total deposits.' }];
+          const passed = cleanCode.includes('!set.add(val)') || cleanCode.includes('set.contains(val)');
+          return [{ testId: 't-10', taskId: 'java-arr-bug-10', fileId: 'ArrayAnalyzer.java', name: 'Duplicate Detection Set', passed, message: passed ? 'Detects collision on set insertion.' : 'Inverted duplicate condition.' }];
         },
       },
     ],
     test_cases: [
-      { input: 'deposit(100), withdraw(30)', expectedOutput: 'balance: 70.0' },
-      { input: 'deposit(50), rollback()', expectedOutput: 'balance: 0.0' },
+      { input: 'findSecondLargest([5, 12, 8, 19, 1])', expectedOutput: '12' },
+      { input: 'findMissingNumber([1, 2, 4, 5], 5)', expectedOutput: '3' },
     ],
     is_active: true,
   },
 
-  // ── 3. JAVA / HARD: Binary Search Tree Balancing & Traversal ────────────
-  {
-    id: 'challenge-java-003',
-    title: 'Binary Search Tree Balancing & Range Query',
-    description: 'Maintain an ordered binary search tree, insert nodes, search keys, and compute subtree depths.',
-    language: 'JAVA',
-    difficulty: 'HARD',
-    code: `class Node {
-    int val;
-    Node left, right;
-    Node(int val) { this.val = val; }
-}
-
-public class BinarySearchTree {
-    private Node root;
-
-    public void insert(int val) {
-        root = insertRec(root, val);
-    }
-
-    private Node insertRec(Node current, int val) {
-        if (current == null) return new Node(val);
-        // BUG-1: Compares with > instead of < for left subtree
-        if (val > current.val) {
-            current.left = insertRec(current.left, val);
-        } else if (val > current.val) {
-            // BUG-2: Duplicate condition prevents right insertion
-            current.right = insertRec(current.right, val);
-        }
-        return current;
-    }
-
-    public boolean search(int key) {
-        return searchRec(root, key);
-    }
-
-    private boolean searchRec(Node current, int key) {
-        // BUG-3: Returns true when current is null (NPE or false positive)
-        if (current == null) return true;
-        if (current.val == key) return true;
-        // BUG-4: Inverted search direction branch
-        if (key > current.val) {
-            return searchRec(current.left, key);
-        }
-        return searchRec(current.right, key);
-    }
-
-    public int maxDepth(Node node) {
-        if (node == null) return 0;
-        // BUG-5: Uses Math.min instead of Math.max
-        int left = maxDepth(node.left);
-        int right = maxDepth(node.right);
-        return Math.min(left, right) + 1;
-    }
-
-    public int findMin() {
-        if (root == null) return -1;
-        Node curr = root;
-        // BUG-6: Traverses right instead of left to find minimum
-        while (curr.right != null) {
-            curr = curr.right;
-        }
-        return curr.val;
-    }
-}`,
-    bugs: [
-      {
-        bugId: 'java-hard-bug-1',
-        roomIndex: 1,
-        roomId: 'library',
-        roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Correct Left Subtree Insertion Condition',
-        objective: 'In insertRec, insert into current.left when val < current.val.',
-        hint: 'Change "val > current.val" to "val < current.val".',
-        expectedFix: 'if (val < current.val)',
-        testKey: 'test-java-hard-1',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('val < current.val');
-          return [{ testId: 't-1', taskId: 'java-hard-bug-1', fileId: 'BinarySearchTree.java', name: 'Left Subtree Insertion', passed, message: passed ? 'Lesser values correctly routed left.' : 'Lesser values routed incorrectly.' }];
-        },
-      },
-      {
-        bugId: 'java-hard-bug-2',
-        roomIndex: 2,
-        roomId: 'medbay',
-        roomLabel: 'MEDICAL BAY',
-        title: 'Enable Right Subtree Insertion Branch',
-        objective: 'In insertRec, route greater values to current.right.',
-        hint: 'Use "else if (val > current.val) current.right = insertRec(current.right, val);".',
-        expectedFix: 'current.right = insertRec(current.right, val);',
-        testKey: 'test-java-hard-2',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('val < current.val') && cleanCode.includes('current.right = insertRec');
-          return [{ testId: 't-2', taskId: 'java-hard-bug-2', fileId: 'BinarySearchTree.java', name: 'Right Subtree Insertion', passed, message: passed ? 'Greater values correctly routed right.' : 'Right subtree insertion blocked.' }];
-        },
-      },
-      {
-        bugId: 'java-hard-bug-3',
-        roomIndex: 3,
-        roomId: 'storage',
-        roomLabel: 'STORAGE & CARGO',
-        title: 'Fix Null Node Search Base Case',
-        objective: 'In searchRec, return false when current == null.',
-        hint: 'Change "if (current == null) return true;" to "if (current == null) return false;".',
-        expectedFix: 'if (current == null) return false;',
-        testKey: 'test-java-hard-3',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('if (current == null) return false;') || cleanCode.includes('if(current == null) return false;');
-          return [{ testId: 't-3', taskId: 'java-hard-bug-3', fileId: 'BinarySearchTree.java', name: 'Null Search Base Case', passed, message: passed ? 'Null base case returns false.' : 'Null base case returns true.' }];
-        },
-      },
-      {
-        bugId: 'java-hard-bug-4',
-        roomIndex: 4,
-        roomId: 'dev_lab',
-        roomLabel: 'DEV WORKSTATIONS',
-        title: 'Fix Search Traversal Direction',
-        objective: 'In searchRec, traverse left when key < current.val and right when key > current.val.',
-        hint: 'Change "if (key > current.val) return searchRec(current.left, key);" to "if (key < current.val)...".',
-        expectedFix: 'if (key < current.val) return searchRec(current.left, key);',
-        testKey: 'test-java-hard-4',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('key < current.val') && cleanCode.includes('current.left');
-          return [{ testId: 't-4', taskId: 'java-hard-bug-4', fileId: 'BinarySearchTree.java', name: 'Search Traversal Route', passed, message: passed ? 'Search directions properly aligned.' : 'Search directions inverted.' }];
-        },
-      },
-      {
-        bugId: 'java-hard-bug-5',
-        roomIndex: 5,
-        roomId: 'command',
-        roomLabel: 'COMMAND & TECH',
-        title: 'Compute Maximum Tree Depth',
-        objective: 'In maxDepth, return Math.max(left, right) + 1 to find the maximum height.',
-        hint: 'Change Math.min to Math.max.',
-        expectedFix: 'Math.max(left, right) + 1',
-        testKey: 'test-java-hard-5',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('Math.max(left, right)');
-          return [{ testId: 't-5', taskId: 'java-hard-bug-5', fileId: 'BinarySearchTree.java', name: 'Max Depth Calculation', passed, message: passed ? 'Calculates maximum height.' : 'Uses minimum height.' }];
-        },
-      },
-      {
-        bugId: 'java-hard-bug-6',
-        roomIndex: 6,
-        roomId: 'mafia_lair',
-        roomLabel: 'DARK LAIR',
-        title: 'Traverse Left for Minimum Value',
-        objective: 'In findMin, traverse curr.left until left child is null.',
-        hint: 'Change "curr.right" to "curr.left".',
-        expectedFix: 'curr = curr.left;',
-        testKey: 'test-java-hard-6',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('curr.left != null') && cleanCode.includes('curr = curr.left;');
-          return [{ testId: 't-6', taskId: 'java-hard-bug-6', fileId: 'BinarySearchTree.java', name: 'Minimum Traversal Path', passed, message: passed ? 'Finds leftmost minimum node.' : 'Incorrectly searches right.' }];
-        },
-      },
-    ],
-    test_cases: [
-      { input: 'insert(5, 3, 7, 2, 4)', expectedOutput: 'min: 2, depth: 3' },
-    ],
-    is_active: true,
-  },
-
-  // ── 4. PYTHON / EASY: Two Sum & Frequency Counter ────────────────────────
-  {
-    id: 'challenge-py-001',
-    title: 'Two Sum & Word Frequency Counter',
-    description: 'Find pairs that sum to a target value and compute word frequencies in telemetry packets.',
-    language: 'PYTHON',
-    difficulty: 'EASY',
-    code: `def two_sum(nums, target):
-    seen = {}
-    # BUG-1: Iterates values instead of (index, num)
-    for num in nums:
-        complement = target - num
-        # BUG-2: Checks complement in nums instead of seen dictionary
-        if complement in nums:
-            return [seen.get(complement, 0), num]
-        seen[num] = num
-    return []
-
-def count_word_frequencies(words):
-    freq = {}
-    for word in words:
-        # BUG-3: Overwrites count with 1 every time
-        freq[word] = 1
-    return freq
-
-def find_most_frequent(freq_map):
-    if not freq_map:
-        return None
-    max_key = None
-    # BUG-4: Initializes max_count to infinity
-    max_count = float('inf')
-    for k, v in freq_map.items():
-        if v > max_count:
-            max_count = v
-            max_key = k
-    return max_key
-
-def filter_above_threshold(nums, threshold):
-    # BUG-5: Excludes elements equal to threshold
-    return [x for x in nums if x < threshold]
-
-def calculate_checksum(nums):
-    # BUG-6: Uses bitwise OR instead of addition/XOR
-    total = 0
-    for x in nums:
-        total = total | x
-    return total
-`,
-    bugs: [
-      {
-        bugId: 'py-easy-bug-1',
-        roomIndex: 1,
-        roomId: 'library',
-        roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Enumerate Array Indices in two_sum',
-        objective: 'Use enumerate(nums) in two_sum so index i is tracked.',
-        hint: 'Change "for num in nums:" to "for i, num in enumerate(nums):".',
-        expectedFix: 'for i, num in enumerate(nums):',
-        testKey: 'test-py-easy-1',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('enumerate(nums)');
-          return [{ testId: 't-1', taskId: 'py-easy-bug-1', fileId: 'solution.py', name: 'Index Enumeration', passed, message: passed ? 'Indices enumerated correctly.' : 'Indices not captured.' }];
-        },
-      },
-      {
-        bugId: 'py-easy-bug-2',
-        roomIndex: 2,
-        roomId: 'medbay',
-        roomLabel: 'MEDICAL BAY',
-        title: 'Check Complement in Hash Map',
-        objective: 'Check if complement is in seen dictionary, and return [seen[complement], i].',
-        hint: 'Use "if complement in seen: return [seen[complement], i]".',
-        expectedFix: 'if complement in seen:',
-        testKey: 'test-py-easy-2',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('complement in seen');
-          return [{ testId: 't-2', taskId: 'py-easy-bug-2', fileId: 'solution.py', name: 'Hash Table Lookup', passed, message: passed ? 'Complement looked up in hash map in O(1).' : 'O(N) search on list used.' }];
-        },
-      },
-      {
-        bugId: 'py-easy-bug-3',
-        roomIndex: 3,
-        roomId: 'storage',
-        roomLabel: 'STORAGE & CARGO',
-        title: 'Increment Word Frequency Count',
-        objective: 'In count_word_frequencies, increment existing count: freq[word] = freq.get(word, 0) + 1.',
-        hint: 'Use "freq[word] = freq.get(word, 0) + 1".',
-        expectedFix: 'freq[word] = freq.get(word, 0) + 1',
-        testKey: 'test-py-easy-3',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('freq.get(word, 0) + 1') || cleanCode.includes('freq.get(word,0)+1') || cleanCode.includes('+= 1');
-          return [{ testId: 't-3', taskId: 'py-easy-bug-3', fileId: 'solution.py', name: 'Frequency Accumulation', passed, message: passed ? 'Frequencies accumulated accurately.' : 'Frequencies reset to 1.' }];
-        },
-      },
-      {
-        bugId: 'py-easy-bug-4',
-        roomIndex: 4,
-        roomId: 'dev_lab',
-        roomLabel: 'DEV WORKSTATIONS',
-        title: 'Initialize Maximum Count to Zero',
-        objective: 'In find_most_frequent, initialize max_count to -1 or 0 instead of infinity.',
-        hint: 'Change "max_count = float(\'inf\')" to "max_count = -1".',
-        expectedFix: 'max_count = -1',
-        testKey: 'test-py-easy-4',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = !cleanCode.includes("float('inf')") && (cleanCode.includes('max_count = -1') || cleanCode.includes('max_count = 0'));
-          return [{ testId: 't-4', taskId: 'py-easy-bug-4', fileId: 'solution.py', name: 'Max Baseline Initialization', passed, message: passed ? 'Max count initialized to lowest baseline.' : 'Max count set to infinity.' }];
-        },
-      },
-      {
-        bugId: 'py-easy-bug-5',
-        roomIndex: 5,
-        roomId: 'command',
-        roomLabel: 'COMMAND & TECH',
-        title: 'Fix Threshold Filtering Condition',
-        objective: 'Filter elements strictly greater than or equal to threshold.',
-        hint: 'Change "x < threshold" to "x >= threshold".',
-        expectedFix: 'x >= threshold',
-        testKey: 'test-py-easy-5',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('x >= threshold') || cleanCode.includes('x > threshold');
-          return [{ testId: 't-5', taskId: 'py-easy-bug-5', fileId: 'solution.py', name: 'Upper Threshold Filtering', passed, message: passed ? 'Elements above threshold retained.' : 'Inverted filtering used.' }];
-        },
-      },
-      {
-        bugId: 'py-easy-bug-6',
-        roomIndex: 6,
-        roomId: 'mafia_lair',
-        roomLabel: 'DARK LAIR',
-        title: 'Fix Checksum Accumulation',
-        objective: 'Sum values in calculate_checksum: total += x.',
-        hint: 'Change "total = total | x" to "total += x".',
-        expectedFix: 'total += x',
-        testKey: 'test-py-easy-6',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('total += x') || cleanCode.includes('total = total + x');
-          return [{ testId: 't-6', taskId: 'py-easy-bug-6', fileId: 'solution.py', name: 'Summation Checksum', passed, message: passed ? 'Checksum calculates arithmetic sum.' : 'Bitwise OR used.' }];
-        },
-      },
-    ],
-    test_cases: [
-      { input: 'two_sum([2, 7, 11, 15], 9)', expectedOutput: '[0, 1]' },
-      { input: 'count_word_frequencies(["a", "b", "a"])', expectedOutput: '{"a": 2, "b": 1}' },
-    ],
-    is_active: true,
-  },
-
-  // ── 5. PYTHON / MEDIUM: User Authentication & Session Token Manager ──────
-  {
-    id: 'challenge-py-002',
-    title: 'User Authentication & Session Token Manager',
-    description: 'Validate passwords, hash tokens, expire sessions, and manage role-based permissions.',
-    language: 'PYTHON',
-    difficulty: 'MEDIUM',
-    code: `import time
-import hashlib
-
-class SessionManager:
-    def __init__(self, session_ttl=3600):
-        self.sessions = {}
-        self.ttl = session_ttl
-
-    def create_session(self, user_id, role="DEVELOPER"):
-        # BUG-1: Token does not include timestamp or user_id entropy
-        token = "fixed_token_constant"
-        # BUG-2: Expiry timestamp set in the past (- self.ttl)
-        expires_at = time.time() - self.ttl
-        self.sessions[token] = {
-            "user_id": user_id,
-            "role": role,
-            "expires_at": expires_at
-        }
-        return token
-
-    def validate_session(self, token):
-        # BUG-3: Returns True for non-existent token
-        if token not in self.sessions:
-            return True
-        session = self.sessions[token]
-        # BUG-4: Validates if time.time() > expires_at (treats expired as valid)
-        if time.time() > session["expires_at"]:
-            return True
-        return False
-
-    def revoke_session(self, token):
-        # BUG-5: Ignores missing token instead of returning False
-        if token in self.sessions:
-            del self.sessions[token]
-            return True
-        return True
-
-    def check_permission(self, token, required_role):
-        if not self.validate_session(token):
-            return False
-        # BUG-6: Compares with != instead of ==
-        return self.sessions[token]["role"] != required_role
-`,
-    bugs: [
-      {
-        bugId: 'py-med-bug-1',
-        roomIndex: 1,
-        roomId: 'library',
-        roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Generate Dynamic Session Token',
-        objective: 'Generate a dynamic token using hashlib or unique entropy containing user_id and time.',
-        hint: 'Use hashlib.sha256(f"{user_id}:{time.time()}".encode()).hexdigest().',
-        expectedFix: 'hashlib.sha256',
-        testKey: 'test-py-med-1',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = !cleanCode.includes('"fixed_token_constant"') && (cleanCode.includes('hashlib.') || cleanCode.includes('token = f"'));
-          return [{ testId: 't-1', taskId: 'py-med-bug-1', fileId: 'SessionManager.py', name: 'Dynamic Token Creation', passed, message: passed ? 'Tokens generated with dynamic entropy.' : 'Static constant token used.' }];
-        },
-      },
-      {
-        bugId: 'py-med-bug-2',
-        roomIndex: 2,
-        roomId: 'medbay',
-        roomLabel: 'MEDICAL BAY',
-        title: 'Set Future Expiration Timestamp',
-        objective: 'In create_session, set expires_at = time.time() + self.ttl.',
-        hint: 'Change "time.time() - self.ttl" to "time.time() + self.ttl".',
-        expectedFix: 'expires_at = time.time() + self.ttl',
-        testKey: 'test-py-med-2',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('time.time() + self.ttl') || cleanCode.includes('time.time()+self.ttl');
-          return [{ testId: 't-2', taskId: 'py-med-bug-2', fileId: 'SessionManager.py', name: 'Future Expiration', passed, message: passed ? 'Session expiration set to future.' : 'Session created already expired.' }];
-        },
-      },
-      {
-        bugId: 'py-med-bug-3',
-        roomIndex: 3,
-        roomId: 'storage',
-        roomLabel: 'STORAGE & CARGO',
-        title: 'Reject Non-Existent Session Tokens',
-        objective: 'In validate_session, return False if token is not in self.sessions.',
-        hint: 'Change "if token not in self.sessions: return True" to "return False".',
-        expectedFix: 'if token not in self.sessions: return False',
-        testKey: 'test-py-med-3',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('if token not in self.sessions:\n            return False') || cleanCode.includes('if token not in self.sessions: return False');
-          return [{ testId: 't-3', taskId: 'py-med-bug-3', fileId: 'SessionManager.py', name: 'Unknown Token Rejection', passed, message: passed ? 'Invalid tokens rejected.' : 'Invalid tokens accepted.' }];
-        },
-      },
-      {
-        bugId: 'py-med-bug-4',
-        roomIndex: 4,
-        roomId: 'dev_lab',
-        roomLabel: 'DEV WORKSTATIONS',
-        title: 'Validate Active Expiry Window',
-        objective: 'In validate_session, return True only if time.time() <= session["expires_at"].',
-        hint: 'Change "if time.time() > session[\'expires_at\']: return True" to "return time.time() <= session[\'expires_at\']".',
-        expectedFix: 'time.time() <= session["expires_at"]',
-        testKey: 'test-py-med-4',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('time.time() <= session["expires_at"]') || cleanCode.includes('time.time() < session["expires_at"]');
-          return [{ testId: 't-4', taskId: 'py-med-bug-4', fileId: 'SessionManager.py', name: 'Session TTL Validation', passed, message: passed ? 'Active sessions validated correctly.' : 'Expired sessions accepted.' }];
-        },
-      },
-      {
-        bugId: 'py-med-bug-5',
-        roomIndex: 5,
-        roomId: 'command',
-        roomLabel: 'COMMAND & TECH',
-        title: 'Return False on Revoking Missing Token',
-        objective: 'In revoke_session, return False when token is not present.',
-        hint: 'Change the fallback "return True" to "return False".',
-        expectedFix: 'return False',
-        testKey: 'test-py-med-5',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('del self.sessions[token]\n            return True\n        return False') || cleanCode.includes('return False');
-          return [{ testId: 't-5', taskId: 'py-med-bug-5', fileId: 'SessionManager.py', name: 'Revocation Status', passed, message: passed ? 'Returns False on missing session.' : 'Returns True regardless.' }];
-        },
-      },
-      {
-        bugId: 'py-med-bug-6',
-        roomIndex: 6,
-        roomId: 'mafia_lair',
-        roomLabel: 'DARK LAIR',
-        title: 'Check Exact Role Match for Permission',
-        objective: 'In check_permission, check session["role"] == required_role.',
-        hint: 'Change "!=" to "==".',
-        expectedFix: 'return self.sessions[token]["role"] == required_role',
-        testKey: 'test-py-med-6',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('["role"] == required_role');
-          return [{ testId: 't-6', taskId: 'py-med-bug-6', fileId: 'SessionManager.py', name: 'Role Match Check', passed, message: passed ? 'Exact role required.' : 'Inverted role check used.' }];
-        },
-      },
-    ],
-    test_cases: [
-      { input: 'create_session("admin", "ADMIN"), validate()', expectedOutput: 'True' },
-    ],
-    is_active: true,
-  },
-
-  // ── 6. PYTHON / HARD: Priority Task Scheduler & DAG ──────────────────────
+  // ── 8. PYTHON / HARD: #88 Linear Search, #89 Binary Search, #90 Bubble/Selection Sort ──
   {
     id: 'challenge-py-003',
-    title: 'Priority Task Scheduler & DAG Dependency Resolver',
-    description: 'Schedule asynchronous tasks according to priority queues, dependencies, and execution retries.',
+    title: 'Searching & Sorting Algorithm Suite',
+    description: 'B.Tech Program #84, #85, #87, #88, #89 & #90: Linear and Binary search implementations, Bubble sort optimization, Selection sort, Insertion sort and two-way array merges.',
     language: 'PYTHON',
     difficulty: 'HARD',
-    code: `import heapq
+    code: `# 1. Linear Search
+def linear_search(arr: list, target: int) -> int:
+    for i in range(len(arr)):
+        # BUG-1: Compares i with target instead of arr[i]
+        if i == target:
+            return i
+    return -1
 
-class TaskScheduler:
-    def __init__(self):
-        self.queue = []
-        self.dependencies = {}
-        self.completed = set()
+# 2. Binary Search (Iterative)
+def binary_search(arr: list, target: int) -> int:
+    low = 0
+    high = len(arr) - 1
+    # BUG-2: Stops when low == high (low < high instead of low <= high)
+    while low < high:
+        mid = (low + high) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            # BUG-3: Sets low = mid instead of mid + 1 causing infinite loop
+            low = mid
+        else:
+            high = mid - 1
+    return -1
 
-    def add_task(self, task_id, priority, deps=None):
-        # BUG-1: Pushes tuple without inverting priority for min-heap
-        heapq.heappush(self.queue, (priority, task_id))
-        self.dependencies[task_id] = set(deps) if deps else set()
+# 3. Bubble Sort (Ascending)
+def bubble_sort(arr: list) -> list:
+    a = list(arr)
+    n = len(a)
+    for i in range(n):
+        swapped = False
+        # BUG-4: Inverted comparison sorts descending
+        for j in range(0, n - i - 1):
+            if a[j] < a[j + 1]:
+                a[j], a[j + 1] = a[j + 1], a[j]
+                swapped = True
+        if not swapped:
+            break
+    return a
 
-    def can_run(self, task_id):
-        # BUG-2: Returns True if dependencies is non-empty instead of issubset
-        if task_id not in self.dependencies:
-            return True
-        return len(self.dependencies[task_id]) > 0
+# 4. Selection Sort (Ascending)
+def selection_sort(arr: list) -> list:
+    a = list(arr)
+    n = len(a)
+    for i in range(n):
+        min_idx = i
+        # BUG-5: Starts inner loop at i instead of i + 1
+        for j in range(i, n):
+            if a[j] < a[min_idx]:
+                min_idx = j
+        # Swap minimum with current index
+        a[i], a[min_idx] = a[min_idx], a[i]
+    return a
 
-    def get_next_task(self):
-        if not self.queue:
-            return None
-        # BUG-3: Pops from index 0 directly instead of heapq.heappop
-        priority, task_id = self.queue.pop(0)
-        if self.can_run(task_id):
-            return task_id
-        # BUG-4: Discards unrunnable task instead of pushing back
-        return None
+# 5. Insertion Sort (Ascending)
+def insertion_sort(arr: list) -> list:
+    a = list(arr)
+    for i in range(1, len(a)):
+        key = a[i]
+        j = i - 1
+        # BUG-6: Condition a[j] < key sorts descending
+        while j >= 0 and a[j] < key:
+            a[j + 1] = a[j]
+            j -= 1
+        a[j + 1] = key
+    return a
 
-    def mark_completed(self, task_id):
-        # BUG-5: Removes from completed set instead of adding
-        if task_id in self.completed:
-            self.completed.remove(task_id)
+# 6. Merge two sorted arrays
+def merge_sorted_arrays(arr1: list, arr2: list) -> list:
+    merged = []
+    i = j = 0
+    while i < len(arr1) and j < len(arr2):
+        if arr1[i] <= arr2[j]:
+            merged.append(arr1[i])
+            i += 1
+        else:
+            merged.append(arr2[j])
+            j += 1
+    # BUG-7: Extends arr1 with index j instead of remaining slice
+    merged.extend(arr1[j:])
+    merged.extend(arr2[j:])
+    return merged
 
-    def is_all_completed(self):
-        # BUG-6: Checks if queue is non-empty
-        return len(self.queue) > 0
+# 7. Find Common Elements in Two Sorted Arrays
+def find_common_elements(arr1: list, arr2: list) -> list:
+    common = []
+    i = j = 0
+    while i < len(arr1) and j < len(arr2):
+        if arr1[i] == arr2[j]:
+            common.append(arr1[i])
+            # BUG-8: Increments only i causing infinite loop on match
+            i += 1
+        elif arr1[i] < arr2[j]:
+            i += 1
+        else:
+            j += 1
+    return common
+
+# 8. Check if list is sorted in ascending order
+def is_sorted(arr: list) -> bool:
+    for i in range(len(arr) - 1):
+        # BUG-9: Rejects valid duplicates with > instead of > 
+        if arr[i] > arr[i + 1]:
+            return False
+    return True
+
+# 9. Find duplicate in array of size n containing numbers 1..n-1
+def find_duplicate_number(arr: list) -> int:
+    seen = set()
+    for num in arr:
+        # BUG-10: Inverted seen check (returns num if num not in seen)
+        if num not in seen:
+            return num
+        seen.add(num)
+    return -1
 `,
     bugs: [
       {
-        bugId: 'py-hard-bug-1',
+        bugId: 'py-sort-bug-1',
         roomIndex: 1,
         roomId: 'library',
         roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Invert Priority for Max-Priority Queue',
-        objective: 'In add_task, store (-priority, task_id) so highest priority runs first.',
-        hint: 'Use "heapq.heappush(self.queue, (-priority, task_id))".',
-        expectedFix: 'heapq.heappush(self.queue, (-priority, task_id))',
-        testKey: 'test-py-hard-1',
+        title: 'Fix Linear Search Element Lookup',
+        objective: 'In linear_search, compare arr[i] == target instead of index i == target.',
+        hint: 'Change "if i == target:" to "if arr[i] == target:".',
+        expectedFix: 'if arr[i] == target:',
+        testKey: 'test-py-sort-1',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('-priority');
-          return [{ testId: 't-1', taskId: 'py-hard-bug-1', fileId: 'TaskScheduler.py', name: 'Max Priority Heap', passed, message: passed ? 'High priority tasks ordered first.' : 'Lowest priority runs first.' }];
+          const passed = cleanCode.includes('arr[i] == target');
+          return [{ testId: 't-1', taskId: 'py-sort-bug-1', fileId: 'sorting_and_searching.py', name: 'Linear Search Lookup', passed, message: passed ? 'Compares array value at index.' : 'Compares index directly.' }];
         },
       },
       {
-        bugId: 'py-hard-bug-2',
+        bugId: 'py-sort-bug-2',
         roomIndex: 2,
         roomId: 'medbay',
         roomLabel: 'MEDICAL BAY',
-        title: 'Verify All Dependencies are Completed',
-        objective: 'In can_run, return self.dependencies[task_id].issubset(self.completed).',
-        hint: 'Use "return self.dependencies[task_id].issubset(self.completed)".',
-        expectedFix: 'return self.dependencies[task_id].issubset(self.completed)',
-        testKey: 'test-py-hard-2',
+        title: 'Fix Binary Search Equality Loop Boundary',
+        objective: 'In binary_search, iterate while low <= high.',
+        hint: 'Change "while low < high:" to "while low <= high:".',
+        expectedFix: 'while low <= high:',
+        testKey: 'test-py-sort-2',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('.issubset(self.completed)');
-          return [{ testId: 't-2', taskId: 'py-hard-bug-2', fileId: 'TaskScheduler.py', name: 'Dependency Resolution', passed, message: passed ? 'Runs only when dependencies are fulfilled.' : 'Runs before dependencies complete.' }];
+          const passed = cleanCode.includes('while low <= high:');
+          return [{ testId: 't-2', taskId: 'py-sort-bug-2', fileId: 'sorting_and_searching.py', name: 'Binary Search Equality Bound', passed, message: passed ? 'Iterates while low <= high.' : 'Stops before checking last element.' }];
         },
       },
       {
-        bugId: 'py-hard-bug-3',
+        bugId: 'py-sort-bug-3',
         roomIndex: 3,
         roomId: 'storage',
         roomLabel: 'STORAGE & CARGO',
-        title: 'Use Heap Pop for Priority Retrieval',
-        objective: 'In get_next_task, retrieve tasks using heapq.heappop(self.queue).',
-        hint: 'Change "self.queue.pop(0)" to "heapq.heappop(self.queue)".',
-        expectedFix: 'heapq.heappop(self.queue)',
-        testKey: 'test-py-hard-3',
+        title: 'Fix Binary Search Low Pointer Advance',
+        objective: 'In binary_search, advance low to mid + 1 when arr[mid] < target.',
+        hint: 'Change "low = mid" to "low = mid + 1".',
+        expectedFix: 'low = mid + 1',
+        testKey: 'test-py-sort-3',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('heapq.heappop(self.queue)');
-          return [{ testId: 't-3', taskId: 'py-hard-bug-3', fileId: 'TaskScheduler.py', name: 'Heap Ordering Pop', passed, message: passed ? 'Pops highest priority node.' : 'Linear array pop used.' }];
+          const passed = cleanCode.includes('low = mid + 1') || cleanCode.includes('low = mid+1');
+          return [{ testId: 't-3', taskId: 'py-sort-bug-3', fileId: 'sorting_and_searching.py', name: 'Binary Search Low Advance', passed, message: passed ? 'Advances low pointer.' : 'Infinite loop on low = mid.' }];
         },
       },
       {
-        bugId: 'py-hard-bug-4',
+        bugId: 'py-sort-bug-4',
         roomIndex: 4,
         roomId: 'dev_lab',
         roomLabel: 'DEV WORKSTATIONS',
-        title: 'Requeue Blocked Tasks',
-        objective: 'In get_next_task, requeue blocked tasks with heapq.heappush(self.queue, (priority, task_id)).',
-        hint: 'Re-push unrunnable task back into queue before returning None.',
-        expectedFix: 'heapq.heappush(self.queue, (priority, task_id))',
-        testKey: 'test-py-hard-4',
+        title: 'Fix Bubble Sort Ascending Comparator',
+        objective: 'In bubble_sort, swap when a[j] > a[j + 1].',
+        hint: 'Change "a[j] < a[j + 1]" to "a[j] > a[j + 1]".',
+        expectedFix: 'if a[j] > a[j + 1]:',
+        testKey: 'test-py-sort-4',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('heapq.heappush(self.queue, (priority, task_id))') || cleanCode.includes('heappush');
-          return [{ testId: 't-4', taskId: 'py-hard-bug-4', fileId: 'TaskScheduler.py', name: 'Blocked Task Requeue', passed, message: passed ? 'Blocked tasks kept in queue.' : 'Blocked tasks lost.' }];
+          const passed = cleanCode.includes('a[j] > a[j + 1]') || cleanCode.includes('a[j] > a[j+1]');
+          return [{ testId: 't-4', taskId: 'py-sort-bug-4', fileId: 'sorting_and_searching.py', name: 'Bubble Sort Comparator', passed, message: passed ? 'Sorts ascending.' : 'Sorts descending.' }];
         },
       },
       {
-        bugId: 'py-hard-bug-5',
+        bugId: 'py-sort-bug-5',
         roomIndex: 5,
         roomId: 'command',
         roomLabel: 'COMMAND & TECH',
-        title: 'Add Task to Completed Set',
-        objective: 'In mark_completed, add task_id to self.completed.',
-        hint: 'Use "self.completed.add(task_id)".',
-        expectedFix: 'self.completed.add(task_id)',
-        testKey: 'test-py-hard-5',
+        title: 'Fix Selection Sort Inner Loop Start',
+        objective: 'In selection_sort, start inner loop at i + 1 (range(i + 1, n)).',
+        hint: 'Change "range(i, n)" to "range(i + 1, n)".',
+        expectedFix: 'for j in range(i + 1, n):',
+        testKey: 'test-py-sort-5',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('self.completed.add(task_id)');
-          return [{ testId: 't-5', taskId: 'py-hard-bug-5', fileId: 'TaskScheduler.py', name: 'Completion Recording', passed, message: passed ? 'Task recorded in completed set.' : 'Task removed from completed set.' }];
+          const passed = cleanCode.includes('range(i + 1, n)') || cleanCode.includes('range(i+1, n)');
+          return [{ testId: 't-5', taskId: 'py-sort-bug-5', fileId: 'sorting_and_searching.py', name: 'Selection Sort Inner Start', passed, message: passed ? 'Starts search from next index.' : 'Redundant self-comparison.' }];
         },
       },
       {
-        bugId: 'py-hard-bug-6',
+        bugId: 'py-sort-bug-6',
         roomIndex: 6,
         roomId: 'mafia_lair',
         roomLabel: 'DARK LAIR',
-        title: 'Check Zero Remaining Tasks',
-        objective: 'In is_all_completed, return len(self.queue) == 0.',
-        hint: 'Change "len(self.queue) > 0" to "len(self.queue) == 0".',
-        expectedFix: 'return len(self.queue) == 0',
-        testKey: 'test-py-hard-6',
+        title: 'Fix Insertion Sort While Loop Comparison',
+        objective: 'In insertion_sort, shift elements while a[j] > key.',
+        hint: 'Change "a[j] < key" to "a[j] > key".',
+        expectedFix: 'while j >= 0 and a[j] > key:',
+        testKey: 'test-py-sort-6',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('len(self.queue) == 0');
-          return [{ testId: 't-6', taskId: 'py-hard-bug-6', fileId: 'TaskScheduler.py', name: 'Completion Status', passed, message: passed ? 'Reports completed when queue is empty.' : 'Reports inverted state.' }];
+          const passed = cleanCode.includes('a[j] > key');
+          return [{ testId: 't-6', taskId: 'py-sort-bug-6', fileId: 'sorting_and_searching.py', name: 'Insertion Sort Comparator', passed, message: passed ? 'Shifts larger elements right.' : 'Sorts descending.' }];
+        },
+      },
+      {
+        bugId: 'py-sort-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Merge Sorted Arrays Slices',
+        objective: 'In merge_sorted_arrays, slice remaining elements using arr1[i:] and arr2[j:].',
+        hint: 'Change "arr1[j:]" to "arr1[i:]".',
+        expectedFix: 'merged.extend(arr1[i:])',
+        testKey: 'test-py-sort-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('arr1[i:]');
+          return [{ testId: 't-7', taskId: 'py-sort-bug-7', fileId: 'sorting_and_searching.py', name: 'Merge Array Remaining Slice', passed, message: passed ? 'Appends slice arr1[i:].' : 'Uses incorrect index j for arr1.' }];
+        },
+      },
+      {
+        bugId: 'py-sort-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Common Elements Dual Pointer Advance',
+        objective: 'In find_common_elements, increment both i += 1 and j += 1 upon finding a match.',
+        hint: 'Add "j += 1" when arr1[i] == arr2[j].',
+        expectedFix: 'i += 1; j += 1',
+        testKey: 'test-py-sort-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('i += 1') && cleanCode.includes('j += 1');
+          return [{ testId: 't-8', taskId: 'py-sort-bug-8', fileId: 'sorting_and_searching.py', name: 'Dual Pointer Advance', passed, message: passed ? 'Advances both pointers on equality.' : 'Only advances i.' }];
+        },
+      },
+      {
+        bugId: 'py-sort-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Duplicate Number Detection Condition',
+        objective: 'In find_duplicate_number, return num when num in seen.',
+        hint: 'Change "if num not in seen:" to "if num in seen:".',
+        expectedFix: 'if num in seen: return num',
+        testKey: 'test-py-sort-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('if num in seen:') || cleanCode.includes('if num in seen :');
+          return [{ testId: 't-9', taskId: 'py-sort-bug-9', fileId: 'sorting_and_searching.py', name: 'Duplicate Number Detection', passed, message: passed ? 'Returns number when already in seen set.' : 'Inverted seen check.' }];
+        },
+      },
+      {
+        bugId: 'py-sort-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Binary Search High Pointer Boundary',
+        objective: 'In binary_search, set high = mid - 1 when target is on the left side.',
+        hint: 'Ensure high is set to mid - 1.',
+        expectedFix: 'high = mid - 1',
+        testKey: 'test-py-sort-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('high = mid - 1') || cleanCode.includes('high = mid-1');
+          return [{ testId: 't-10', taskId: 'py-sort-bug-10', fileId: 'sorting_and_searching.py', name: 'Binary Search High Advance', passed, message: passed ? 'Sets high = mid - 1.' : 'High pointer invalid.' }];
         },
       },
     ],
     test_cases: [
-      { input: 'add_task("A", 10), add_task("B", 20)', expectedOutput: 'next: "B"' },
+      { input: 'binary_search([2, 5, 8, 12, 16, 23], 12)', expectedOutput: '3' },
+      { input: 'bubble_sort([5, 2, 9, 1, 5, 6])', expectedOutput: '[1, 2, 5, 5, 6, 9]' },
     ],
     is_active: true,
   },
 
-  // ── 7. C / EASY: String Tokenizer & Memory Buffer Reversal ───────────────
-  {
-    id: 'challenge-c-001',
-    title: 'String Tokenizer & Buffer Reversal',
-    description: 'Parse command line tokens, reverse memory buffers, and count delimiter occurrences.',
-    language: 'C',
-    difficulty: 'EASY',
-    code: `#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
-int count_tokens(const char* str, char delim) {
-    if (str == NULL) return 0;
-    int count = 0;
-    // BUG-1: Loop does not check for null terminator '\\0'
-    for (int i = 0; str[i] != '\\n'; i++) {
-        // BUG-2: Compares with delim + 1
-        if (str[i] == delim + 1) {
-            count++;
-        }
-    }
-    return count + 1;
-}
-
-void reverse_buffer(char* buf, int len) {
-    if (buf == NULL || len <= 0) return;
-    int left = 0;
-    // BUG-3: Right pointer starts at len instead of len - 1 (out of bounds)
-    int right = len;
-    while (left < right) {
-        // BUG-4: Overwrites left without saving temp
-        buf[left] = buf[right];
-        buf[right] = buf[left];
-        left++;
-        right--;
-    }
-}
-
-int is_palindrome(const char* str, int len) {
-    if (str == NULL || len == 0) return 1;
-    // BUG-5: Compares up to len instead of len / 2
-    for (int i = 0; i < len; i++) {
-        // BUG-6: Indexing error: len - i instead of len - 1 - i
-        if (str[i] != str[len - i]) {
-            return 0;
-        }
-    }
-    return 1;
-}
-`,
-    bugs: [
-      {
-        bugId: 'c-easy-bug-1',
-        roomIndex: 1,
-        roomId: 'library',
-        roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Check String Null Terminator',
-        objective: 'In count_tokens, loop until str[i] != \'\\0\'.',
-        hint: 'Change "str[i] != \'\\n\'" to "str[i] != \'\\0\'".',
-        expectedFix: 'str[i] != \'\\0\'',
-        testKey: 'test-c-easy-1',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes("str[i] != '\\0'") || cleanCode.includes('str[i] != 0');
-          return [{ testId: 't-1', taskId: 'c-easy-bug-1', fileId: 'tokenizer.c', name: 'Null Terminator Boundary', passed, message: passed ? 'Terminates cleanly at null character.' : 'Loops past end of string.' }];
-        },
-      },
-      {
-        bugId: 'c-easy-bug-2',
-        roomIndex: 2,
-        roomId: 'medbay',
-        roomLabel: 'MEDICAL BAY',
-        title: 'Compare with Exact Delimiter',
-        objective: 'In count_tokens, check if str[i] == delim.',
-        hint: 'Change "delim + 1" to "delim".',
-        expectedFix: 'str[i] == delim',
-        testKey: 'test-c-easy-2',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('str[i] == delim') && !cleanCode.includes('delim + 1');
-          return [{ testId: 't-2', taskId: 'c-easy-bug-2', fileId: 'tokenizer.c', name: 'Delimiter Comparison', passed, message: passed ? 'Matches exact delimiter.' : 'Matches offset delimiter.' }];
-        },
-      },
-      {
-        bugId: 'c-easy-bug-3',
-        roomIndex: 3,
-        roomId: 'storage',
-        roomLabel: 'STORAGE & CARGO',
-        title: 'Fix Right Buffer Index',
-        objective: 'In reverse_buffer, initialize int right = len - 1.',
-        hint: 'Change "int right = len;" to "int right = len - 1;".',
-        expectedFix: 'int right = len - 1;',
-        testKey: 'test-c-easy-3',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('right = len - 1') || cleanCode.includes('right = len-1');
-          return [{ testId: 't-3', taskId: 'c-easy-bug-3', fileId: 'tokenizer.c', name: 'Right Boundary Pointer', passed, message: passed ? 'Points to valid last character.' : 'Points out of bounds to null terminator.' }];
-        },
-      },
-      {
-        bugId: 'c-easy-bug-4',
-        roomIndex: 4,
-        roomId: 'dev_lab',
-        roomLabel: 'DEV WORKSTATIONS',
-        title: 'Swap Memory Characters Using Temp Variable',
-        objective: 'In reverse_buffer, swap using a temporary character: char tmp = buf[left]; buf[left] = buf[right]; buf[right] = tmp;.',
-        hint: 'Save buf[left] in char tmp before assigning buf[right].',
-        expectedFix: 'char tmp = buf[left]; buf[left] = buf[right]; buf[right] = tmp;',
-        testKey: 'test-c-easy-4',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('char tmp = buf[left]') || cleanCode.includes('char t = buf[left]') || cleanCode.includes('tmp = buf[left]');
-          return [{ testId: 't-4', taskId: 'c-easy-bug-4', fileId: 'tokenizer.c', name: 'Character Swap Logic', passed, message: passed ? 'Swaps characters safely.' : 'Overwrites value without saving.' }];
-        },
-      },
-      {
-        bugId: 'c-easy-bug-5',
-        roomIndex: 5,
-        roomId: 'command',
-        roomLabel: 'COMMAND & TECH',
-        title: 'Optimize Palindrome Scan Range',
-        objective: 'In is_palindrome, iterate i < len / 2.',
-        hint: 'Change "i < len" to "i < len / 2".',
-        expectedFix: 'i < len / 2',
-        testKey: 'test-c-easy-5',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('i < len / 2') || cleanCode.includes('i < len/2');
-          return [{ testId: 't-5', taskId: 'c-easy-bug-5', fileId: 'tokenizer.c', name: 'Half-Length Loop', passed, message: passed ? 'Checks up to half length.' : 'Redundant full length loop.' }];
-        },
-      },
-      {
-        bugId: 'c-easy-bug-6',
-        roomIndex: 6,
-        roomId: 'mafia_lair',
-        roomLabel: 'DARK LAIR',
-        title: 'Fix Mirror Index in Palindrome Check',
-        objective: 'In is_palindrome, compare str[i] with str[len - 1 - i].',
-        hint: 'Change "str[len - i]" to "str[len - 1 - i]".',
-        expectedFix: 'str[len - 1 - i]',
-        testKey: 'test-c-easy-6',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('str[len - 1 - i]') || cleanCode.includes('str[len-1-i]');
-          return [{ testId: 't-6', taskId: 'c-easy-bug-6', fileId: 'tokenizer.c', name: 'Mirror Index Calculation', passed, message: passed ? 'Mirror character indexed correctly.' : 'Out of bounds index.' }];
-        },
-      },
-    ],
-    test_cases: [
-      { input: 'count_tokens("a,b,c", \',\')', expectedOutput: '3' },
-      { input: 'is_palindrome("racecar", 7)', expectedOutput: '1' },
-    ],
-    is_active: true,
-  },
-
-  // ── 8. C / MEDIUM: Thread-Safe Linked List Queue & Memory Deallocator ────
-  {
-    id: 'challenge-c-002',
-    title: 'Linked List Queue & Memory Deallocator',
-    description: 'Implement a FIFO queue node allocator, enqueue/dequeue items, and prevent memory leaks.',
-    language: 'C',
-    difficulty: 'MEDIUM',
-    code: `#include <stdio.h>
-#include <stdlib.h>
-
-typedef struct Node {
-    int data;
-    struct Node* next;
-} Node;
-
-typedef struct Queue {
-    Node* front;
-    Node* rear;
-    int size;
-} Queue;
-
-Queue* create_queue() {
-    Queue* q = (Queue*)malloc(sizeof(Queue));
-    // BUG-1: Does not initialize front/rear pointers to NULL
-    q->size = 0;
-    return q;
-}
-
-void enqueue(Queue* q, int value) {
-    if (q == NULL) return;
-    Node* newNode = (Node*)malloc(sizeof(Node));
-    newNode->data = value;
-    newNode->next = NULL;
-
-    // BUG-2: Checks if front != NULL instead of rear == NULL
-    if (q->front != NULL) {
-        q->rear->next = newNode;
-        q->rear = newNode;
-    } else {
-        q->front = newNode;
-        q->rear = newNode;
-    }
-    // BUG-3: Decrements size instead of incrementing
-    q->size--;
-}
-
-int dequeue(Queue* q) {
-    if (q == NULL || q->front == NULL) return -1;
-    Node* temp = q->front;
-    int data = temp->data;
-    // BUG-4: Does not advance front pointer (q->front = q->front->next)
-    // BUG-5: Memory leak: does not call free(temp)
-    if (q->front == NULL) {
-        q->rear = NULL;
-    }
-    q->size--;
-    return data;
-}
-
-void destroy_queue(Queue* q) {
-    if (q == NULL) return;
-    // BUG-6: Frees queue header before freeing nodes in the list
-    free(q);
-}
-`,
-    bugs: [
-      {
-        bugId: 'c-med-bug-1',
-        roomIndex: 1,
-        roomId: 'library',
-        roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Initialize Queue Pointers to NULL',
-        objective: 'In create_queue, initialize q->front = NULL and q->rear = NULL.',
-        hint: 'Set q->front = NULL; q->rear = NULL;.',
-        expectedFix: 'q->front = NULL; q->rear = NULL;',
-        testKey: 'test-c-med-1',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('q->front = NULL') && cleanCode.includes('q->rear = NULL');
-          return [{ testId: 't-1', taskId: 'c-med-bug-1', fileId: 'queue.c', name: 'Pointer Initialization', passed, message: passed ? 'Front and rear pointers safely nullified.' : 'Wild pointers left uninitialized.' }];
-        },
-      },
-      {
-        bugId: 'c-med-bug-2',
-        roomIndex: 2,
-        roomId: 'medbay',
-        roomLabel: 'MEDICAL BAY',
-        title: 'Check Empty Queue Condition on Enqueue',
-        objective: 'In enqueue, check if q->rear != NULL before linking rear->next.',
-        hint: 'Change "if (q->front != NULL)" or check "if (q->rear == NULL)".',
-        expectedFix: 'if (q->rear == NULL)',
-        testKey: 'test-c-med-2',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('q->rear == NULL') || cleanCode.includes('q->front == NULL');
-          return [{ testId: 't-2', taskId: 'c-med-bug-2', fileId: 'queue.c', name: 'Enqueue Empty Check', passed, message: passed ? 'Empty queue linked properly.' : 'Null pointer dereference on rear.' }];
-        },
-      },
-      {
-        bugId: 'c-med-bug-3',
-        roomIndex: 3,
-        roomId: 'storage',
-        roomLabel: 'STORAGE & CARGO',
-        title: 'Increment Queue Size on Enqueue',
-        objective: 'In enqueue, increment q->size++.',
-        hint: 'Change "q->size--;" to "q->size++;".',
-        expectedFix: 'q->size++',
-        testKey: 'test-c-med-3',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('q->size++;') || cleanCode.includes('q->size += 1;');
-          return [{ testId: 't-3', taskId: 'c-med-bug-3', fileId: 'queue.c', name: 'Size Increment', passed, message: passed ? 'Queue size increases on enqueue.' : 'Queue size decreases.' }];
-        },
-      },
-      {
-        bugId: 'c-med-bug-4',
-        roomIndex: 4,
-        roomId: 'dev_lab',
-        roomLabel: 'DEV WORKSTATIONS',
-        title: 'Advance Front Pointer on Dequeue',
-        objective: 'In dequeue, advance q->front = q->front->next.',
-        hint: 'Add "q->front = q->front->next;" before freeing temp.',
-        expectedFix: 'q->front = q->front->next;',
-        testKey: 'test-c-med-4',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('q->front = q->front->next') || cleanCode.includes('q->front = temp->next');
-          return [{ testId: 't-4', taskId: 'c-med-bug-4', fileId: 'queue.c', name: 'Front Pointer Advance', passed, message: passed ? 'Front pointer advances to next node.' : 'Front pointer never advances.' }];
-        },
-      },
-      {
-        bugId: 'c-med-bug-5',
-        roomIndex: 5,
-        roomId: 'command',
-        roomLabel: 'COMMAND & TECH',
-        title: 'Deallocate Dequeued Node Memory',
-        objective: 'In dequeue, call free(temp) to prevent memory leaks.',
-        hint: 'Add "free(temp);".',
-        expectedFix: 'free(temp);',
-        testKey: 'test-c-med-5',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('free(temp);');
-          return [{ testId: 't-5', taskId: 'c-med-bug-5', fileId: 'queue.c', name: 'Node Deallocation', passed, message: passed ? 'Dequeued node deallocated.' : 'Memory leaked.' }];
-        },
-      },
-      {
-        bugId: 'c-med-bug-6',
-        roomIndex: 6,
-        roomId: 'mafia_lair',
-        roomLabel: 'DARK LAIR',
-        title: 'Free All Nodes in destroy_queue',
-        objective: 'In destroy_queue, loop while q->front != NULL, free each node, then free(q).',
-        hint: 'Loop through q->front, freeing nodes before freeing q.',
-        expectedFix: 'while (q->front != NULL) { Node* t = q->front; q->front = q->front->next; free(t); } free(q);',
-        testKey: 'test-c-med-6',
-        isActive: true,
-        validator: (code) => {
-          const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('while') && cleanCode.includes('free');
-          return [{ testId: 't-6', taskId: 'c-med-bug-6', fileId: 'queue.c', name: 'Cascade Cleanup', passed, message: passed ? 'All queue nodes and struct freed.' : 'Nodes orphaned in memory.' }];
-        },
-      },
-    ],
-    test_cases: [
-      { input: 'enqueue(10), enqueue(20), dequeue()', expectedOutput: '10' },
-    ],
-    is_active: true,
-  },
-
-  // ── 9. C / HARD: Dynamic Hash Table with Collision Handling ─────────────
+  // ── 9. C / HARD: #91 Matrix Add, #93 Multiply, #94 Transpose, #95 Diagonals, #96 Symmetric, #100 Determinant ──
   {
     id: 'challenge-c-003',
-    title: 'Dynamic Hash Table with Chaining & Rehash',
-    description: 'Implement a hash map table with djb2 hashing, separate chaining collision resolution, and dynamic resizing.',
+    title: 'Matrix Operations & Linear Algebra Engine',
+    description: 'B.Tech Program #91, #92, #93, #94, #95, #96, #97, #98, #99 & #100: Matrix addition, matrix multiplication, transposition, diagonal sums, symmetric verification and 2x2 / 3x3 determinants.',
     language: 'C',
     difficulty: 'HARD',
     code: `#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stdbool.h>
 
-#define TABLE_SIZE 16
+#define MAX 10
 
-typedef struct Entry {
-    char* key;
-    int value;
-    struct Entry* next;
-} Entry;
-
-typedef struct HashTable {
-    Entry* buckets[TABLE_SIZE];
-    int count;
-} HashTable;
-
-unsigned int hash(const char* str) {
-    unsigned long hash = 5381;
-    int c;
-    // BUG-1: Uses + instead of << 5 + hash
-    while ((c = *str++)) {
-        hash = hash + c;
-    }
-    return hash % TABLE_SIZE;
-}
-
-HashTable* create_table() {
-    HashTable* table = (HashTable*)malloc(sizeof(HashTable));
-    table->count = 0;
-    // BUG-2: Does not initialize bucket pointers to NULL
-    return table;
-}
-
-void put(HashTable* table, const char* key, int value) {
-    if (table == NULL || key == NULL) return;
-    unsigned int idx = hash(key);
-    Entry* curr = table->buckets[idx];
-
-    while (curr != NULL) {
-        // BUG-3: Uses != 0 for string equality instead of == 0
-        if (strcmp(curr->key, key) != 0) {
-            curr->value = value;
-            return;
+// 1. Matrix Addition
+void matrix_add(int r, int c, int A[MAX][MAX], int B[MAX][MAX], int res[MAX][MAX]) {
+    for (int i = 0; i < r; i++) {
+        for (int j = 0; j < c; j++) {
+            // BUG-1: Subtracts instead of adding
+            res[i][j] = A[i][j] - B[i][j];
         }
-        curr = curr->next;
     }
-
-    Entry* newEntry = (Entry*)malloc(sizeof(Entry));
-    // BUG-4: Assigns pointer directly without strdup/allocation
-    newEntry->key = (char*)key;
-    newEntry->value = value;
-    // BUG-5: Overwrites head without linking to existing chain
-    newEntry->next = NULL;
-    table->buckets[idx] = newEntry;
-    table->count++;
 }
 
-int get(HashTable* table, const char* key) {
-    if (table == NULL || key == NULL) return -1;
-    unsigned int idx = hash(key);
-    Entry* curr = table->buckets[idx];
-    while (curr != NULL) {
-        // BUG-6: Inverted strcmp match condition
-        if (strcmp(curr->key, key) != 0) {
-            return curr->value;
+// 2. Matrix Multiplication res = A (r1 x c1) * B (c1 x c2)
+void matrix_multiply(int r1, int c1, int c2, int A[MAX][MAX], int B[MAX][MAX], int res[MAX][MAX]) {
+    for (int i = 0; i < r1; i++) {
+        for (int j = 0; j < c2; j++) {
+            res[i][j] = 0;
+            // BUG-2: Loops up to r1 instead of inner dimension c1
+            for (int k = 0; k < r1; k++) {
+                res[i][j] += A[i][k] * B[k][j];
+            }
         }
-        curr = curr->next;
     }
-    return -1;
 }
-`,
+
+// 3. Matrix Transpose
+void matrix_transpose(int r, int c, int A[MAX][MAX], int trans[MAX][MAX]) {
+    for (int i = 0; i < r; i++) {
+        for (int j = 0; j < c; j++) {
+            // BUG-3: Copies directly without swapping indices (trans[i][j] = A[i][j])
+            trans[i][j] = A[i][j];
+        }
+    }
+}
+
+// 4. Sum of Main and Secondary Diagonals for Square Matrix (n x n)
+void diagonal_sums(int n, int A[MAX][MAX], int *main_sum, int *sec_sum) {
+    *main_sum = 0;
+    *sec_sum = 0;
+    for (int i = 0; i < n; i++) {
+        *main_sum += A[i][i];
+        // BUG-4: Secondary diagonal index offset error (A[i][n - i] instead of A[i][n - 1 - i])
+        *sec_sum += A[i][n - i];
+    }
+}
+
+// 5. Symmetric Matrix Check (A == Transpose(A))
+bool is_symmetric(int n, int A[MAX][MAX]) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            // BUG-5: Compares A[i][j] != A[i][j] (compares with self)
+            if (A[i][j] != A[i][j]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// 6. Identity Matrix Check
+bool is_identity(int n, int A[MAX][MAX]) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i == j) {
+                // BUG-6: Checks diagonal == 0 instead of 1
+                if (A[i][j] != 0) return false;
+            } else {
+                if (A[i][j] != 0) return false;
+            }
+        }
+    }
+    return true;
+}
+
+// 7. Upper Triangular Matrix Check (all elements below main diagonal are 0)
+bool is_upper_triangular(int n, int A[MAX][MAX]) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            // BUG-7: Checks elements above diagonal (i < j) instead of below (i > j)
+            if (i < j && A[i][j] != 0) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// 8. Sparse Matrix Check (more than half elements are 0)
+bool is_sparse(int r, int c, int A[MAX][MAX]) {
+    int zeros = 0;
+    for (int i = 0; i < r; i++) {
+        for (int j = 0; j < c; j++) {
+            if (A[i][j] == 0) zeros++;
+        }
+    }
+    // BUG-8: Checks zeros < total / 2 instead of zeros > total / 2
+    return zeros < (r * c) / 2;
+}
+
+// 9. 2x2 Determinant
+int determinant_2x2(int a, int b, int c, int d) {
+    // BUG-9: Adds instead of subtracting ad - bc
+    return (a * d) + (b * c);
+}
+
+// 10. 3x3 Matrix Determinant
+int determinant_3x3(int A[3][3]) {
+    // BUG-10: Inverted cofactor sign on middle term (+ A[0][1] instead of - A[0][1])
+    int term1 = A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]);
+    int term2 = A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]);
+    int term3 = A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+    return term1 + term2 + term3;
+}`,
     bugs: [
       {
-        bugId: 'c-hard-bug-1',
+        bugId: 'c-mat-bug-1',
         roomIndex: 1,
         roomId: 'library',
         roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Implement djb2 Hash Algorithm',
-        objective: 'In hash function, implement standard djb2: hash = ((hash << 5) + hash) + c.',
-        hint: 'Use "hash = ((hash << 5) + hash) + c;".',
-        expectedFix: '((hash << 5) + hash) + c',
-        testKey: 'test-c-hard-1',
+        title: 'Fix Matrix Addition Operator',
+        objective: 'In matrix_add, perform addition: res[i][j] = A[i][j] + B[i][j].',
+        hint: 'Change "-" to "+".',
+        expectedFix: 'res[i][j] = A[i][j] + B[i][j];',
+        testKey: 'test-c-mat-1',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('hash << 5') || cleanCode.includes('hash * 33');
-          return [{ testId: 't-1', taskId: 'c-hard-bug-1', fileId: 'hashtable.c', name: 'djb2 Hash Function', passed, message: passed ? 'Hash distributes keys uniformly.' : 'Weak additive hash causes high collisions.' }];
+          const passed = cleanCode.includes('A[i][j] + B[i][j]');
+          return [{ testId: 't-1', taskId: 'c-mat-bug-1', fileId: 'MatrixOperations.c', name: 'Matrix Addition', passed, message: passed ? 'Sums matrix elements.' : 'Subtracts elements.' }];
         },
       },
       {
-        bugId: 'c-hard-bug-2',
+        bugId: 'c-mat-bug-2',
         roomIndex: 2,
         roomId: 'medbay',
         roomLabel: 'MEDICAL BAY',
-        title: 'Zero Initialize Hash Table Buckets',
-        objective: 'In create_table, zero initialize table->buckets using memset or for loop.',
-        hint: 'Use "memset(table->buckets, 0, sizeof(table->buckets));" or initialize each bucket to NULL.',
-        expectedFix: 'memset(table->buckets, 0, sizeof(table->buckets));',
-        testKey: 'test-c-hard-2',
+        title: 'Fix Matrix Multiplication Inner Dimension',
+        objective: 'In matrix_multiply, iterate k from 0 to c1 (inner shared dimension).',
+        hint: 'Change "k < r1" to "k < c1".',
+        expectedFix: 'for (int k = 0; k < c1; k++)',
+        testKey: 'test-c-mat-2',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('memset') || cleanCode.includes('table->buckets[i] = NULL');
-          return [{ testId: 't-2', taskId: 'c-hard-bug-2', fileId: 'hashtable.c', name: 'Bucket Array Initialization', passed, message: passed ? 'Buckets initialized to NULL.' : 'Garbage pointers in bucket array.' }];
+          const passed = cleanCode.includes('k < c1;') || cleanCode.includes('k < c1 ;');
+          return [{ testId: 't-2', taskId: 'c-mat-bug-2', fileId: 'MatrixOperations.c', name: 'Multiplication Shared Dimension', passed, message: passed ? 'Iterates over inner dimension c1.' : 'Iterates over row dimension r1.' }];
         },
       },
       {
-        bugId: 'c-hard-bug-3',
+        bugId: 'c-mat-bug-3',
         roomIndex: 3,
         roomId: 'storage',
         roomLabel: 'STORAGE & CARGO',
-        title: 'Fix Key Match Comparison on Update',
-        objective: 'In put, check strcmp(curr->key, key) == 0 to update existing key.',
-        hint: 'Change "!= 0" to "== 0".',
-        expectedFix: 'if (strcmp(curr->key, key) == 0)',
-        testKey: 'test-c-hard-3',
+        title: 'Fix Matrix Transpose Index Assignment',
+        objective: 'In matrix_transpose, assign trans[j][i] = A[i][j].',
+        hint: 'Change "trans[i][j]" to "trans[j][i]".',
+        expectedFix: 'trans[j][i] = A[i][j];',
+        testKey: 'test-c-mat-3',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('strcmp(curr->key, key) == 0');
-          return [{ testId: 't-3', taskId: 'c-hard-bug-3', fileId: 'hashtable.c', name: 'Existing Key Update', passed, message: passed ? 'Updates value on matching key.' : 'Overwrites value on non-matching key.' }];
+          const passed = cleanCode.includes('trans[j][i] = A[i][j]') || cleanCode.includes('trans[j][i] = A[i][j];');
+          return [{ testId: 't-3', taskId: 'c-mat-bug-3', fileId: 'MatrixOperations.c', name: 'Transpose Inversion', passed, message: passed ? 'Swaps row and column indices.' : 'Direct copy.' }];
         },
       },
       {
-        bugId: 'c-hard-bug-4',
+        bugId: 'c-mat-bug-4',
         roomIndex: 4,
         roomId: 'dev_lab',
         roomLabel: 'DEV WORKSTATIONS',
-        title: 'Duplicate String Key Safely',
-        objective: 'In put, duplicate key with strdup(key) to avoid dangling pointer issues.',
-        hint: 'Use "newEntry->key = strdup(key);".',
-        expectedFix: 'newEntry->key = strdup(key);',
-        testKey: 'test-c-hard-4',
+        title: 'Fix Secondary Diagonal Offset',
+        objective: 'In diagonal_sums, access A[i][n - 1 - i].',
+        hint: 'Change "n - i" to "n - 1 - i".',
+        expectedFix: 'A[i][n - 1 - i]',
+        testKey: 'test-c-mat-4',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('strdup(key)');
-          return [{ testId: 't-4', taskId: 'c-hard-bug-4', fileId: 'hashtable.c', name: 'Key String Duplication', passed, message: passed ? 'Key string safely duplicated in heap.' : 'Shallow pointer stored.' }];
+          const passed = cleanCode.includes('A[i][n - 1 - i]') || cleanCode.includes('A[i][n-1-i]');
+          return [{ testId: 't-4', taskId: 'c-mat-bug-4', fileId: 'MatrixOperations.c', name: 'Secondary Diagonal Index', passed, message: passed ? 'Zero-based secondary diagonal offset.' : 'Out of bounds 1-based offset.' }];
         },
       },
       {
-        bugId: 'c-hard-bug-5',
+        bugId: 'c-mat-bug-5',
         roomIndex: 5,
         roomId: 'command',
         roomLabel: 'COMMAND & TECH',
-        title: 'Link New Entry to Chaining Bucket',
-        objective: 'In put, link newEntry->next = table->buckets[idx] before updating bucket head.',
-        hint: 'Set "newEntry->next = table->buckets[idx];".',
-        expectedFix: 'newEntry->next = table->buckets[idx];',
-        testKey: 'test-c-hard-5',
+        title: 'Fix Symmetric Matrix Mirror Comparison',
+        objective: 'In is_symmetric, compare A[i][j] != A[j][i].',
+        hint: 'Change "A[i][j] != A[i][j]" to "A[i][j] != A[j][i]".',
+        expectedFix: 'if (A[i][j] != A[j][i]) return false;',
+        testKey: 'test-c-mat-5',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('newEntry->next = table->buckets[idx]');
-          return [{ testId: 't-5', taskId: 'c-hard-bug-5', fileId: 'hashtable.c', name: 'Collision Chaining Link', passed, message: passed ? 'New node linked into bucket chain.' : 'Existing chain severed upon insert.' }];
+          const passed = cleanCode.includes('A[i][j] != A[j][i]');
+          return [{ testId: 't-5', taskId: 'c-mat-bug-5', fileId: 'MatrixOperations.c', name: 'Symmetric Element Comparison', passed, message: passed ? 'Compares mirror indices [i][j] and [j][i].' : 'Compares element with self.' }];
         },
       },
       {
-        bugId: 'c-hard-bug-6',
+        bugId: 'c-mat-bug-6',
         roomIndex: 6,
         roomId: 'mafia_lair',
         roomLabel: 'DARK LAIR',
-        title: 'Fix Lookup Match in get Function',
-        objective: 'In get, return curr->value when strcmp(curr->key, key) == 0.',
-        hint: 'Change "!= 0" to "== 0".',
-        expectedFix: 'if (strcmp(curr->key, key) == 0) return curr->value;',
-        testKey: 'test-c-hard-6',
+        title: 'Fix Identity Matrix Diagonal Check',
+        objective: 'In is_identity, verify diagonal elements equal 1 (if (A[i][j] != 1) return false;).',
+        hint: 'Change "!= 0" to "!= 1".',
+        expectedFix: 'if (A[i][j] != 1) return false;',
+        testKey: 'test-c-mat-6',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('if (strcmp(curr->key, key) == 0)\n            return curr->value') || cleanCode.includes('strcmp(curr->key, key) == 0');
-          return [{ testId: 't-6', taskId: 'c-hard-bug-6', fileId: 'hashtable.c', name: 'Lookup Key Equality', passed, message: passed ? 'Retrieves value for exact key match.' : 'Returns value of wrong key.' }];
+          const passed = cleanCode.includes('A[i][j] != 1');
+          return [{ testId: 't-6', taskId: 'c-mat-bug-6', fileId: 'MatrixOperations.c', name: 'Identity Diagonal Value', passed, message: passed ? 'Verifies diagonal value is 1.' : 'Checks for 0.' }];
+        },
+      },
+      {
+        bugId: 'c-mat-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Upper Triangular Lower Indices',
+        objective: 'In is_upper_triangular, check elements below diagonal where row i > col j.',
+        hint: 'Change "i < j" to "i > j".',
+        expectedFix: 'if (i > j && A[i][j] != 0)',
+        testKey: 'test-c-mat-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('i > j');
+          return [{ testId: 't-7', taskId: 'c-mat-bug-7', fileId: 'MatrixOperations.c', name: 'Upper Triangular Zero Region', passed, message: passed ? 'Checks region below main diagonal (i > j).' : 'Checks upper region.' }];
+        },
+      },
+      {
+        bugId: 'c-mat-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Sparse Matrix Zero Threshold',
+        objective: 'In is_sparse, verify zeros > (r * c) / 2.',
+        hint: 'Change "<" to ">".',
+        expectedFix: 'zeros > (r * c) / 2',
+        testKey: 'test-c-mat-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('zeros > (r * c) / 2') || cleanCode.includes('zeros > (r*c)/2');
+          return [{ testId: 't-8', taskId: 'c-mat-bug-8', fileId: 'MatrixOperations.c', name: 'Sparse Threshold', passed, message: passed ? 'Verifies zero majority.' : 'Inverted threshold.' }];
+        },
+      },
+      {
+        bugId: 'c-mat-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix 2x2 Determinant Formula',
+        objective: 'In determinant_2x2, compute (a * d) - (b * c).',
+        hint: 'Change "+" to "-".',
+        expectedFix: '(a * d) - (b * c)',
+        testKey: 'test-c-mat-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('(a * d) - (b * c)') || cleanCode.includes('a*d - b*c');
+          return [{ testId: 't-9', taskId: 'c-mat-bug-9', fileId: 'MatrixOperations.c', name: '2x2 Determinant', passed, message: passed ? 'Formula computes ad - bc.' : 'Adds bc.' }];
+        },
+      },
+      {
+        bugId: 'c-mat-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix 3x3 Determinant Middle Cofactor Sign',
+        objective: 'In determinant_3x3, subtract middle cofactor term (- term2).',
+        hint: 'Change "term1 + term2 + term3" to "term1 - term2 + term3".',
+        expectedFix: 'return term1 - term2 + term3;',
+        testKey: 'test-c-mat-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('term1 - term2 + term3') || cleanCode.includes('term1 - term2+term3');
+          return [{ testId: 't-10', taskId: 'c-mat-bug-10', fileId: 'MatrixOperations.c', name: '3x3 Cofactor Alternation', passed, message: passed ? 'Alternates middle cofactor sign.' : 'Adds all cofactors.' }];
         },
       },
     ],
     test_cases: [
-      { input: 'put("station", 42), get("station")', expectedOutput: '42' },
+      { input: 'determinant_2x2(3, 8, 4, 6)', expectedOutput: '-14' },
+      { input: 'is_symmetric(2, [[1, 5], [5, 2]])', expectedOutput: 'true' },
     ],
     is_active: true,
   },
 
-  // ── 10. JAVA / MEDIUM: Space Station Telemetry & Life Support Dispatcher ──
+  // ── 10. JAVA / DIFFICULT: #61 Triangle, #63 Pyramid, #65 Diamond, #68 Floyd, #69 Pascal, #70 Hollow Square ──
   {
     id: 'challenge-java-004',
-    title: 'Orbital Telemetry & Life Support Dispatcher',
-    description: 'Monitor oxygen sensors, thermal dissipation valves, radiation shielding, and emergency alert relays.',
+    title: 'ASCII Geometry, Triangular Patterns & Floyd/Pascal Sequences',
+    description: 'B.Tech Program #61, #62, #63, #65, #66, #68, #69, #70 & #72: Star triangles, centered pyramids, diamond shapes, Floyds triangle running integers, Pascal triangle combinatorics and hollow squares.',
     language: 'JAVA',
-    difficulty: 'MEDIUM',
-    code: `public class LifeSupportDispatcher {
-    private double oxygenLevel = 100.0;
-    private double pressureKPa = 101.3;
-    private boolean emergencyAlarm = false;
+    difficulty: 'DIFFICULT',
+    code: `import java.util.*;
 
-    public void updateOxygen(double consumptionRate, double supplyRate) {
-        // BUG-1: Adds consumption and subtracts supply
-        oxygenLevel += consumptionRate;
-        oxygenLevel -= supplyRate;
-        if (oxygenLevel < 0.0) oxygenLevel = 0.0;
-    }
-
-    public boolean isHazardous() {
-        // BUG-2: Uses AND instead of OR for critical failure trigger
-        return oxygenLevel < 19.5 && pressureKPa < 80.0;
-    }
-
-    public void triggerEmergency(String alertCode) {
-        // BUG-3: Only triggers if alertCode is null (ignores valid alerts)
-        if (alertCode == null) {
-            this.emergencyAlarm = true;
+public class PatternAndGeometry {
+    // 1. Right-Angled Star Triangle for n rows
+    public static List<String> rightAngledTriangle(int n) {
+        List<String> lines = new ArrayList<>();
+        // BUG-1: Loop starts at 0 generating empty first row
+        for (int i = 0; i < n; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 0; j < i; j++) {
+                sb.append("*");
+            }
+            lines.add(sb.toString());
         }
+        return lines;
     }
 
-    public double calculatePowerRequirement(int activeCrew) {
-        if (activeCrew <= 0) return 0.0;
-        // BUG-4: Multiplies by negative factor
-        double basePower = 1500.0;
-        return basePower + (activeCrew * -50.0);
+    // 2. Pyramid pattern of stars centered with spaces
+    public static List<String> pyramidPattern(int n) {
+        List<String> lines = new ArrayList<>();
+        for (int i = 1; i <= n; i++) {
+            StringBuilder sb = new StringBuilder();
+            // BUG-2: Adds n + i spaces instead of n - i spaces
+            for (int s = 0; s < n + i; s++) sb.append(" ");
+            // BUG-3: Prints 2*i stars instead of 2*i - 1 stars
+            for (int k = 0; k < 2 * i; k++) sb.append("*");
+            lines.add(sb.toString());
+        }
+        return lines;
     }
 
-    public boolean stabilizePressure(double targetKPa) {
-        if (targetKPa <= 0.0) return false;
-        // BUG-5: Sets pressure to zero instead of target
-        this.pressureKPa = 0.0;
-        return true;
+    // 3. Number Triangle: 1, 12, 123, 1234 ...
+    public static List<String> numberTriangle(int n) {
+        List<String> lines = new ArrayList<>();
+        for (int i = 1; i <= n; i++) {
+            StringBuilder sb = new StringBuilder();
+            // BUG-4: Loops up to n instead of row i
+            for (int j = 1; j <= n; j++) {
+                sb.append(j);
+            }
+            lines.add(sb.toString());
+        }
+        return lines;
     }
 
-    public boolean getAlarmStatus() {
-        // BUG-6: Inverts alarm status
-        return !emergencyAlarm;
+    // 4. Repeated Number Triangle: 1, 22, 333, 4444 ...
+    public static List<String> repeatedNumberTriangle(int n) {
+        List<String> lines = new ArrayList<>();
+        for (int i = 1; i <= n; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 1; j <= i; j++) {
+                // BUG-5: Appends column j instead of current row number i
+                sb.append(j);
+            }
+            lines.add(sb.toString());
+        }
+        return lines;
+    }
+
+    // 5. Floyd's Triangle: running integers 1, 2 3, 4 5 6 ...
+    public static List<String> floydsTriangle(int n) {
+        List<String> lines = new ArrayList<>();
+        int count = 1;
+        for (int i = 1; i <= n; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 1; j <= i; j++) {
+                sb.append(count);
+                if (j < i) sb.append(" ");
+                // BUG-6: Fails to increment count (stays at 1)
+            }
+            lines.add(sb.toString());
+        }
+        return lines;
+    }
+
+    // 6. Pascal's Triangle row generation
+    public static List<Integer> pascalsTriangleRow(int rowIndex) {
+        List<Integer> row = new ArrayList<>();
+        long val = 1;
+        row.add(1);
+        for (int k = 1; k <= rowIndex; k++) {
+            // BUG-7: Formula multiplier inverted: (rowIndex + k) instead of (rowIndex - k + 1)
+            val = val * (rowIndex + k) / k;
+            row.add((int) val);
+        }
+        return row;
+    }
+
+    // 7. Hollow Square Boundary
+    public static List<String> hollowSquare(int n) {
+        List<String> lines = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 0; j < n; j++) {
+                // BUG-8: Checks i == 1 instead of boundary borders (i == 0 || i == n - 1 || j == 0 || j == n - 1)
+                if (i == 1 || j == 1) {
+                    sb.append("*");
+                } else {
+                    sb.append(" ");
+                }
+            }
+            lines.add(sb.toString());
+        }
+        return lines;
+    }
+
+    // 8. Character Pattern: A, AB, ABC, ABCD ...
+    public static List<String> characterPattern(int n) {
+        List<String> lines = new ArrayList<>();
+        for (int i = 1; i <= n; i++) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 0; j < i; j++) {
+                // BUG-9: Hardcodes 'A' without adding offset j
+                sb.append((char) ('A'));
+            }
+            lines.add(sb.toString());
+        }
+        return lines;
+    }
+
+    // 9. Diamond Star Pattern (2n - 1 total rows)
+    public static int countDiamondStars(int n) {
+        if (n <= 0) return 0;
+        int totalStars = 0;
+        // Upper half + middle (1..n)
+        for (int i = 1; i <= n; i++) {
+            totalStars += (2 * i - 1);
+        }
+        // Lower half (n-1 down to 1)
+        // BUG-10: Loop terminates before reaching 1 (i > 1 instead of i >= 1)
+        for (int i = n - 1; i > 1; i--) {
+            totalStars += (2 * i - 1);
+        }
+        return totalStars;
     }
 }`,
     bugs: [
       {
-        bugId: 'java-telemetry-bug-1',
+        bugId: 'java-pat-bug-1',
         roomIndex: 1,
         roomId: 'library',
         roomLabel: 'LIBRARY & ARCHIVES',
-        title: 'Fix Oxygen Balance Equation',
-        objective: 'Subtract consumptionRate and add supplyRate to oxygenLevel.',
-        hint: 'Use "oxygenLevel -= consumptionRate; oxygenLevel += supplyRate;".',
-        expectedFix: 'oxygenLevel -= consumptionRate; oxygenLevel += supplyRate;',
-        testKey: 'test-java-tele-1',
+        title: 'Fix Triangle Row Loop Offset',
+        objective: 'In rightAngledTriangle, start loop from i = 1 (or inner j <= i) to avoid empty first line.',
+        hint: 'Change outer loop to "for (int i = 1; i <= n; i++)".',
+        expectedFix: 'for (int i = 1; i <= n; i++)',
+        testKey: 'test-java-pat-1',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('oxygenLevel -= consumptionRate') && cleanCode.includes('oxygenLevel += supplyRate');
-          return [{ testId: 't-1', taskId: 'java-telemetry-bug-1', fileId: 'LifeSupportDispatcher.java', name: 'Oxygen Balance Flow', passed, message: passed ? 'Oxygen consumption and supply correctly applied.' : 'Oxygen level inverted.' }];
+          const passed = cleanCode.includes('int i = 1; i <= n;') || cleanCode.includes('j <= i');
+          return [{ testId: 't-1', taskId: 'java-pat-bug-1', fileId: 'PatternAndGeometry.java', name: 'Triangle Row Index', passed, message: passed ? 'Populates correct non-empty first row.' : 'Empty first row.' }];
         },
       },
       {
-        bugId: 'java-telemetry-bug-2',
+        bugId: 'java-pat-bug-2',
         roomIndex: 2,
         roomId: 'medbay',
         roomLabel: 'MEDICAL BAY',
-        title: 'Trigger Hazard on Either Low Oxygen OR Low Pressure',
-        objective: 'In isHazardous, return true if oxygenLevel < 19.5 || pressureKPa < 80.0.',
-        hint: 'Change "&&" to "||".',
-        expectedFix: 'oxygenLevel < 19.5 || pressureKPa < 80.0',
-        testKey: 'test-java-tele-2',
+        title: 'Fix Pyramid Leading Spaces',
+        objective: 'In pyramidPattern, add n - i leading spaces.',
+        hint: 'Change "n + i" to "n - i".',
+        expectedFix: 'for (int s = 0; s < n - i; s++)',
+        testKey: 'test-java-pat-2',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('oxygenLevel < 19.5 || pressureKPa < 80.0') || cleanCode.includes('||');
-          return [{ testId: 't-2', taskId: 'java-telemetry-bug-2', fileId: 'LifeSupportDispatcher.java', name: 'Hazard Condition Disjunction', passed, message: passed ? 'Triggers if either oxygen or pressure fails.' : 'Both must fail simultaneously.' }];
+          const passed = cleanCode.includes('s < n - i') || cleanCode.includes('s < n-i');
+          return [{ testId: 't-2', taskId: 'java-pat-bug-2', fileId: 'PatternAndGeometry.java', name: 'Pyramid Leading Spaces', passed, message: passed ? 'Computes n - i spaces.' : 'Adds excessive spaces.' }];
         },
       },
       {
-        bugId: 'java-telemetry-bug-3',
+        bugId: 'java-pat-bug-3',
         roomIndex: 3,
         roomId: 'storage',
         roomLabel: 'STORAGE & CARGO',
-        title: 'Activate Emergency Alarm on Valid Alert Code',
-        objective: 'In triggerEmergency, activate alarm if alertCode != null.',
-        hint: 'Change "alertCode == null" to "alertCode != null".',
-        expectedFix: 'if (alertCode != null)',
-        testKey: 'test-java-tele-3',
+        title: 'Fix Pyramid Odd Star Count',
+        objective: 'In pyramidPattern, print 2 * i - 1 stars for row i.',
+        hint: 'Change "2 * i" to "2 * i - 1".',
+        expectedFix: 'for (int k = 0; k < 2 * i - 1; k++)',
+        testKey: 'test-java-pat-3',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('alertCode != null');
-          return [{ testId: 't-3', taskId: 'java-telemetry-bug-3', fileId: 'LifeSupportDispatcher.java', name: 'Emergency Alarm Activation', passed, message: passed ? 'Alarm activated on valid alert code.' : 'Alert code ignored.' }];
+          const passed = cleanCode.includes('2 * i - 1') || cleanCode.includes('2*i - 1') || cleanCode.includes('2*i-1');
+          return [{ testId: 't-3', taskId: 'java-pat-bug-3', fileId: 'PatternAndGeometry.java', name: 'Pyramid Star Count', passed, message: passed ? 'Prints 2*i - 1 stars.' : 'Prints even star count.' }];
         },
       },
       {
-        bugId: 'java-telemetry-bug-4',
+        bugId: 'java-pat-bug-4',
         roomIndex: 4,
         roomId: 'dev_lab',
         roomLabel: 'DEV WORKSTATIONS',
-        title: 'Scale Power Requirement Positively per Crew',
-        objective: 'In calculatePowerRequirement, add (activeCrew * 50.0).',
-        hint: 'Change "-50.0" to "+ 50.0".',
-        expectedFix: 'activeCrew * 50.0',
-        testKey: 'test-java-tele-4',
+        title: 'Fix Number Triangle Inner Boundary',
+        objective: 'In numberTriangle, iterate inner loop until j <= i.',
+        hint: 'Change "j <= n" to "j <= i".',
+        expectedFix: 'for (int j = 1; j <= i; j++)',
+        testKey: 'test-java-pat-4',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('activeCrew * 50.0') || cleanCode.includes('activeCrew * 50');
-          return [{ testId: 't-4', taskId: 'java-telemetry-bug-4', fileId: 'LifeSupportDispatcher.java', name: 'Positive Power Scaling', passed, message: passed ? 'Power scales with crew count.' : 'Power decreases with crew count.' }];
+          const passed = cleanCode.includes('j <= i;') || cleanCode.includes('j <= i ;');
+          return [{ testId: 't-4', taskId: 'java-pat-bug-4', fileId: 'PatternAndGeometry.java', name: 'Number Triangle Inner Bound', passed, message: passed ? 'Loops up to current row i.' : 'Loops to n.' }];
         },
       },
       {
-        bugId: 'java-telemetry-bug-5',
+        bugId: 'java-pat-bug-5',
         roomIndex: 5,
         roomId: 'command',
         roomLabel: 'COMMAND & TECH',
-        title: 'Apply Target Pressure Stabilization',
-        objective: 'In stabilizePressure, set this.pressureKPa = targetKPa.',
-        hint: 'Change "this.pressureKPa = 0.0;" to "this.pressureKPa = targetKPa;".',
-        expectedFix: 'this.pressureKPa = targetKPa;',
-        testKey: 'test-java-tele-5',
+        title: 'Fix Repeated Number Triangle Value',
+        objective: 'In repeatedNumberTriangle, append row number i (sb.append(i)).',
+        hint: 'Change "sb.append(j)" to "sb.append(i)".',
+        expectedFix: 'sb.append(i);',
+        testKey: 'test-java-pat-5',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('this.pressureKPa = targetKPa;') || cleanCode.includes('pressureKPa = targetKPa;');
-          return [{ testId: 't-5', taskId: 'java-telemetry-bug-5', fileId: 'LifeSupportDispatcher.java', name: 'Target Pressure Set', passed, message: passed ? 'Pressure stabilized to target.' : 'Pressure dropped to zero.' }];
+          const passed = cleanCode.includes('sb.append(i);') || cleanCode.includes('sb.append(i) ;');
+          return [{ testId: 't-5', taskId: 'java-pat-bug-5', fileId: 'PatternAndGeometry.java', name: 'Repeated Number Value', passed, message: passed ? 'Appends current row number.' : 'Appends column index.' }];
         },
       },
       {
-        bugId: 'java-telemetry-bug-6',
+        bugId: 'java-pat-bug-6',
         roomIndex: 6,
         roomId: 'mafia_lair',
         roomLabel: 'DARK LAIR',
-        title: 'Return Accurate Alarm Status',
-        objective: 'In getAlarmStatus, return this.emergencyAlarm.',
-        hint: 'Change "return !emergencyAlarm;" to "return emergencyAlarm;".',
-        expectedFix: 'return emergencyAlarm;',
-        testKey: 'test-java-tele-6',
+        title: 'Fix Floyd Triangle Counter Increment',
+        objective: 'In floydsTriangle, increment running counter after appending (count++).',
+        hint: 'Add "count++;" inside inner loop.',
+        expectedFix: 'count++;',
+        testKey: 'test-java-pat-6',
         isActive: true,
         validator: (code) => {
           const { cleanCode } = sanitizeSource(code);
-          const passed = cleanCode.includes('return emergencyAlarm;') || cleanCode.includes('return this.emergencyAlarm;');
-          return [{ testId: 't-6', taskId: 'java-telemetry-bug-6', fileId: 'LifeSupportDispatcher.java', name: 'Alarm Status Flag', passed, message: passed ? 'Returns actual alarm state.' : 'Inverted alarm status returned.' }];
+          const passed = cleanCode.includes('count++') || cleanCode.includes('count += 1');
+          return [{ testId: 't-6', taskId: 'java-pat-bug-6', fileId: 'PatternAndGeometry.java', name: 'Floyd Counter Increment', passed, message: passed ? 'Increments running integer.' : 'Counter not updated.' }];
+        },
+      },
+      {
+        bugId: 'java-pat-bug-7',
+        roomIndex: 1,
+        roomId: 'library',
+        roomLabel: 'LIBRARY & ARCHIVES',
+        title: 'Fix Pascal Triangle Multiplier Formula',
+        objective: 'In pascalsTriangleRow, use multiplier (rowIndex - k + 1).',
+        hint: 'Change "(rowIndex + k)" to "(rowIndex - k + 1)".',
+        expectedFix: 'val * (rowIndex - k + 1) / k',
+        testKey: 'test-java-pat-7',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('rowIndex - k + 1') || cleanCode.includes('rowIndex - k + 1L') || cleanCode.includes('rowIndex-k+1');
+          return [{ testId: 't-7', taskId: 'java-pat-bug-7', fileId: 'PatternAndGeometry.java', name: 'Pascal Formula Multiplier', passed, message: passed ? 'Uses (n - k + 1) multiplier.' : 'Inverted addition formula.' }];
+        },
+      },
+      {
+        bugId: 'java-pat-bug-8',
+        roomIndex: 2,
+        roomId: 'medbay',
+        roomLabel: 'MEDICAL BAY',
+        title: 'Fix Hollow Square Boundary Condition',
+        objective: 'In hollowSquare, check (i == 0 || i == n - 1 || j == 0 || j == n - 1).',
+        hint: 'Check all 4 boundary edges.',
+        expectedFix: 'if (i == 0 || i == n - 1 || j == 0 || j == n - 1)',
+        testKey: 'test-java-pat-8',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = (cleanCode.includes('i == 0') || cleanCode.includes('i == 0')) && (cleanCode.includes('i == n - 1') || cleanCode.includes('i == n-1'));
+          return [{ testId: 't-8', taskId: 'java-pat-bug-8', fileId: 'PatternAndGeometry.java', name: 'Hollow Square Borders', passed, message: passed ? 'Detects all boundary borders.' : 'Incorrect border check.' }];
+        },
+      },
+      {
+        bugId: 'java-pat-bug-9',
+        roomIndex: 3,
+        roomId: 'storage',
+        roomLabel: 'STORAGE & CARGO',
+        title: 'Fix Character Pattern Offset',
+        objective: 'In characterPattern, add offset j to \'A\' (sb.append((char) (\'A\' + j))).',
+        hint: 'Change "\'A\'" to "\'A\' + j".',
+        expectedFix: "sb.append((char) ('A' + j));",
+        testKey: 'test-java-pat-9',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes("'A' + j") || cleanCode.includes("'A'+j");
+          return [{ testId: 't-9', taskId: 'java-pat-bug-9', fileId: 'PatternAndGeometry.java', name: 'Character Offset', passed, message: passed ? 'Offsets character by column index.' : 'Prints constant A.' }];
+        },
+      },
+      {
+        bugId: 'java-pat-bug-10',
+        roomIndex: 4,
+        roomId: 'dev_lab',
+        roomLabel: 'DEV WORKSTATIONS',
+        title: 'Fix Diamond Star Lower Loop Boundary',
+        objective: 'In countDiamondStars, loop down to i >= 1.',
+        hint: 'Change "i > 1" to "i >= 1".',
+        expectedFix: 'for (int i = n - 1; i >= 1; i--)',
+        testKey: 'test-java-pat-10',
+        isActive: true,
+        validator: (code) => {
+          const { cleanCode } = sanitizeSource(code);
+          const passed = cleanCode.includes('i >= 1;') || cleanCode.includes('i >= 1 ;');
+          return [{ testId: 't-10', taskId: 'java-pat-bug-10', fileId: 'PatternAndGeometry.java', name: 'Diamond Lower Boundary', passed, message: passed ? 'Includes bottom-most star apex.' : 'Stops before reaching 1.' }];
         },
       },
     ],
     test_cases: [
-      { input: 'updateOxygen(5.0, 10.0)', expectedOutput: 'oxygen: 105.0' },
+      { input: 'pascalsTriangleRow(4)', expectedOutput: '[1, 4, 6, 4, 1]' },
+      { input: 'countDiamondStars(3)', expectedOutput: '9' },
     ],
     is_active: true,
   },
 ];
 
-// ── CHALLENGE SELECTION & SEEDING ──────────────────────────────────────────
-
-export function normalizeDifficulty(diff?: string): 'EASY' | 'MEDIUM' | 'HARD' {
-  if (!diff) return 'MEDIUM';
-  const u = diff.toUpperCase();
-  if (u === 'SMALL' || u === 'EASY') return 'EASY';
-  if (u === 'DIFFICULT' || u === 'HARD') return 'HARD';
-  return 'MEDIUM';
-}
+// ── SUPABASE / LOCAL QUERY HELPERS ─────────────────────────────────────────
 
 export function normalizeLanguage(lang?: string): ChallengeLanguage | null {
   if (!lang) return 'JAVA';
-  const u = lang.toUpperCase();
-  if (u === 'JAVA') return 'JAVA';
-  if (u === 'PYTHON' || u === 'PY') return 'PYTHON';
-  if (u === 'C') return 'C';
+  const upper = lang.trim().toUpperCase();
+  if (upper === 'JAVA') return 'JAVA';
+  if (upper === 'PYTHON' || upper === 'PY') return 'PYTHON';
+  if (upper === 'C') return 'C';
   return null;
 }
 
+export function normalizeDifficulty(diff?: string): ChallengeDifficulty {
+  if (!diff) return 'MEDIUM';
+  const upper = diff.trim().toUpperCase();
+  if (upper === 'EASY' || upper === 'SMALL') return 'EASY';
+  if (upper === 'HARD' || upper === 'DIFFICULT') return 'HARD';
+  return 'MEDIUM';
+}
+
 /**
- * Query eligible challenges from Supabase with fallback to prebuilt catalog.
+ * Queries coding challenges matching language & difficulty.
  */
 export async function queryEligibleChallenges(
-  language: string = 'JAVA',
-  difficulty: string = 'MEDIUM'
+  language: ChallengeLanguage,
+  difficulty?: ChallengeDifficulty
 ): Promise<CodingChallenge[]> {
-  const normLang = normalizeLanguage(language);
-  if (!normLang) return [];
-  const normDiff = normalizeDifficulty(difficulty);
-
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('coding_challenges')
       .select('*')
-      .eq('language', normLang)
-      .eq('difficulty', normDiff)
+      .eq('language', language)
       .eq('is_active', true);
 
-    if (!error && data && data.length > 0) {
-      return data.map((d: any) => {
-        const localMatch = PREBUILT_CHALLENGES.find((p) => p.id === d.id);
-        return {
-          id: d.id,
-          title: d.title,
-          description: d.description,
-          language: d.language,
-          difficulty: d.difficulty,
-          code: d.code,
-          bugs: localMatch ? localMatch.bugs : (d.bugs || []),
-          test_cases: d.test_cases || [],
-          is_active: d.is_active,
-        };
-      });
+    if (difficulty) {
+      query = query.eq('difficulty', difficulty);
     }
-  } catch (err) {
-    console.warn('Supabase query failed, using local prebuilt catalog:', err);
+
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) {
+      return data as CodingChallenge[];
+    }
+  } catch {
+    // Fallback safely to prebuilt local catalog
   }
 
-  // Filter local prebuilt dataset
+  // Filter in-memory prebuilt list
   return PREBUILT_CHALLENGES.filter(
-    (c) => c.is_active && c.language === normLang && normalizeDifficulty(c.difficulty) === normDiff
+    (c) =>
+      c.is_active &&
+      c.language === language &&
+      (!difficulty || c.difficulty === difficulty || (difficulty === 'HARD' && c.difficulty === 'DIFFICULT'))
   );
 }
 
 /**
- * Selects ONE challenge randomly matching the host settings.
- * Returns error if no challenge is eligible for the selected language / difficulty.
+ * Selects ONE challenge randomly matching the host settings, or a completely random challenge.
  */
 export async function selectMatchChallenge(
   language: string = 'JAVA',
@@ -1820,43 +3075,53 @@ export async function selectMatchChallenge(
   const eligible = await queryEligibleChallenges(normLang, normDiff);
 
   if (!eligible || eligible.length === 0) {
-    return {
-      success: false,
-      error: `No coding challenges are currently available for ${normLang} / ${normDiff}.`,
-    };
+    // Fallback to any challenge of that language or completely random from prebuilts
+    const fallbackLang = PREBUILT_CHALLENGES.filter((c) => c.language === normLang);
+    if (fallbackLang.length > 0) {
+      const picked = fallbackLang[Math.floor(Math.random() * fallbackLang.length)];
+      return { success: true, challenge: picked };
+    }
+
+    const randomAny = PREBUILT_CHALLENGES[Math.floor(Math.random() * PREBUILT_CHALLENGES.length)];
+    return { success: true, challenge: randomAny };
   }
 
   const selected = eligible[Math.floor(Math.random() * eligible.length)];
   return { success: true, challenge: selected };
 }
 
-// ── RANDOM DEVELOPER + ROOM ASSIGNMENT ─────────────────────────────────────
+/**
+ * Returns a completely randomized problem challenge across all 10 problem statements.
+ */
+export function getRandomChallengeForMatch(): CodingChallenge {
+  return PREBUILT_CHALLENGES[Math.floor(Math.random() * PREBUILT_CHALLENGES.length)];
+}
+
+// ── EQUAL BUG DISTRIBUTION ALGORITHM ACROSS DEVELOPERS & ROOMS ───────────────
 
 /**
- * Generates unique bug assignments across developers for the 6 facility rooms.
- * 
- * Strict constraints enforced:
- * - ONE shared codebase for all players.
- * - Every developer receives unique bug objectives.
- * - NO two developers receive the same bug objective.
- * - Each developer receives at least 1 objective (subject to available bugs).
- * - All room assignments map to the facility rooms (1 to 6).
+ * Fair Fisher-Yates Round-Robin Distribution:
+ * Shuffles all 10+ bugs in the selected challenge and partitions them EQUALLY among
+ * all participating developers in the match without collisions.
  */
 export function generateChallengeAssignments(
   challenge: CodingChallenge,
   playerIds: string[]
 ): Record<string, PlayerObjectiveAssignment[]> {
   const assignments: Record<string, PlayerObjectiveAssignment[]> = {};
+  if (!playerIds || playerIds.length === 0) {
+    return assignments;
+  }
   playerIds.forEach((pid) => (assignments[pid] = []));
 
   const availableBugs = [...challenge.bugs];
-  // Shuffle available bugs using Fisher-Yates
+  // Shuffle available bugs using Fisher-Yates for randomization
   for (let i = availableBugs.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [availableBugs[i], availableBugs[j]] = [availableBugs[j], availableBugs[i]];
   }
 
-  // 1. Give each player at least 1 unique bug first (up to available bugs count)
+  // 1. Give each player at least 1 unique bug first
   let bugIdx = 0;
   for (let p = 0; p < playerIds.length && bugIdx < availableBugs.length; p++) {
     const playerId = playerIds[p];
@@ -1876,7 +3141,7 @@ export function generateChallengeAssignments(
     });
   }
 
-  // 2. Distribute any remaining bugs evenly
+  // 2. Distribute all remaining bugs equally in round-robin fashion
   let pIdx = 0;
   while (bugIdx < availableBugs.length) {
     const playerId = playerIds[pIdx % playerIds.length];
@@ -1984,14 +3249,6 @@ export interface AuthorizedRoomObjective {
   };
 }
 
-/**
- * Retrieves the authorized objective for a requesting player in a room.
- * 
- * Security:
- * - If requesting player is not assigned to this room, returns hasAssignment = false.
- * - Never returns other players' assignments.
- * - Never exposes expectedFix, referenceSolution, or complete assignment map.
- */
 export function getAuthorizedObjective(
   session: ChallengeMatchSession | null | undefined,
   requestingPlayerId: string,
