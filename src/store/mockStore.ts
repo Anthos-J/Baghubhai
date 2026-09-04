@@ -264,6 +264,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
   startGame: () => {
     const { roomId, players, session, engineState } = get();
     if (!roomId) return;
+    if (players.length < 4) return;
 
     // Validate and clamp mafia count based on actual players at game start (4-6 players -> 1 mafia, 7+ players -> 2 mafia)
     const maxAllowedMafia = players.length >= 7 ? 2 : 1;
@@ -692,11 +693,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
           triggerTrophyEvent('MAFIA_UNDETECTED');
         }
       }
-      // Note: checking `updatedMyTasks` requires it to be defined here, we will just pass updatedPrivateTasks.
-      const updatedPrivateTasks = state.myPrivateTasks.map(t =>
-        t.id === legacyTaskId ? { ...t, status: 'COMPLETED' as const } : t
-      );
-      if (winResult.winner === 'DEVELOPERS' && isDev && survived && updatedPrivateTasks.every((t) => t.status === 'COMPLETED')) {
+      if (winResult.winner === 'DEVELOPERS' && isDev && survived && updatedMyTasks.every((t) => t.status === 'COMPLETED')) {
         triggerTrophyEvent('PERFECT_DEV');
       }
     }

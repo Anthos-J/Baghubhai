@@ -39,6 +39,12 @@ export class GameEngine {
   // Callbacks to sync state back to React/Zustand
   public onLocalPlayerMove?: (x: number, y: number, direction: Player['direction']) => void;
   public onInteractableRoomChange?: (room: string | null) => void;
+  public onFpsUpdate?: (fps: number) => void;
+
+  // FPS computation tracking
+  private frameCount: number = 0;
+  private fpsAccumulator: number = 0;
+  public currentFps: number = 60;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -64,6 +70,10 @@ export class GameEngine {
     this.remoteTargets.set(playerId, { x, y, direction });
   }
 
+  public triggerCameraShake(intensity: number = 8, duration: number = 0.4) {
+    this.camera.triggerShake(intensity, duration);
+  }
+
   public start() {
     this.lastTime = performance.now();
     this.loop(this.lastTime);
@@ -77,6 +87,18 @@ export class GameEngine {
   private loop = (currentTime: number) => {
     const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1);
     this.lastTime = currentTime;
+
+    // Rolling FPS computation updated every 300ms
+    this.frameCount++;
+    this.fpsAccumulator += deltaTime;
+    if (this.fpsAccumulator >= 0.3) {
+      this.currentFps = Math.round(this.frameCount / this.fpsAccumulator);
+      this.frameCount = 0;
+      this.fpsAccumulator = 0;
+      if (this.onFpsUpdate) {
+        this.onFpsUpdate(this.currentFps);
+      }
+    }
 
     this.update(deltaTime);
     this.draw();
@@ -225,13 +247,13 @@ export class GameEngine {
 
   private draw() {
     // 1. Draw Map
-    drawMap(this.ctx, this.camera.x, this.camera.y, this.canvas.width, this.canvas.height);
+    drawMap(this.ctx, this.camera.renderX, this.camera.renderY, this.canvas.width, this.canvas.height);
     // 2. Draw Players
     drawPlayers(
       this.ctx,
       this.players,
-      this.camera.x,
-      this.camera.y,
+      this.camera.renderX,
+      this.camera.renderY,
       this.canvas.width,
       this.canvas.height,
       this.localPlayerId,
@@ -256,8 +278,8 @@ export class GameEngine {
     const height = this.canvas.height;
 
     // Calculate local player's screen center coordinates
-    const screenX = localPlayer.x - this.camera.x + width / 2;
-    const screenY = localPlayer.y - this.camera.y + height / 2;
+    const screenX = localPlayer.x - this.camera.renderX + width / 2;
+    const screenY = localPlayer.y - this.camera.renderY + height / 2;
 
     const isGhost = !localPlayer.alive;
     const isMafia = localPlayer.role === 'MAFIA';

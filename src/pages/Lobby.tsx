@@ -195,9 +195,9 @@ export default function Lobby() {
                   variant="success"
                   icon={<Play size={18} />}
                   onClick={startGame}
-                  disabled={players.length < 1}
+                  disabled={players.length < 4}
                 >
-                  {players.length < 1 ? 'NEED 1+ PLAYERS' : 'START GAME'}
+                  {players.length < 4 ? 'NEED 4+ PLAYERS' : 'START GAME'}
                 </GameButton>
               ) : (
                 <div className="text-center font-tech text-gray-500 bg-[#1a1c23] p-3 border-2 border-panelBorder">

@@ -68,6 +68,9 @@ export function savePlayerSettings(settings: PlayerSettings): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     applyAudioSettings(settings.audio);
     applyDisplaySettings(settings.display);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('among_devs_settings_updated', { detail: settings }));
+    }
   } catch (err) {
     console.warn('Could not save player settings to localStorage:', err);
   }

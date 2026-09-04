@@ -103,9 +103,6 @@ export function createInitialGameState(
   };
 }
 
-export type { GameAction, GameState, GameSettings };
-
-
 /**
  * Central pure reducer managing all GameState transitions.
  */

@@ -13,6 +13,7 @@ import { processPendingSabotageAlert } from './sabotage';
  */
 export function transitionToRoleReveal(state: GameState): GameState {
   if (state.phase !== 'LOBBY') return state;
+  if (state.players.length < 4) return state;
 
   const playersWithRoles = assignRoles(state.players, state.settings.mafiaCount);
   const tasks = getDefaultTasks();

@@ -36,6 +36,8 @@ import { HomeSettingsModal } from '../components/home/HomeSettingsModal';
 import { HelpModal } from '../components/home/HelpModal';
 import { TrophiesModal } from '../components/home/TrophiesModal';
 import { TrophyToast } from '../components/home/TrophyToast';
+import { TutorialModal } from '../components/home/TutorialModal';
+import { getPlayerSettings } from '../lib/playerSettings';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -58,6 +60,46 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isTrophiesOpen, setIsTrophiesOpen] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
+  // ── Show FPS state & live listener ──
+  const [fps, setFps] = useState(60);
+  const [showFps, setShowFps] = useState(() => getPlayerSettings().display.showFps);
+
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      setShowFps(getPlayerSettings().display.showFps);
+    };
+    window.addEventListener('among_devs_settings_updated', handleSettingsUpdate);
+    window.addEventListener('storage', handleSettingsUpdate);
+    return () => {
+      window.removeEventListener('among_devs_settings_updated', handleSettingsUpdate);
+      window.removeEventListener('storage', handleSettingsUpdate);
+    };
+  }, []);
+
+  // ── Measure rendering FPS on Home when showFps is active ──
+  useEffect(() => {
+    if (!showFps) return;
+
+    let frameCount = 0;
+    let lastTime = performance.now();
+    let animId: number;
+
+    const measureLoop = (currentTime: number) => {
+      frameCount++;
+      const elapsed = (currentTime - lastTime) / 1000;
+      if (elapsed >= 0.3) {
+        setFps(Math.round(frameCount / elapsed));
+        frameCount = 0;
+        lastTime = currentTime;
+      }
+      animId = requestAnimationFrame(measureLoop);
+    };
+
+    animId = requestAnimationFrame(measureLoop);
+    return () => cancelAnimationFrame(animId);
+  }, [showFps]);
 
   // ── Restore saved username ──
   useEffect(() => {
@@ -349,7 +391,8 @@ export default function Home() {
             <GameButton
               variant="ghost"
               icon={<BookOpen size={18} className="text-textMuted" />}
-              className="mt-2 text-xs py-2"
+              className="mt-2 text-xs py-2 cursor-pointer"
+              onClick={() => setIsTutorialOpen(true)}
             >
               TUTORIAL
             </GameButton>
@@ -400,16 +443,29 @@ export default function Home() {
 
           <PixelCard title="JOIN DISCORD" variant="highlight" className="text-sm bg-[#1e1a2b]">
             <div className="flex gap-4 items-center mb-4">
-              <div className="bg-[#5865F2] p-3 rounded-lg">
+              <a
+                href="https://discord.com/channels/1545228686209581119/1545228686926684292"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#5865F2] hover:bg-[#4752C4] p-3 rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center"
+                title="Join Discord Community"
+              >
                 <DiscordIcon size={24} className="text-white" />
-              </div>
+              </a>
               <p className="text-xs text-gray-300 font-tech">
                 Find teammates, share strategies, and stay updated!
               </p>
             </div>
-            <GameButton variant="purple" className="py-2 text-xs">
-              JOIN NOW
-            </GameButton>
+            <a
+              href="https://discord.com/channels/1545228686209581119/1545228686926684292"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full block"
+            >
+              <GameButton variant="purple" className="py-2 text-xs cursor-pointer">
+                JOIN NOW
+              </GameButton>
+            </a>
           </PixelCard>
         </div>
       </main>
@@ -423,10 +479,18 @@ export default function Home() {
         </div>
       </footer>
 
+      {/* FPS Counter Overlay */}
+      {showFps && (
+        <div className="fixed top-3 left-4 z-40 pointer-events-none bg-black/85 border border-primary/40 px-2.5 py-1 rounded font-mono text-xs text-primary font-bold shadow-[0_0_10px_rgba(0,240,255,0.25)] tracking-wider">
+          FPS: {fps}
+        </div>
+      )}
+
       {/* Modals & Notification Toasts */}
       <HomeSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
       <TrophiesModal isOpen={isTrophiesOpen} onClose={() => setIsTrophiesOpen(false)} />
+      <TutorialModal isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
       <TrophyToast />
     </div>
   );
