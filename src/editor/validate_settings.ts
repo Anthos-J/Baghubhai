@@ -254,7 +254,7 @@ console.log('\n--- 10. Non-Host Database Authorization Checks ---');
 function mockAuthorizeSettingsUpdate(
   isHost: boolean,
   roomPhase: string,
-  settings: GameSettings
+  settings: Partial<GameSettings>
 ): { authorized: boolean; error?: string } {
   if (!isHost) {
     return { authorized: false, error: 'Unauthorized: Only room host can modify game settings.' };

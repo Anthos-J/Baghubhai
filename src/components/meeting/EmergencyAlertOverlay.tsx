@@ -1,12 +1,24 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Radio } from 'lucide-react';
 import { useMockStore } from '../../store/mockStore';
+import { getPlayerAvatarUrl } from '../../map/SpriteManager';
 
 export default function EmergencyAlertOverlay() {
   const meetingAlertActive = useMockStore((s) => s.meetingAlertActive);
   const meetingCallerName = useMockStore((s) => s.meetingCallerName);
+  const meetingCallerColor = useMockStore((s) => s.meetingCallerColor);
+  const players = useMockStore((s) => s.players);
+  const session = useMockStore((s) => s.session);
   const dismissMeetingAlert = useMockStore((s) => s.dismissMeetingAlert);
   const [countdown, setCountdown] = useState(3);
+
+  const matchedPlayer = players.find(
+    (p) =>
+      p.username.toLowerCase() === (meetingCallerName || '').toLowerCase() ||
+      (session?.username && session.username.toLowerCase() === (meetingCallerName || '').toLowerCase() && p.id === session.playerId)
+  );
+  const callerColor = meetingCallerColor || matchedPlayer?.color || session?.color || '#00F0FF';
+  const callerAvatarUrl = getPlayerAvatarUrl(callerColor);
 
   useEffect(() => {
     if (!meetingAlertActive) {
@@ -63,13 +75,33 @@ export default function EmergencyAlertOverlay() {
           EMERGENCY MEETING
         </h1>
 
-        <div className="inline-block bg-[#FF003C]/20 border-2 border-[#FF003C] px-6 py-2 my-2">
-          <p className="font-tech text-xl text-gray-200">
-            CALLED BY:{' '}
-            <span className="font-bold text-[#FFB800] text-2xl tracking-wide uppercase">
-              {meetingCallerName || 'CREWMATE'}
-            </span>
-          </p>
+        {/* Caller Avatar Card */}
+        <div className="my-4 flex flex-col items-center justify-center animate-in zoom-in-95 duration-300">
+          <div
+            className="w-28 h-32 sm:w-32 sm:h-36 border-4 bg-black/80 flex items-center justify-center overflow-hidden shadow-[0_0_35px_rgba(255,0,60,0.6)] relative rounded"
+            style={{ borderColor: callerColor }}
+          >
+            <img
+              src={callerAvatarUrl}
+              alt={meetingCallerName || 'Caller'}
+              className="w-full h-full object-cover object-center drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          </div>
+
+          <div className="mt-3 inline-block bg-[#FF003C]/20 border-2 border-[#FF003C] px-6 py-1.5 rounded">
+            <p className="font-tech text-xl text-gray-200">
+              CALLED BY:{' '}
+              <span
+                className="font-bold text-2xl tracking-wide uppercase drop-shadow"
+                style={{ color: callerColor }}
+              >
+                {meetingCallerName || 'CREWMATE'}
+              </span>
+            </p>
+          </div>
         </div>
 
         <p className="font-mono text-sm text-gray-400 mt-4 tracking-widest uppercase">

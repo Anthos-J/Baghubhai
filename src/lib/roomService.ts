@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
-import { LocalSession, PLAYER_COLORS, GameSettings } from '../types/game';
+import { LocalSession, PLAYER_COLORS, AVATAR_COLORS, GameSettings } from '../types/game';
 import { DEFAULT_SETTINGS } from '../game/gameState';
+import { resolvePlayerColor } from '../map/SpriteManager';
 
 const SESSION_KEY = 'among_devs_session';
 const USERNAME_KEY = 'among_devs_username';
@@ -21,11 +22,15 @@ export function generateRoomCode(): string {
 }
 
 /**
- * Pick a random neon color from the preset list.
- * In the future we can exclude colors already taken in the room.
+ * Pick a random avatar color from available ones (or all if none excluded).
  */
-export function getRandomPlayerColor(): string {
-  return PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
+export function getRandomPlayerColor(excludeColors: string[] = []): string {
+  const normalizedExclude = new Set(excludeColors.map((c) => resolvePlayerColor(c)));
+  const available = AVATAR_COLORS.filter((c) => !normalizedExclude.has(c.name));
+  if (available.length > 0) {
+    return available[Math.floor(Math.random() * available.length)].hex;
+  }
+  return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)].hex;
 }
 
 // ──────────────────────────────────────────────
@@ -108,13 +113,17 @@ export async function createRoom(
 
   const roomId = roomData.id;
 
+  const resolvedColorName = resolvePlayerColor(color);
+  const matchedOpt = AVATAR_COLORS.find((c) => c.name === resolvedColorName);
+  const finalColor = matchedOpt ? matchedOpt.hex : color;
+
   // 3. Insert the player as host
   const { data: playerData, error: playerError } = await supabase
     .from('players')
     .insert({
       room_id: roomId,
       username,
-      color,
+      color: finalColor,
       alive: true,
       is_host: true,
     })
@@ -132,13 +141,13 @@ export async function createRoom(
     roomId,
     roomCode,
     username,
-    color,
+    color: finalColor,
     isHost: true,
   };
 
   saveSession(session);
   saveUsername(username);
-  saveColor(color);
+  saveColor(finalColor);
 
   return session;
 }
@@ -169,22 +178,46 @@ export async function joinRoom(
   // 2. Check if room is full (configured maxPlayers, defaults to 5)
   const maxAllowed = (roomData as any).settings?.maxPlayers ?? 5;
 
-  const { count } = await supabase
+  const { data: existingPlayers, count } = await supabase
     .from('players')
-    .select('*', { count: 'exact', head: true })
-    .eq('room_id', roomId);
+    .select('id, color, created_at', { count: 'exact' })
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
 
   if (count !== null && count >= maxAllowed) {
     throw new Error(`Room is full (max ${maxAllowed} players).`);
   }
 
-  // 3. Insert the player as non-host
+  // 3. Guarantee no two players have the same color.
+  // If someone having the same color joins the lobby, the person who came afterwards
+  // will be assigned a random color of avatar from the available colors.
+  const takenColorNames = new Set(
+    (existingPlayers || []).map((p: any) => resolvePlayerColor(p.color))
+  );
+
+  let finalColor = color;
+  const requestedColorName = resolvePlayerColor(color);
+
+  if (takenColorNames.has(requestedColorName)) {
+    const availableOptions = AVATAR_COLORS.filter(
+      (opt) => !takenColorNames.has(opt.name)
+    );
+    if (availableOptions.length > 0) {
+      const randomOpt = availableOptions[Math.floor(Math.random() * availableOptions.length)];
+      finalColor = randomOpt.hex;
+    }
+  } else {
+    const matched = AVATAR_COLORS.find((c) => c.name === requestedColorName);
+    if (matched) finalColor = matched.hex;
+  }
+
+  // 4. Insert the player as non-host
   const { data: playerData, error: playerError } = await supabase
     .from('players')
     .insert({
       room_id: roomId,
       username,
-      color,
+      color: finalColor,
       alive: true,
       is_host: false,
     })
@@ -196,21 +229,36 @@ export async function joinRoom(
     throw new Error(playerError?.message || 'Failed to join room.');
   }
 
-  // 4. Build & persist session
+  // 5. Build & persist session
   const session: LocalSession = {
     playerId: playerData.id,
     roomId,
     roomCode: roomCode.toUpperCase(),
     username,
-    color,
+    color: finalColor,
     isHost: false,
   };
 
   saveSession(session);
   saveUsername(username);
-  saveColor(color);
+  saveColor(finalColor);
 
   return session;
+}
+
+/**
+ * Update player avatar color in Supabase and session.
+ */
+export async function updatePlayerColor(playerId: string, newColor: string): Promise<string> {
+  const resolved = resolvePlayerColor(newColor);
+  const matched = AVATAR_COLORS.find((c) => c.name === resolved);
+  const finalHex = matched ? matched.hex : newColor;
+  await supabase
+    .from('players')
+    .update({ color: finalHex })
+    .eq('id', playerId);
+  saveColor(finalHex);
+  return finalHex;
 }
 
 /**

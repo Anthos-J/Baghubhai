@@ -13,76 +13,47 @@ import { usePlayers } from '../../hooks/usePlayers';
 import { useMockStore, ChatMessage } from '../../store/mockStore';
 import { supabase } from '../../lib/supabase';
 import { EvidenceDiffModal } from '../../editor';
+import { getPlayerAvatarUrl, resolvePlayerColor } from '../../map/SpriteManager';
 
-// ── Stylized Crewmate SVG Icon ──
-function CrewmateAvatar({ color, dead }: { color: string; dead?: boolean }) {
+// ── Authentic Player Character Avatar Graphic ──
+function CrewmateAvatar({
+  color,
+  dead,
+  size = 'md',
+}: {
+  color: string;
+  dead?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+}) {
+  const sizeClasses = {
+    sm: 'w-7 h-8',
+    md: 'w-11 h-12',
+    lg: 'w-24 h-28',
+  }[size];
+
+  const colorName = resolvePlayerColor(color);
+
   return (
-    <div className="relative w-8 h-9 flex-shrink-0">
-      <svg viewBox="0 0 40 45" className="w-full h-full drop-shadow-sm">
-        {/* Backpack */}
-        <rect
-          x="3"
-          y="14"
-          width="7"
-          height="18"
-          rx="3.5"
-          fill={dead ? '#4a5568' : color}
-          stroke="#1a202c"
-          strokeWidth="2.5"
-        />
-        {/* Main Body */}
-        <rect
-          x="8"
-          y="6"
-          width="24"
-          height="30"
-          rx="12"
-          fill={dead ? '#4a5568' : color}
-          stroke="#1a202c"
-          strokeWidth="2.5"
-        />
-        {/* Left Leg */}
-        <rect
-          x="9"
-          y="30"
-          width="8"
-          height="12"
-          rx="4"
-          fill={dead ? '#4a5568' : color}
-          stroke="#1a202c"
-          strokeWidth="2.5"
-        />
-        {/* Right Leg */}
-        <rect
-          x="23"
-          y="30"
-          width="8"
-          height="12"
-          rx="4"
-          fill={dead ? '#4a5568' : color}
-          stroke="#1a202c"
-          strokeWidth="2.5"
-        />
-        {/* Visor */}
-        <rect
-          x="18"
-          y="11"
-          width="16"
-          height="10"
-          rx="5"
-          fill={dead ? '#718096' : '#75d2eb'}
-          stroke="#1a202c"
-          strokeWidth="2"
-        />
-        {/* Visor Glass Highlight */}
-        {!dead && <ellipse cx="27" cy="14" rx="4" ry="2" fill="#e0f7fa" />}
-      </svg>
-      {/* Dead Player Red X Across Body */}
+    <div
+      className={`relative ${sizeClasses} flex-shrink-0 border-2 rounded overflow-hidden flex items-center justify-center bg-black/80 shadow-[0_2px_8px_rgba(0,0,0,0.6)]`}
+      style={{ borderColor: dead ? '#4b5563' : color }}
+    >
+      <img
+        src={getPlayerAvatarUrl(color)}
+        alt={`${colorName} Avatar`}
+        className={`w-full h-full object-cover object-center transition-all ${
+          dead ? 'grayscale brightness-40 contrast-125' : 'drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'
+        }`}
+        onError={(e) => {
+          (e.target as HTMLElement).style.display = 'none';
+        }}
+      />
+      {/* Eliminated / Dead Player Indicator */}
       {dead && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <svg viewBox="0 0 40 45" className="w-full h-full">
-            <line x1="5" y1="8" x2="35" y2="38" stroke="#e53e3e" strokeWidth="4.5" strokeLinecap="round" />
-            <line x1="35" y1="8" x2="5" y2="38" stroke="#e53e3e" strokeWidth="4.5" strokeLinecap="round" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-red-950/50">
+          <svg viewBox="0 0 40 40" className="w-full h-full drop-shadow-[0_0_6px_rgba(255,0,0,0.9)]">
+            <line x1="6" y1="6" x2="34" y2="34" stroke="#ef4444" strokeWidth="4.5" strokeLinecap="round" />
+            <line x1="34" y1="6" x2="6" y2="34" stroke="#ef4444" strokeWidth="4.5" strokeLinecap="round" />
           </svg>
         </div>
       )}
@@ -438,7 +409,8 @@ export default function MeetingModal() {
                         key={msg.id}
                         className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                       >
-                        <div className="flex items-center gap-1 text-[10px] font-mono text-gray-400">
+                        <div className="flex items-center gap-1.5 text-[10px] font-mono text-gray-400">
+                          <CrewmateAvatar color={msg.color} dead={false} size="sm" />
                           <span style={{ color: msg.color }} className="font-bold">
                             {msg.username}
                           </span>
@@ -470,9 +442,10 @@ export default function MeetingModal() {
                 />
                 <button
                   type="submit"
-                  className="px-3 py-1.5 bg-[#00F0FF] hover:bg-[#00F0FF]/80 text-black font-bold rounded-lg cursor-pointer flex items-center justify-center transition-all"
+                  disabled={!messageInput.trim()}
+                  className="bg-[#00F0FF] hover:bg-[#00F0FF]/80 disabled:opacity-40 text-black px-3 py-1.5 rounded-lg text-xs font-pixel flex items-center justify-center cursor-pointer transition-colors"
                 >
-                  <Send size={13} />
+                  <Send size={12} />
                 </button>
               </form>
             </div>
@@ -493,6 +466,7 @@ export default function MeetingModal() {
                 <CrewmateAvatar
                   color={votingResult.eliminatedPlayerColor || '#00F0FF'}
                   dead={false}
+                  size="lg"
                 />
               </div>
             </div>
@@ -506,20 +480,19 @@ export default function MeetingModal() {
                   {votingResult.eliminatedPlayerName}{' '}
                   {votingResult.wasImpostor ? (
                     <span className="text-red-500 drop-shadow-[0_0_15px_#FF003C]">
-                      was An Impostor.
+                      was Mafia.
                     </span>
                   ) : (
                     <span className="text-[#00F0FF] drop-shadow-[0_0_15px_#00F0FF]">
-                      was not An Impostor.
+                      was not Mafia.
                     </span>
                   )}
                 </h2>
 
                 <p className="font-tech text-lg sm:text-xl text-gray-300 tracking-widest mt-4">
                   {votingResult.remainingImpostors === 0
-                    ? 'No Impostors remain.'
-                    : `${votingResult.remainingImpostors} Impostor${votingResult.remainingImpostors === 1 ? '' : 's'
-                    } remain${votingResult.remainingImpostors === 1 ? 's' : ''}.`}
+                    ? 'No Mafia remain.'
+                    : `${votingResult.remainingImpostors} Mafia remain${votingResult.remainingImpostors === 1 ? 's' : ''}.`}
                 </p>
               </>
             ) : votingResult.isTie ? (
@@ -531,9 +504,9 @@ export default function MeetingModal() {
                   Tie detected. No one was ejected.
                 </h2>
                 <p className="font-tech text-base sm:text-lg text-gray-300 tracking-widest mt-2">
-                  {votingResult.remainingImpostors} Impostor
-                  {votingResult.remainingImpostors === 1 ? '' : 's'} remain
-                  {votingResult.remainingImpostors === 1 ? 's' : ''}.
+                  {votingResult.remainingImpostors === 0
+                    ? 'No Mafia remain.'
+                    : `${votingResult.remainingImpostors} Mafia remain${votingResult.remainingImpostors === 1 ? 's' : ''}.`}
                 </p>
               </>
             ) : (
@@ -545,9 +518,9 @@ export default function MeetingModal() {
                   No one was ejected. (Skipped)
                 </h2>
                 <p className="font-tech text-base sm:text-lg text-gray-300 tracking-widest mt-2">
-                  {votingResult.remainingImpostors} Impostor
-                  {votingResult.remainingImpostors === 1 ? '' : 's'} remain
-                  {votingResult.remainingImpostors === 1 ? 's' : ''}.
+                  {votingResult.remainingImpostors === 0
+                    ? 'No Mafia remain.'
+                    : `${votingResult.remainingImpostors} Mafia remain${votingResult.remainingImpostors === 1 ? 's' : ''}.`}
                 </p>
               </>
             )}

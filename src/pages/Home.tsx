@@ -12,7 +12,8 @@ import {
   getSavedColor,
   getRandomPlayerColor,
 } from '../lib/roomService';
-import { PLAYER_COLORS } from '../types/game';
+import { PLAYER_COLORS, AVATAR_COLORS } from '../types/game';
+import { resolvePlayerColor, getPlayerAvatarUrl } from '../map/SpriteManager';
 import {
   Settings,
   HelpCircle,
@@ -160,22 +161,43 @@ export default function Home() {
               onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
             />
 
-            {/* Color picker */}
+            {/* Avatar picker */}
             <div className="mb-4">
-              <div className="font-tech text-xs text-gray-400 mb-2">CHOOSE YOUR COLOR:</div>
-              <div className="flex flex-wrap gap-2">
-                {PLAYER_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setSelectedColor(color)}
-                    className={`w-8 h-8 border-2 transition-all ${
-                      selectedColor === color
-                        ? 'border-white scale-125 shadow-[0_0_10px_rgba(255,255,255,0.4)]'
-                        : 'border-[#2a2a2a] hover:border-gray-500'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+              <div className="font-tech text-xs text-gray-400 mb-2">CHOOSE YOUR AVATAR:</div>
+              <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
+                {AVATAR_COLORS.map((item) => {
+                  const isSelected = resolvePlayerColor(selectedColor) === item.name;
+                  return (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => setSelectedColor(item.hex)}
+                      className={`flex flex-col items-center p-1.5 border-2 transition-all rounded bg-black/70 cursor-pointer ${
+                        isSelected
+                          ? 'border-white scale-105 shadow-[0_0_12px_rgba(255,255,255,0.6)] bg-white/10'
+                          : 'border-[#2a2a2a] hover:border-gray-500 opacity-75 hover:opacity-100'
+                      }`}
+                      title={item.label}
+                    >
+                      <div
+                        className="w-11 h-11 border-2 flex items-center justify-center bg-black/80 overflow-hidden mb-1 shadow-inner"
+                        style={{ borderColor: item.hex }}
+                      >
+                        <img
+                          src={`/assets/${item.name}.png`}
+                          alt={item.label}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                      <span className="font-pixel text-[8px] text-gray-200 uppercase tracking-tight">
+                        {item.name}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -228,13 +250,22 @@ export default function Home() {
             <Settings size={20} />
           </button>
         </div>
-        {/* Show current username */}
+        {/* Show current username and avatar */}
         <div className="flex items-center gap-3 z-10">
           <div
-            className="w-4 h-4 border border-white/30"
-            style={{ backgroundColor: selectedColor }}
-          />
-          <span className="font-tech text-sm text-gray-300">{username}</span>
+            className="w-8 h-8 border-2 border-white/40 overflow-hidden flex items-center justify-center bg-black/80 shadow"
+            style={{ borderColor: selectedColor }}
+          >
+            <img
+              src={getPlayerAvatarUrl(selectedColor)}
+              alt="avatar"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          </div>
+          <span className="font-tech text-sm text-gray-300 font-bold">{username}</span>
         </div>
         <div className="flex gap-2">
           <button
