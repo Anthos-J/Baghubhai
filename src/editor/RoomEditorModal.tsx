@@ -1,5 +1,5 @@
 /**
- * RoomEditorModal.tsx — Strict Room Task Segregation Editor
+ * RoomEditorModal.tsx — Strict Room Task Segregation Editor with Imposter Sabotage Integration
  *
  * Self-contained modal overlay opened when a player presses [E] inside a coding room.
  *
@@ -9,6 +9,11 @@
  *  - Multi-file browsing across rooms is strictly eliminated (no FileTree leakage).
  *  - Deterministic lexical validation (zero eval / zero arbitrary execution).
  *  - Read-only enforcement for eliminated ghosts.
+ *
+ * Imposter Sabotage Integration:
+ *  - Imposter sees the COMPLETED code solved by crewmates.
+ *  - Imposter has a prominent "BUG THIS CODE [B]" action.
+ *  - Sabotaging starts a 3-second escape window before the hazard alarm triggers globally.
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -27,6 +32,7 @@ import {
   Code2,
   ShieldCheck,
   FileCode,
+  Bug,
 } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
 import { INITIAL_PROJECT_FILES } from './predefinedProject';
@@ -70,6 +76,14 @@ export interface RoomEditorModalProps {
    * Optional: Anonymous count of other players currently at this terminal/file.
    */
   anonymousPresenceCount?: number;
+  /**
+   * Imposter integration props
+   */
+  isMafia?: boolean;
+  completedCode?: string;
+  roomTaskStatus?: 'PENDING' | 'COMPLETED' | 'BUGGED';
+  canBug?: boolean;
+  onBugTask?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -84,6 +98,11 @@ export function RoomEditorModal({
   publicProject = PUBLIC_PROJECT_CONTEXT,
   privateTask = null,
   anonymousPresenceCount = 0,
+  isMafia = false,
+  completedCode,
+  roomTaskStatus,
+  canBug = false,
+  onBugTask,
 }: RoomEditorModalProps) {
   // ── Resolve mapping & fallback room definitions ────────────────────────────
   const mapping = getRoomMapping(roomId);
@@ -107,47 +126,69 @@ export function RoomEditorModal({
     'Debug and repair the code module defect in this room terminal.';
   const taskHint = privateTask?.hint ?? fallbackTask?.hint ?? '';
 
-  // ── Single Scoped Code State (Only this room's code is ever loaded) ─────────
-  const [code, setCode] = useState<string>(() => {
+  const isCompletedByCrew = roomTaskStatus === 'COMPLETED';
+
+  // ── Code State: When crew has completed it or when Imposter inspects, show the completed code! ──
+  const getInitialCode = useCallback(() => {
+    if (completedCode && (isMafia || isCompletedByCrew || privateTask?.status === 'COMPLETED')) {
+      return completedCode;
+    }
     return (
       privateTask?.sectionCode ??
       fallbackFile?.content ??
       fallbackTask?.initialCode ??
       ''
     );
-  });
+  }, [completedCode, isMafia, isCompletedByCrew, privateTask, fallbackFile, fallbackTask]);
+
+  const [code, setCode] = useState<string>(getInitialCode);
 
   // ── Test result state ────────────────────────────────────────────────────
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [hasRun, setHasRun] = useState(false);
 
-  // Synchronize strictly to this room's code when privateTask or roomId changes
+  // Synchronize strictly to this room's code when privateTask, roomId, or completedCode changes
   useEffect(() => {
-    const nextMapping = getRoomMapping(roomId);
-    const nextFallbackTask = DEFAULT_TASKS.find((t) => t.id === nextMapping?.taskId);
-    const nextFallbackFile = INITIAL_PROJECT_FILES.find(
-      (f) => f.id === nextMapping?.fileId
-    );
-
-    setCode(
-      privateTask?.sectionCode ??
-        nextFallbackFile?.content ??
-        nextFallbackTask?.initialCode ??
-        ''
-    );
+    setCode(getInitialCode());
     setTestResults([]);
     setHasRun(false);
-  }, [roomId, privateTask]);
+  }, [roomId, privateTask, completedCode, roomTaskStatus, getInitialCode]);
+
+  // Keyboard shortcut: 'B' to bug code inside terminal if Imposter
+  useEffect(() => {
+    const handleModalKey = (e: KeyboardEvent) => {
+      // Ignore if typing inside editor
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key.toLowerCase() === 'b' && canBug && onBugTask) {
+        e.preventDefault();
+        onBugTask();
+      }
+    };
+    window.addEventListener('keydown', handleModalKey);
+    return () => window.removeEventListener('keydown', handleModalKey);
+  }, [canBug, onBugTask]);
 
   // ── Derived status values ────────────────────────────────────────────────
   const allPassed = hasRun && testResults.length > 0 && testResults.every((r) => r.passed);
   const taskStatus =
-    privateTask?.status ??
-    (fallbackTask?.status === 'BUGGED'
-      ? 'COMPROMISED'
-      : fallbackTask?.status === 'COMPLETED' || allPassed
+    isCompletedByCrew
       ? 'COMPLETED'
-      : 'IN_PROGRESS');
+      : roomTaskStatus === 'BUGGED'
+      ? 'COMPROMISED'
+      : privateTask?.status ??
+        (fallbackTask?.status === 'BUGGED'
+          ? 'COMPROMISED'
+          : fallbackTask?.status === 'COMPLETED' || allPassed
+          ? 'COMPLETED'
+          : 'IN_PROGRESS');
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleCodeChange = useCallback((newValue: string) => {
@@ -231,6 +272,11 @@ export function RoomEditorModal({
               {readOnly && (
                 <span className="ml-2 text-mafia font-bold">[READ ONLY]</span>
               )}
+              {isMafia && isCompletedByCrew && (
+                <span className="ml-2 text-yellow-400 font-bold font-mono text-[10px] animate-pulse">
+                  [CREWMATE SOLVED CODE]
+                </span>
+              )}
             </div>
           </div>
 
@@ -246,33 +292,50 @@ export function RoomEditorModal({
           )}
         </div>
 
-        {/* Right: Task status badge + Run Tests + Exit */}
+        {/* Right: Task status badge + Imposter Bug Button / Run Tests + Exit */}
         <div className="flex items-center gap-3 flex-shrink-0">
           {/* Status Badge */}
           <div className="font-mono text-xs px-2.5 py-1 border rounded border-[#1A233A]">
-            {taskStatus === 'COMPLETED' && (
+            {canBug ? (
+              <span className="text-yellow-400 border border-yellow-500 bg-yellow-950/80 px-2 py-0.5 font-bold animate-pulse flex items-center gap-1">
+                <Bug size={11} /> READY TO BUG
+              </span>
+            ) : taskStatus === 'COMPLETED' ? (
               <span className="text-success border-success bg-success/10 px-2 py-0.5 font-bold">
                 ✓ COMPLETED
               </span>
-            )}
-            {taskStatus === 'COMPROMISED' && (
+            ) : taskStatus === 'COMPROMISED' ? (
               <span className="text-mafia border-mafia bg-mafia/10 px-2 py-0.5 font-bold animate-pulse">
                 ⚠ COMPROMISED
               </span>
-            )}
-            {taskStatus === 'IN_PROGRESS' && (
+            ) : taskStatus === 'IN_PROGRESS' ? (
               <span className="text-warning border-warning bg-warning/10 px-2 py-0.5">
                 IN PROGRESS
               </span>
-            )}
-            {taskStatus === 'ASSIGNED' && (
+            ) : (
               <span className="text-primary border-primary bg-primary/10 px-2 py-0.5">
                 ASSIGNED
               </span>
             )}
           </div>
 
-          {taskId && !readOnly && (
+          {/* Imposter Bug Action Button */}
+          {canBug && onBugTask && (
+            <button
+              id="bug-task-modal-btn"
+              onClick={onBugTask}
+              className="flex items-center gap-2 border-2 border-mafia bg-mafia text-white font-pixel
+                         text-[10px] px-4 py-2 hover:bg-mafia/80 shadow-[0_0_20px_#FF003C]
+                         transition-all hover:scale-105 duration-150 tracking-widest cursor-pointer animate-pulse"
+              title="Bug this code and trigger 3-second escape window [B]"
+            >
+              <Bug size={13} />
+              BUG THIS CODE [B]
+            </button>
+          )}
+
+          {/* Developer Run Tests Button */}
+          {taskId && !readOnly && !isMafia && (
             <button
               id="run-tests-btn"
               onClick={handleRunTests}
@@ -324,39 +387,69 @@ export function RoomEditorModal({
               </p>
             </div>
 
-            {/* ── 2. 🔒 SCOPED ROOM TASK (Strictly 1 Task For This Room) ── */}
-            <div className="bg-[#070B16] border-2 border-[#1A233A] p-3 rounded space-y-2.5">
-              <div className="flex items-center justify-between border-b border-[#1A233A] pb-1.5">
-                <div className="flex items-center gap-1.5 font-pixel text-[10px] text-primary tracking-widest">
-                  <Lock size={12} className="text-primary" />
-                  <span>ROOM TASK</span>
-                </div>
-                <div className="flex items-center gap-1 font-mono text-[10px] text-success bg-success/10 px-1.5 py-0.5 border border-success/30 rounded">
-                  <FileCode size={11} />
-                  <span>{fileName}</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="font-tech text-white font-bold text-sm leading-snug">
-                  {taskTitle}
-                </div>
-                <p className="font-mono text-[11px] text-gray-300 leading-relaxed mt-1">
-                  {taskDescription}
-                </p>
-              </div>
-
-              {taskHint && (
-                <div className="p-2.5 bg-[#0D1426] border border-warning/40 rounded">
-                  <div className="font-pixel text-[9px] text-warning mb-0.5">
-                    EXPECTED BEHAVIOR / HINT
+            {/* ── 2. 🔒 SCOPED ROOM TASK OR MAFIA SABOTAGE SPECIFICATION ── */}
+            {isMafia && isCompletedByCrew ? (
+              <div className="bg-[#18080C] border-2 border-mafia p-3 rounded space-y-2.5 shadow-[0_0_25px_rgba(255,0,60,0.25)]">
+                <div className="flex items-center justify-between border-b border-mafia/40 pb-1.5">
+                  <div className="flex items-center gap-1.5 font-pixel text-[10px] text-mafia tracking-widest animate-pulse">
+                    <Bug size={13} className="text-mafia" />
+                    <span>SABOTAGE TARGET</span>
                   </div>
-                  <div className="font-mono text-[10px] text-gray-300 leading-relaxed">
-                    {taskHint}
+                  <span className="font-pixel text-[9px] text-yellow-400 bg-yellow-950/80 px-1.5 py-0.5 border border-yellow-500">
+                    CREWMATE CODE
+                  </span>
+                </div>
+
+                <div>
+                  <div className="font-tech text-white font-bold text-sm leading-snug">
+                    {taskTitle}
+                  </div>
+                  <p className="font-mono text-[11px] text-gray-300 leading-relaxed mt-1">
+                    Crewmates have completed and deployed this module! The working completed code is displayed in the editor.
+                  </p>
+                </div>
+
+                <div className="p-2.5 bg-black/80 border border-mafia/40 rounded text-[10px] font-mono text-yellow-300 space-y-1">
+                  <div className="font-pixel text-[9px] text-mafia uppercase">ESCAPE WINDOW NOTICE</div>
+                  <div>
+                    Click <strong className="text-white font-bold">BUG THIS CODE [B]</strong> to sabotage the logic. You will have a <span className="underline font-bold text-white">3-second window</span> to evacuate before the hazard alarm sounds!
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="bg-[#070B16] border-2 border-[#1A233A] p-3 rounded space-y-2.5">
+                <div className="flex items-center justify-between border-b border-[#1A233A] pb-1.5">
+                  <div className="flex items-center gap-1.5 font-pixel text-[10px] text-primary tracking-widest">
+                    <Lock size={12} className="text-primary" />
+                    <span>ROOM TASK</span>
+                  </div>
+                  <div className="flex items-center gap-1 font-mono text-[10px] text-success bg-success/10 px-1.5 py-0.5 border border-success/30 rounded">
+                    <FileCode size={11} />
+                    <span>{fileName}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-tech text-white font-bold text-sm leading-snug">
+                    {taskTitle}
+                  </div>
+                  <p className="font-mono text-[11px] text-gray-300 leading-relaxed mt-1">
+                    {taskDescription}
+                  </p>
+                </div>
+
+                {taskHint && (
+                  <div className="p-2.5 bg-[#0D1426] border border-warning/40 rounded">
+                    <div className="font-pixel text-[9px] text-warning mb-0.5">
+                      EXPECTED BEHAVIOR / HINT
+                    </div>
+                    <div className="font-mono text-[10px] text-gray-300 leading-relaxed">
+                      {taskHint}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Bottom Isolation Guarantee */}
@@ -383,12 +476,14 @@ export function RoomEditorModal({
               </span>
             </div>
             <span className="text-gray-500 text-[9px]">
-              SOLVE THIS ROOM'S TASK TO RESTORE INTEGRITY
+              {isMafia && isCompletedByCrew
+                ? 'COMPLETED CREWMATE LOGIC LOADED — READY FOR SABOTAGE'
+                : "SOLVE THIS ROOM'S TASK TO RESTORE INTEGRITY"}
             </span>
           </div>
 
           <CodeEditor
-            key={`${roomId}-${taskId}`}
+            key={`${roomId}-${taskId}-${isCompletedByCrew ? 'completed' : 'active'}`}
             value={code}
             language={
               fileName.endsWith('.java')
@@ -399,7 +494,7 @@ export function RoomEditorModal({
                 ? 'cpp'
                 : 'javascript'
             }
-            readOnly={readOnly}
+            readOnly={readOnly || (isMafia && isCompletedByCrew)}
             onChange={handleCodeChange}
             height="100%"
           />
@@ -414,7 +509,14 @@ export function RoomEditorModal({
         {!hasRun && (
           <div className="font-mono text-xs text-gray-500 h-full flex items-center gap-2">
             <Terminal size={14} className="text-gray-600" />
-            {taskStatus === 'COMPROMISED' ? (
+            {isMafia && isCompletedByCrew ? (
+              <span className="text-yellow-400 font-mono text-xs flex items-center gap-2 animate-pulse">
+                <Bug size={14} className="text-yellow-400 flex-shrink-0" />
+                <span>
+                  Crewmate solved code detected in <strong className="text-white">{fileName}</strong>. Click <strong className="text-white underline">BUG THIS CODE [B]</strong> to sabotage the module (3s escape window before hazard alarm triggers)!
+                </span>
+              </span>
+            ) : taskStatus === 'COMPROMISED' ? (
               <span className="text-mafia font-bold animate-pulse flex items-center gap-1.5">
                 <AlertTriangle size={14} />
                 ⚠ CODE COMPROMISED — The logic in this room was sabotaged. Review and repair.

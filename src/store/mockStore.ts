@@ -884,7 +884,7 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
               ? 'task-payment'
               : 'task-app';
 
-    const { tasks: nextTasks } = solveTask(state.tasks, legacyTaskId);
+    const { tasks: nextTasks } = solveTask(state.tasks, legacyTaskId, updatedCode);
     const legacyTaskWasBugged = state.tasks.find((t) => t.id === legacyTaskId)?.status === 'BUGGED';
 
     // ── Cumulative Multi-Player Task Tracking ──
@@ -1009,6 +1009,11 @@ export const useMockStore = create<GameStateStore>((set, get) => ({
         completedTasksByPlayer: updatedCompletedTasksByPlayer,
         myPrivateTasks: updatedMyTasks,
       });
+
+      const completedTaskItem = nextTasks.find((t) => t.id === legacyTaskId);
+      if (completedTaskItem) {
+        get().notifyMafiaTaskCompleted(legacyTaskId, completedTaskItem.fileName, completedTaskItem.title);
+      }
     }
 
     // Clear alarm if active

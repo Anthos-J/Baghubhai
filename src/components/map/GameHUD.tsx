@@ -610,9 +610,9 @@ export default function GameHUD() {
                 </button>
                 <button
                   onClick={() => setEditorOpen(true)}
-                  className="px-3 py-1.5 bg-panel hover:bg-panel/80 border border-gray-400 text-gray-200 font-tech text-xs cursor-pointer rounded-xs"
+                  className="px-3 py-1.5 bg-yellow-950/80 hover:bg-yellow-900 border border-yellow-500 text-yellow-300 font-pixel text-xs cursor-pointer rounded-xs flex items-center gap-1.5 hover:scale-[1.02] transition-transform"
                 >
-                  Editor [E]
+                  <Terminal size={12} /> VIEW CODE [E]
                 </button>
               </div>
             ) : (
@@ -669,7 +669,7 @@ export default function GameHUD() {
         )}
       </div>
 
-      {/* ΓöÇΓöÇ 8. Room Editor Modal Overlay ΓöÇΓöÇ */}
+      {/* ── 8. Room Editor Modal Overlay ── */}
       {editorOpen && interactableRoom && isCodingRoom(interactableRoom) && (
         <div className="pointer-events-auto">
           <RoomEditorModal
@@ -678,6 +678,16 @@ export default function GameHUD() {
             privateTask={currentPrivateTask}
             anonymousPresenceCount={otherPlayersCount}
             readOnly={isGhost}
+            isMafia={isMafia}
+            completedCode={roomTask?.currentCode || roomTask?.solutionCode}
+            roomTaskStatus={roomTask?.status}
+            canBug={Boolean(canBugThisRoom)}
+            onBugTask={() => {
+              if (roomTask && interactableRoom) {
+                triggerBugTaskAction(roomTask.id, interactableRoom);
+                setEditorOpen(false);
+              }
+            }}
             onClose={() => setEditorOpen(false)}
             onTaskPassed={(taskId, updatedCode) => {
               handleTaskPassed(taskId, updatedCode);
